@@ -4,67 +4,74 @@
 {% block title %}Журнал приемки{% endblock %}
 
 {% block content %}
-    <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал</h4>
-    <div class="card-datatable table-responsive">
-        <table class="dt-fixedheader table table-bordered">
-            <thead>
+   <!-- Форма поиска -->
+<form method="GET" action="">
+    <div class="input-group mb-3">
+        <input type="text" name="q" class="form-control" placeholder="Поиск по трек-номеру или инвентарному номеру" value="{{ query|default_if_none:'' }}">
+        <button class="btn btn-primary" type="submit">Поиск</button>
+    </div>
+</form>
+
+<div class="card-datatable table-responsive">
+    <table class="dt-fixedheader table table-bordered">
+        <thead>
+            <tr>
+                <th>Порядковый номер</th>
+                <th>Трек-номер</th>
+                <th>Тег клиента</th>
+                <th>Дата прибытия</th>
+                <th>Инвентарный номер</th>
+                <th>Кол-во мест</th>
+                <th>Вес</th>
+                <th>Статус</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for incoming in page_obj %}
                 <tr>
-                    <th>Порядковый номер</th>
-                    <th>Трек-номер</th>
-                    <th>Тег клиента</th>
-                    <th>Дата прибытия</th>
-                    <th>Инвентарный номер</th>
-                    <th>Кол-во мест</th>
-                    <th>Вес</th>
-                    <th>Статус</th>
-                    <th>Действие</th>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ incoming.track_number }}</td>
+                    <td>{{ incoming.tag.name }}</td>
+                    <td>{{ incoming.arrival_date }}</td>
+                    <td>{{ incoming.inventory_number }}</td>
+                    <td>{{ incoming.places_count }}</td>
+                    <td>{{ incoming.weight }}</td>
+                    <td>{{ incoming.status }}</td>
+                    <td>
+                        <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
+                        <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
+                        <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                {% for incoming in page_obj %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ incoming.track_number }}</td>
-                        <td>{{ incoming.tag.name }}</td>
-                        <td>{{ incoming.arrival_date }}</td>
-                        <td>{{ incoming.inventory_number }}</td>
-                        <td>{{ incoming.places_count }}</td>
-                        <td>{{ incoming.weight }}</td>
-                        <td>{{ incoming.status }}</td>
-                        <td>
-                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="9">Нет данных для отображения.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Пагинация -->
-    <div class="pagination-container">
-        <span class="step-links">
-            {% if page_obj.has_previous %}
-                <a href="?page=1">&laquo; Первая</a>
-                <a href="?page={{ page_obj.previous_page_number }}">Назад</a>
-            {% endif %}
-
-            <span class="current">
-                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
-            </span>
-
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}">Вперёд</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
-            {% endif %}
-        </span>
-    </div>
+            {% empty %}
+                <tr>
+                    <td colspan="9">Нет данных для отображения.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<!-- Пагинация -->
+<div class="pagination-container">
+    <span class="step-links">
+        {% if page_obj.has_previous %}
+            <a href="?q={{ query }}&page=1">&laquo; Первая</a>
+            <a href="?q={{ query }}&page={{ page_obj.previous_page_number }}">Назад</a>
+        {% endif %}
+
+        <span class="current">
+            Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?q={{ query }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+            <a href="?q={{ query }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+        {% endif %}
+    </span>
+</div>
+
+
 
 {% endblock %}

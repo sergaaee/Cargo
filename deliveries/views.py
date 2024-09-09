@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.core.paginator import Paginator
+from django.db.models import Q
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import IncomingForm, PhotoFormSet
@@ -42,13 +43,24 @@ def incoming_new(request):
 
 @login_required
 def incoming_list(request):
-    incomings = Incoming.objects.all()  # Ваш запрос
-    paginator = Paginator(incomings, 10)  # Пагинация по 10 записей на страницу
+    query = request.GET.get('q')  # Получаем строку поиска из параметров GET-запроса
 
+    # Основной запрос на получение всех инкамингов
+    incomings = Incoming.objects.all()
+
+    # Если есть строка поиска, фильтруем данные
+    if query:
+        incomings = incomings.filter(
+            Q(track_number__icontains=query) | Q(inventory_number__icontains=query)
+        )
+
+    # Применяем пагинацию к уже отфильтрованным данным
+    paginator = Paginator(incomings, 10)  # Пагинация по 10 записей на страницу
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'deliveries/incoming-list.html', {'page_obj': page_obj})
+    return render(request, 'deliveries/incoming-list.html', {'page_obj': page_obj, 'query': query})
+
 
 
 
