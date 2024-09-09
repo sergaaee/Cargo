@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Добавить поступление{% endblock %}
+
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span> Поступление</h4>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="accordion" id="collapsibleSection">
+                <!-- первая строка -->
+                <div class="card accordion-item active">
+                    <h2 class="accordion-header" id="headingBaseIncoming">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseBaseIncoming" aria-expanded="true"
+                                aria-controls="collapseBaseIncoming">
+                            1. Детали поступления
+                        </button>
+                    </h2>
+                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show"
+                         aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <!-- Поля формы Incoming -->
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.track_number.label_tag }} {{ form.track_number }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.inventory_number.label_tag }} {{ form.inventory_number }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.places_count.label_tag }} {{ form.places_count }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.arrival_date.label_tag }} {{ form.arrival_date }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.size.label_tag }} {{ form.size }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.weight.label_tag }} {{ form.weight }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.state.label_tag }} {{ form.state }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.package_type.label_tag }} {{ form.package_type }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.status.label_tag }}
+                                        {{ form.status }}
+                                    </div>
+                                </div>
+
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.tag.widget_attrs }}
+                                        {{ form.tag.label_tag }}
+                                        {{ form.tag }}
+                                        <datalist id="tag-list">
+                                            {% for tag in tags %}
+                                                <option value="{{ tag.name }}"></option>
+                                            {% endfor %}
+                                        </datalist>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- вторая строка: фотографии -->
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingPhotoIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePhotoIncoming" aria-expanded="false"
+                                aria-controls="collapsePhotoIncoming">
+                            2. Фотографии поступления
+                        </button>
+                    </h2>
+                    <div id="collapsePhotoIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingPhotoIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="card-body">
+                                        <div id="formset-container">
+                                            {{ formset.management_form }}
+                                            <label for="photo">Загрузить фото:</label>
+                                            <input type="file" name="photo" multiple>
+                                            <!-- Поле для множественной загрузки -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- третья строка: прочая информация -->
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingOthersIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseOthersIncoming" aria-expanded="true"
+                                aria-controls="collapseOthersIncoming">
+                            3. Прочая информация
+                        </button>
+                    </h2>
+                    <div id="collapseOthersIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingOthersIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <!-- Прочие поля формы -->
+                            <div class="row g-3">
+                                <!-- Добавьте дополнительные поля, если нужно -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">Добавить поступление</button>
+        </form>
+    </div>
+
+{% endblock %}

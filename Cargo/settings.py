@@ -72,10 +72,11 @@ INTERNAL_IPS = [
 ]
 
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 LOGIN_REDIRECT_URL = reverse_lazy("web:profile")
+LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
 MEDIA_URL = 'media/'

@@ -1,4 +1,5 @@
-from django.shortcuts import render
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
 
-def profile_view(request):
-    return render(request, 'web/profile.html')
+class ProfileView(LoginRequiredMixin, TemplateView):
+    template_name = 'web/profile.html'

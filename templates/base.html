@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact" dir="ltr"
+      data-theme="theme-default" data-assets-path="{% static '' %}" data-template="vertical-menu-template-starter">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+    <title>{% block title %}Dashboard{% endblock %}</title>
+    <meta name="description" content=""/>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon/favicon.ico' %}"/>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&ampdisplay=swap"
+          rel="stylesheet"/>
+
+    <!-- Core CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="{% static 'vendor/css/rtl/core.css' %}" class="template-customizer-core-css"/>
+    <link rel="stylesheet" href="{% static 'vendor/css/rtl/theme-default.css' %}"
+          class="template-customizer-theme-css"/>
+    <link rel="stylesheet" href="{% static 'css/demo.css' %}"/>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}"/>
+
+    <!-- Vendors CSS -->
+    <link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}"/>
+    <link rel="stylesheet" href="{% static 'vendor/libs/node-waves/node-waves.css' %}"/>
+
+    <!-- Helpers -->
+    <script src="{% static 'vendor/js/helpers.js' %}"></script>
+    <script src="{% static 'vendor/js/template-customizer.js' %}"></script>
+    <script src="{% static 'js/config.js' %}"></script>
+
+    {% block extra_css %}
+        <!-- Extra CSS -->
+        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% endblock %}
+</head>
+
+<body>
+<div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+        <!-- Sidebar / Menu -->
+        <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+            <div class="app-brand demo">
+                <a href="{% url 'index' %}" class="app-brand-link">
+              <span class="app-brand-logo demo">
+                <!-- SVG Logo -->
+              </span>
+                    <span class="app-brand-text demo menu-text fw-bold ms-2">Cargo</span>
+                </a>
+            </div>
+
+            <div class="menu-inner-shadow"></div>
+
+            <ul class="menu-inner py-1">
+                <!-- Dashboard Menu -->
+                <li class="menu-item">
+                    <a href="{% url 'index' %}" class="menu-link">
+                        <i class="menu-icon tf-icons mdi mdi-finance"></i>
+                        <div data-i18n="Main">Главная</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="{% url 'web:profile' %}" class="menu-link">
+                        <i class="menu-icon tf-icons mdi mdi-finance"></i>
+                        <div data-i18n="Profile">Профиль</div>
+                    </a>
+                </li>
+
+                <!-- Incoming Menu -->
+                <li class="menu-item">
+                    <a href="javascript:void(0);" class="menu-link menu-toggle">
+                        <i class="menu-icon tf-icons mdi mdi-package-variant-closed-plus"></i>
+                        <div data-i18n="Incoming">Приемка</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                <div data-i18n="Incoming new">Поступление</div>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                <div data-i18n="Incoming List">Журнал приемки</div>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                <div data-i18n="Unidentified">Неопознанные</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="layout-page">
+            {% block content %}
+                <!-- Page Content -->
+            {% endblock %}
+        </div>
+    </div>
+</div>
+
+<!-- Core JS -->
+<script src="{% static 'vendor/libs/jquery/jquery.js' %}"></script>
+<script src="{% static 'vendor/libs/popper/popper.js' %}"></script>
+<script src="{% static 'vendor/js/bootstrap.js' %}"></script>
+<script src="{% static 'vendor/libs/node-waves/node-waves.js' %}"></script>
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+
+<!-- Main JS -->
+<script src="{% static 'js/main.js' %}"></script>
+
+{% block extra_js %}
+    <script src="{% static 'js/fixed-menu.js' %}">
+</script>
+
+{% endblock %}
+</body>
+</html>
