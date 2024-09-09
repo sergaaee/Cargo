@@ -1,11 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
+from django.core.paginator import Paginator
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import IncomingForm, PhotoFormSet
 from .models import Tag, Photo, Incoming
+from django.contrib.auth.decorators import login_required
 
-
+@login_required
 def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
@@ -38,20 +40,27 @@ def incoming_new(request):
     tags = Tag.objects.all()
     return render(request, 'deliveries/incoming-new.html', {'form': form, 'formset': formset, 'tags': tags})
 
-
+@login_required
 def incoming_list(request):
-    incomings = Incoming.objects.all()  # Получаем все записи из модели Incoming
-    return render(request, 'deliveries/incoming-list.html', {'incomings': incomings})
+    incomings = Incoming.objects.all()  # Ваш запрос
+    paginator = Paginator(incomings, 10)  # Пагинация по 10 записей на страницу
+
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'deliveries/incoming-list.html', {'page_obj': page_obj})
 
 
 
 class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
     template_name = 'deliveries/incoming-unidentified.html'
 
+@login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
     return render(request, 'deliveries/incoming-detail.html', {'incoming': incoming})
 
+@login_required
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
     tag = get_object_or_404(Tag, pk=incoming.tag.id)
@@ -66,6 +75,7 @@ def incoming_edit(request, pk):
 
     return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming, 'tag': tag})
 
+@login_required
 def incoming_delete(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
