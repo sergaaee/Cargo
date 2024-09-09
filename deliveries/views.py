@@ -1,9 +1,9 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from .forms import IncomingForm, PhotoFormSet
-from .models import Tag, Photo
+from .models import Tag, Photo, Incoming
 
 
 def incoming_new(request):
@@ -39,10 +39,37 @@ def incoming_new(request):
     return render(request, 'deliveries/incoming-new.html', {'form': form, 'formset': formset, 'tags': tags})
 
 
-class ListIncomingView(LoginRequiredMixin, TemplateView):
-    template_name = 'deliveries/incoming-list.html'
+def incoming_list(request):
+    incomings = Incoming.objects.all()  # Получаем все записи из модели Incoming
+    return render(request, 'deliveries/incoming-list.html', {'incomings': incomings})
 
 
 
 class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
     template_name = 'deliveries/incoming-unidentified.html'
+
+def incoming_detail(request, pk):
+    incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
+    return render(request, 'deliveries/incoming-detail.html', {'incoming': incoming})
+
+def incoming_edit(request, pk):
+    incoming = get_object_or_404(Incoming, pk=pk)
+    tag = get_object_or_404(Tag, pk=incoming.tag.id)
+
+    if request.method == 'POST':
+        form = IncomingForm(request.POST, instance=incoming)
+        if form.is_valid():
+            form.save()
+            return redirect('deliveries:list-incoming')  # Перенаправляем на список после сохранения
+    else:
+        form = IncomingForm(instance=incoming)
+
+    return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming, 'tag': tag})
+
+def incoming_delete(request, pk):
+    incoming = get_object_or_404(Incoming, pk=pk)
+
+    if request.method == 'POST':
+        incoming.delete()
+        return redirect('deliveries:list-incoming')  # Перенаправляем на список после удаления
+    return render(request, 'deliveries/incoming-delete.html', )

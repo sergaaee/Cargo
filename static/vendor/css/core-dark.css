@@ -18623,7 +18623,7 @@ html:not(.layout-menu-fixed) .menu-inner-shadow {
   position: absolute;
   top: 50%;
   display: block;
-  font-family: "Material Design Icons";
+  font-family: "Material Design Icons", serif;
   font-size: 1.5rem;
   color: #a0a1b8;
   transform: translateY(-50%);

@@ -4,8 +4,47 @@
 {% block title %}Журнал приемки{% endblock %}
 
 {% block content %}
-  <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="py-3 mb-4">Журнал приемки</h4>
-    <p>Здесь будет список всех поступивших товаров.</p>
-  </div>
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал</h4>
+        <div class="card-datatable table-responsive">
+            <table class="dt-fixedheader table table-bordered">
+                <thead>
+                <tr>
+                    <th>Порядковый номер</th>
+                    <th>Трек-номер</th>
+                    <th>Тег клиента</th>
+                    <th>Дата прибытия</th>
+                    <th>Инвертарный номер</th>
+                    <th>Кол-во мест</th>
+                    <th>Вес</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for incoming in incomings %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ incoming.track_number }}</td>
+                        <td>{{ incoming.tag.name }}</td>
+                        <td>{{ incoming.arrival_date }}</td>
+                        <td>{{ incoming.inventory_number }}</td>
+                        <td>{{ incoming.places_count }}</td>
+                        <td>{{ incoming.weight }}</td>
+                        <td>{{ incoming.status }}</td>
+                        <td>
+                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
+                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9">Нет данных для отображения.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endblock %}

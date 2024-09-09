@@ -24,14 +24,20 @@ class IncomingForm(forms.ModelForm):
         model = Incoming
         fields = ['track_number', 'inventory_number', 'places_count', 'arrival_date', 'size', 'weight', 'state', 'package_type', 'status', 'tag']
         widgets = {
-            'places_count': forms.NumberInput(attrs={'min': '1'}),
-            'weight': forms.NumberInput(attrs={'min': '1'}),
-            'arrival_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'track_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'inventory_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'arrival_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'size': forms.TextInput(attrs={'class': 'form-control'}),
+            'state': forms.Select(attrs={'class': 'form-control'}),
+            'package_type': forms.Select(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'tag': forms.TextInput(attrs={'list': 'tag-list', 'class': 'form-control'})
         }
-    places_count = forms.IntegerField(initial=1, min_value=1)
-    weight = forms.IntegerField(initial=1, min_value=1)
 
-    tag = forms.CharField(required=False, widget=forms.TextInput(attrs={'list': 'tag-list'}))  # Поле для автозаполнения
+    places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    weight = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+
+    tag = forms.CharField(required=True, widget=forms.TextInput(attrs={'list': 'tag-list', 'class': 'form-control'}))  # Поле для автозаполнения
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

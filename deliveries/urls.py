@@ -1,10 +1,13 @@
 from django.urls import path
-from .views import incoming_new, ListIncomingView, UnidentifiedIncomingView
+from .views import incoming_new, incoming_detail, incoming_edit, incoming_delete, incoming_list, UnidentifiedIncomingView
 
 app_name = "deliveries"
 
 urlpatterns = [
     path('new-incoming/', incoming_new, name='new-incoming'),
-    path('list-incoming/', ListIncomingView.as_view(), name='list-incoming'),
+    path('list-incoming/', incoming_list, name='list-incoming'),
+    path('list-incoming/<uuid:pk>/', incoming_detail, name='detail-incoming'),
+    path('list-incoming/<uuid:pk>/edit', incoming_edit, name='edit-incoming'),
+    path('list-incoming/<uuid:pk>/delete', incoming_delete, name='delete-incoming'),
     path('unidentified/', UnidentifiedIncomingView.as_view(), name='unidentified-incoming'),
 ]

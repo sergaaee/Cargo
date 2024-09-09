@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Детали поступления{% endblock %}
+
+{% block content %}
+  <div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Детали поступления</h4>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Номер отслеживания: {{ incoming.track_number }}</h5>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item"><strong>Инвертарный номер:</strong> {{ incoming.inventory_number }}</li>
+          <li class="list-group-item"><strong>Количество мест:</strong> {{ incoming.places_count }}</li>
+          <li class="list-group-item"><strong>Дата прибытия:</strong> {{ incoming.arrival_date }}</li>
+          <li class="list-group-item"><strong>Размер:</strong> {{ incoming.size }}</li>
+          <li class="list-group-item"><strong>Вес:</strong> {{ incoming.weight }} кг</li>
+          <li class="list-group-item"><strong>Состояние:</strong> {{ incoming.get_state_display }}</li>
+          <li class="list-group-item"><strong>Тип упаковки:</strong> {{ incoming.get_package_type_display }}</li>
+          <li class="list-group-item"><strong>Статус:</strong> {{ incoming.get_status_display }}</li>
+          <li class="list-group-item"><strong>Тег клиента:</strong> {{ incoming.tag.name }}</li>
+        </ul>
+        <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-primary mt-3">Назад к списку</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

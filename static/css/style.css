@@ -2,3 +2,8 @@
   display: block;
   margin-bottom: 5px;
 }
+
+i {
+    margin-right: 5px;  /* Отступ иконки от текста */
+    font-size: 1.2em;   /* Размер иконки */
+}
