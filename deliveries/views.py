@@ -43,23 +43,47 @@ def incoming_new(request):
 
 @login_required
 def incoming_list(request):
-    query = request.GET.get('q')  # Получаем строку поиска из параметров GET-запроса
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'arrival_date')
+    sort_order = request.GET.get('order', 'asc')
 
-    # Основной запрос на получение всех инкамингов
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
     incomings = Incoming.objects.all()
 
-    # Если есть строка поиска, фильтруем данные
     if query:
         incomings = incomings.filter(
             Q(track_number__icontains=query) | Q(inventory_number__icontains=query)
         )
 
-    # Применяем пагинацию к уже отфильтрованным данным
-    paginator = Paginator(incomings, 10)  # Пагинация по 10 записей на страницу
+    incomings = incomings.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(incomings, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'deliveries/incoming-list.html', {'page_obj': page_obj, 'query': query})
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('track_number', 'Трек-номер'),
+        ('tag__name', 'Тег'),
+        ('arrival_date', 'Дата прибытия'),
+        ('inventory_number', 'Инвентарный номер'),
+        ('places_count', 'Количество мест'),
+        ('weight', 'Вес'),
+        ('status', 'Статус'),
+    ]
+
+    return render(request, 'deliveries/incoming-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
 
 
 
