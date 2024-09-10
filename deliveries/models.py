@@ -36,11 +36,11 @@ class Tag(UUIDMixin, TimeStampedMixin):
 
 
 class Incoming(UUIDMixin, TimeStampedMixin):
-    track_number = models.CharField(_('Track Number'), max_length=1000, default='')
+    track_number = models.CharField(_('Track Number'), max_length=1000, null=True, blank=True)
     inventory_number = models.CharField(_('Inventory Number, spaces between'), max_length=1000, default='')
     places_count = models.IntegerField(_('Places count'), default=0, validators=[MinValueValidator(1)])
     arrival_date = models.DateTimeField(_('Arrival date'), blank=True, null=True)
-    size = models.CharField(_('Size (LxHxW)'), blank=True, default='0x0x0')
+    size = models.CharField(_('Size (LxHxW)'), blank=True, null=True)
     weight = models.IntegerField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
     state = models.CharField(_('State'), choices=StateType.choices, default=StateType.PERFECT, max_length=100)
     package_type = models.CharField(_('Package type'), choices=PackageType.choices, default=PackageType.CARTOON_BOX, max_length=100)
