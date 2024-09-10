@@ -25,3 +25,5 @@ services:
     environment:
       POSTGRES_DATABASE: cargo_db
       POSTGRES_PASSWORD: 123qwe
+    ports:
+      - "5432:5432"
