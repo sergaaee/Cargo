@@ -22,7 +22,6 @@ def incoming_new(request):
             # Обрабатываем тег
             tag_name = form.cleaned_data.get('tag')
             if tag_name:
-                check = Tag.objects.get_or_create(name=tag_name)
                 tag, created = Tag.objects.get_or_create(name=tag_name)
                 incoming.tag = tag
 
@@ -99,7 +98,9 @@ def incoming_detail(request, pk):
 @login_required
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
-    tag = get_object_or_404(Tag, pk=incoming.tag.id)
+
+    # Пытаемся получить тег, если он существует, иначе присваиваем пустую строку
+    tag = Tag.objects.filter(pk=incoming.tag.id).first() if incoming.tag else ''
 
     if request.method == 'POST':
         form = IncomingForm(request.POST, instance=incoming)
@@ -110,6 +111,7 @@ def incoming_edit(request, pk):
         form = IncomingForm(instance=incoming)
 
     return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming, 'tag': tag})
+
 
 @login_required
 def incoming_delete(request, pk):
