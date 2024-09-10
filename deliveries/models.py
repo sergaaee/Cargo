@@ -17,7 +17,15 @@ class Photo(UUIDMixin, TimeStampedMixin):
        img = Image.open(self.photo.path)
        if img.height > 1125 or img.width > 1125:
            img.thumbnail((1125,1125))
-       img.save(self.photo.path,quality=70,optimize=True)
+       img.save(self.photo.path, quality=70, optimize=True)
+
+
+class InventoryNumber(UUIDMixin, TimeStampedMixin):
+    number = models.CharField(max_length=100, unique=True)  # Уникальный инвентарный номер
+    is_occupied = models.BooleanField(default=False)  # Поле для проверки занятости
+
+    def __str__(self):
+        return self.number
 
 
 class Tag(UUIDMixin, TimeStampedMixin):
@@ -37,7 +45,6 @@ class Tag(UUIDMixin, TimeStampedMixin):
 
 class Incoming(UUIDMixin, TimeStampedMixin):
     track_number = models.CharField(_('Track Number'), max_length=1000, null=True, blank=True)
-    inventory_number = models.CharField(_('Inventory Number, spaces between'), max_length=1000, default='')
     places_count = models.IntegerField(_('Places count'), default=0, validators=[MinValueValidator(1)])
     arrival_date = models.DateTimeField(_('Arrival date'), blank=True, null=True)
     size = models.CharField(_('Size (LxHxW)'), blank=True, null=True)
@@ -48,9 +55,10 @@ class Incoming(UUIDMixin, TimeStampedMixin):
 
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, blank=True, null=True)
     images = models.ManyToManyField(Photo, through='PhotoIncoming', related_name='incoming_images', blank=True)
+    inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberIncoming', related_name='incoming_inventory_numbers', blank=True)
 
     def __str__(self):
-        return self.track_number
+        return f'{self.track_number} ({self.inventory_numbers})'
 
     class Meta:
         verbose_name = _('Incoming')
@@ -58,7 +66,17 @@ class Incoming(UUIDMixin, TimeStampedMixin):
         indexes = [
             models.Index(fields=['id'], name='incoming_idx'),
             models.Index(fields=['track_number'], name='incoming_track_number_idx')
+        ]
 
+
+class InventoryNumberIncoming(UUIDMixin):
+    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
+    inventory_number = models.ForeignKey('InventoryNumber', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['incoming_id', 'inventory_number_id'], name='inventory_number_incoming_idx'),
         ]
 
 

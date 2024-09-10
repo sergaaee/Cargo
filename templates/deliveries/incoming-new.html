@@ -33,12 +33,6 @@
 
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.inventory_number.label_tag }} {{ form.inventory_number }}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
                                         {{ form.places_count.label_tag }} {{ form.places_count }}
                                     </div>
                                 </div>
@@ -80,7 +74,6 @@
                                     </div>
                                 </div>
 
-
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.tag.label_tag }}
@@ -90,6 +83,20 @@
                                                 <option value="{{ tag.name }}"></option>
                                             {% endfor %}
                                         </datalist>
+                                    </div>
+                                </div>
+
+                                <!-- Поле для выбора инвентарных номеров -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.inventory_numbers.label_tag }}
+                                        {{ form.inventory_numbers }}
+                                        <datalist id="tag-list">
+                                            {% for inventory_number in available_inventory_numbers %}
+                                                <option value="{% if inventory_number.is_occupied == False %}{{ inventory_number.number }}{% endif %}"></option>
+                                            {% endfor %}
+                                        </datalist>
+                                    {{ form.errors }}
                                     </div>
                                 </div>
 
@@ -117,7 +124,6 @@
                                             {{ formset.management_form }}
                                             <label for="photo">Загрузить фото:</label>
                                             <input type="file" name="photo" multiple>
-                                            <!-- Поле для множественной загрузки -->
                                         </div>
                                     </div>
                                 </div>
@@ -149,5 +155,4 @@
             <button type="submit" class="btn btn-primary mt-4">Добавить поступление</button>
         </form>
     </div>
-
 {% endblock %}

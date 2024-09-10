@@ -20,5 +20,5 @@ class TagAdmin(admin.ModelAdmin):
 class IncomingAdmin(admin.ModelAdmin):
     inlines = [PhotoAdmin]
 
-    list_display = ('track_number', 'inventory_number', 'arrival_date', 'places_count', 'weight')
-    search_fields = ['track_number', 'inventory_number']
+    list_display = ('track_number', 'arrival_date', 'places_count', 'weight')
+    search_fields = ['track_number', 'inventory_numbers']

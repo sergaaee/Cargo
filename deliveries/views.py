@@ -5,8 +5,9 @@ from django.db.models import Q
 
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import IncomingForm, PhotoFormSet
-from .models import Tag, Photo, Incoming
+from .models import Tag, Photo, Incoming, InventoryNumber
 from django.contrib.auth.decorators import login_required
+
 
 @login_required
 def incoming_new(request):
@@ -14,31 +15,56 @@ def incoming_new(request):
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
 
-        incoming = form.save(commit=False)
-        incoming.tag = form.cleaned_data['tag']
         if form.is_valid():
             incoming = form.save(commit=False)
+            incoming.tag = form.cleaned_data['tag']
+            incoming.save()  # Сначала сохраняем основной объект
 
-            # Обрабатываем тег
-            tag_name = form.cleaned_data.get('tag')
-            if tag_name:
-                tag, created = Tag.objects.get_or_create(name=tag_name)
-                incoming.tag = tag
+            # Получаем инвентарные номера из формы
+            inventory_numbers = form.cleaned_data['inventory_numbers']
 
-            incoming.save()
+            # Привязываем инвентарные номера
+            for inventory_number in inventory_numbers:
+                inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
+                inventory_number_obj.is_occupied = True  # Обновляем статус занятости
+                inventory_number_obj.save()
+                incoming.inventory_numbers.add(inventory_number_obj)
 
-            # Обрабатываем множественные изображения
+            # Сохраняем фото
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
             return redirect('index')
+
     else:
         form = IncomingForm()
         formset = PhotoFormSet()
 
     tags = Tag.objects.all()
-    return render(request, 'deliveries/incoming-new.html', {'form': form, 'formset': formset, 'tags': tags})
+    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+
+    return render(request, 'deliveries/incoming-new.html', {
+        'form': form,
+        'formset': formset,
+        'tags': tags,
+        'available_inventory_numbers': available_inventory_numbers,
+    })
+
+@login_required
+def incoming_edit(request, pk):
+    incoming = get_object_or_404(Incoming, pk=pk)
+
+    if request.method == 'POST':
+        form = IncomingForm(request.POST, instance=incoming)
+        if form.is_valid():
+            form.save()
+            return redirect('deliveries:list-incoming')
+    else:
+        form = IncomingForm(instance=incoming)
+
+    return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming})
+
 
 @login_required
 def incoming_list(request):
@@ -95,22 +121,6 @@ def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
     return render(request, 'deliveries/incoming-detail.html', {'incoming': incoming})
 
-@login_required
-def incoming_edit(request, pk):
-    incoming = get_object_or_404(Incoming, pk=pk)
-
-    # Пытаемся получить тег, если он существует, иначе присваиваем пустую строку
-    tag = Tag.objects.filter(pk=incoming.tag.id).first() if incoming.tag else ''
-
-    if request.method == 'POST':
-        form = IncomingForm(request.POST, instance=incoming)
-        if form.is_valid():
-            form.save()
-            return redirect('deliveries:list-incoming')  # Перенаправляем на список после сохранения
-    else:
-        form = IncomingForm(instance=incoming)
-
-    return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming, 'tag': tag})
 
 
 @login_required
