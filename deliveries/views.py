@@ -127,6 +127,11 @@ def incoming_detail(request, pk):
 def incoming_delete(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
+    inventory_numbers = incoming.inventory_numbers.all()
+    for inventory_number in inventory_numbers:
+        inventory_number.is_occupied = False
+        inventory_number.save()
+
     if request.method == 'POST':
         incoming.delete()
         return redirect('deliveries:list-incoming')  # Перенаправляем на список после удаления

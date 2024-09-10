@@ -86,7 +86,7 @@
                                     <div class="form-group">
                                         <!-- Поле для редактирования инвентарных номеров -->
                                         <label for="inventory_numbers">Инвентарные номера:</label>
-                                        <input type="text" name="inventory_numbers" class="form-control" value="{% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }} {% endfor %}">
+                                        <input type="text" name="inventory_numbers" class="form-control" value="{% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }},{% endfor %}">
                                     </div>
                                 </div>
 
