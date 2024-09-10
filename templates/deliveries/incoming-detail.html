@@ -11,7 +11,14 @@
       <div class="card-body">
         <h5 class="card-title">Номер отслеживания: {{ incoming.track_number }}</h5>
         <ul class="list-group list-group-flush">
-          <li class="list-group-item"><strong>Инвертарный номер:</strong> {{ incoming.inventory_number }}</li>
+          <!-- Изменено отображение инвентарных номеров для связи ManyToMany -->
+          <li class="list-group-item"><strong>Инвентарные номера:</strong>
+            <ul>
+              {% for inventory_number in incoming.inventory_numbers.all %}
+                <li>{{ inventory_number.number }}</li>
+              {% endfor %}
+            </ul>
+          </li>
           <li class="list-group-item"><strong>Количество мест:</strong> {{ incoming.places_count }}</li>
           <li class="list-group-item"><strong>Дата прибытия:</strong> {{ incoming.arrival_date }}</li>
           <li class="list-group-item"><strong>Размер:</strong> {{ incoming.size }}</li>

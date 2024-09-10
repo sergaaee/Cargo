@@ -66,15 +66,30 @@ class IncomingForm(forms.ModelForm):
     def clean_inventory_numbers(self):
         inventory_numbers = self.cleaned_data.get('inventory_numbers')
         if inventory_numbers:
-            inventory_numbers = inventory_numbers.split(',')
+            inventory_numbers = [num.strip() for num in inventory_numbers.split(',')]
+            inventory_number_objects = []
+
+            # Получаем объект текущего поступления
+            incoming = self.instance
+
             for inventory_number in inventory_numbers:
-                inventory_number_obj, created = InventoryNumber.objects.get_or_create(number=inventory_number)
-                # Теперь проверяем is_occupied, а не location
-                if inventory_number_obj.is_occupied:
-                    raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
-                inventory_number_obj.is_occupied = True
-                inventory_number_obj.save()
-            return inventory_numbers
+                try:
+                    # Получаем объект инвентарного номера
+                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
+
+                    # Проверяем, занят ли инвентарный номер, и принадлежит ли он текущему Incoming
+                    if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
+                        raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
+
+                    # Помечаем инвентарный номер как занятый (если не принадлежит другому Incoming)
+                    inventory_number_objects.append(inventory_number_obj)
+
+                except InventoryNumber.DoesNotExist:
+                    raise forms.ValidationError(f'Inventory number {inventory_number} does not exist.')
+
+            # Возвращаем список объектов инвентарных номеров
+            return inventory_number_objects
+
         return None
 
 #29.4 14:30

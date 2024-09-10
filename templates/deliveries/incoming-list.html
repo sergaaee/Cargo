@@ -8,8 +8,8 @@
         <form method="GET" action="">
             <div class="input-group mb-3">
                 <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по трек-номеру или инвентарному номеру"
-                       placeholder="Поиск по трек-номеру или инвентарному номеру"
+                       aria-label="Поиск по трек-номеру или инвентарным номерам"
+                       placeholder="Поиск по трек-номеру или инвентарным номерам"
                        value="{{ query|default_if_none:''|escape }}">
                 <button class="btn btn-primary" type="submit">Поиск</button>
             </div>
@@ -34,7 +34,14 @@
                         <td>{{ incoming.track_number|default_if_none:"-" }}</td>
                         <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
                         <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                        <td>{{ incoming.inventory_number|default_if_none:"-" }}</td>
+                        <!-- Отображаем все связанные инвентарные номера -->
+                        <td>
+                            <ul>
+                                {% for inventory_number in incoming.inventory_numbers.all %}
+                                    <li>{{ inventory_number.number }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
                         <td>{{ incoming.places_count|default_if_none:"-" }}</td>
                         <td>{{ incoming.weight|default_if_none:"-" }}</td>
                         <td>{{ incoming.status|default_if_none:"-" }}</td>

@@ -81,7 +81,7 @@ def incoming_list(request):
 
     if query:
         incomings = incomings.filter(
-            Q(track_number__icontains=query) | Q(inventory_number__icontains=query)
+            Q(track_number__icontains=query) | Q(inventory_numbers__number__icontains=query)
         )
 
     incomings = incomings.order_by(f'{order_prefix}{sort_by}')
@@ -95,7 +95,7 @@ def incoming_list(request):
         ('track_number', 'Трек-номер'),
         ('tag__name', 'Тег'),
         ('arrival_date', 'Дата прибытия'),
-        ('inventory_number', 'Инвентарный номер'),
+        ('inventory_numbers', 'Инвентарные номера'),
         ('places_count', 'Количество мест'),
         ('weight', 'Вес'),
         ('status', 'Статус'),

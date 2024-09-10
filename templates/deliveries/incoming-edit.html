@@ -32,12 +32,6 @@
 
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.inventory_number.label_tag }} {{ form.inventory_number }}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
                                         {{ form.places_count.label_tag }} {{ form.places_count }}
                                     </div>
                                 </div>
@@ -79,16 +73,20 @@
                                     </div>
                                 </div>
 
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <!-- Поле для редактирования тега -->
+                                        <label for="tag">Тег клиента:</label>
+                                        <input type="text" name="tag" class="form-control"
+                                               value="{{ incoming.tag.name }}">
+                                    </div>
+                                </div>
 
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <p>Previous tag: {{ tag.name }}</p>{{ form.tag.label_tag }}
-                                        {{ form.tag }}
-                                        <datalist id="tag-list">
-                                            {% for tag in tags %}
-                                                <option value="{{ tag.name }}"></option>
-                                            {% endfor %}
-                                        </datalist>
+                                        <!-- Поле для редактирования инвентарных номеров -->
+                                        <label for="inventory_numbers">Инвентарные номера:</label>
+                                        <input type="text" name="inventory_numbers" class="form-control" value="{% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }} {% endfor %}">
                                     </div>
                                 </div>
 
@@ -148,6 +146,7 @@
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
             <!-- Кнопка для отмены -->
+        {{ form.errors }}
         </form>
     </div>
 {% endblock %}
