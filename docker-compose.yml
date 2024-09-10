@@ -10,8 +10,6 @@ services:
       - .:/code
     depends_on:
       - db
-    ports:
-      - "8000:8000"
   nginx:
     image: nginx
     ports:
@@ -27,5 +25,3 @@ services:
     environment:
       POSTGRES_DATABASE: cargo_db
       POSTGRES_PASSWORD: 123qwe
-    ports:
-      - "5432:5432"
