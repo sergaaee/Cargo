@@ -58,12 +58,21 @@ def incoming_edit(request, pk):
     if request.method == 'POST':
         form = IncomingForm(request.POST, instance=incoming)
         if form.is_valid():
-            form.save()
+            # Сначала сохраняем основной объект
+            incoming = form.save()
+
+            # Обновляем инвентарные номера и устанавливаем is_occupied
+            inventory_numbers = form.cleaned_data['inventory_numbers']
+            for inventory_number_obj in inventory_numbers:
+                inventory_number_obj.is_occupied = True
+                inventory_number_obj.save()
+
             return redirect('deliveries:list-incoming')
     else:
         form = IncomingForm(instance=incoming)
 
     return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming})
+
 
 
 @login_required
