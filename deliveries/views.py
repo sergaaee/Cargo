@@ -7,6 +7,17 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .forms import IncomingForm, PhotoFormSet
 from .models import Tag, Photo, Incoming, InventoryNumber
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+
+
+@login_required
+def delete_photo(request, pk):
+    print("here")
+    photo = get_object_or_404(Photo, pk=pk)
+    if request.method == 'DELETE':
+        photo.delete()
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error'}, status=400)
 
 
 @login_required

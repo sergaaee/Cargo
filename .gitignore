@@ -1,0 +1,7 @@
+*.env
+.idea/
+/gunicorn_access.log
+/gunicorn_error.log
+migrations/
+media/
+

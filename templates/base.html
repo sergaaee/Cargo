@@ -107,6 +107,34 @@
                     </ul>
                 </li>
 
+                <!-- Shipping Menu -->
+                <li class="menu-item">
+                    <a class="menu-link menu-toggle">
+                        <i class="bi bi-box"></i>
+                        <div data-i18n="Delivery">Доставка</div>
+                    </a>
+                    <ul class="menu-sub">
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                <div data-i18n="Depart">Отправка</div>
+                            </a>
+                            <!-- если в базе нет метки, то груз поулчает статус андефайнд, пользователя создавать не надо. Крестик очистки полей !-->
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                <div data-i18n="Packaging">Упаковка</div>
+                            </a>
+                        </li>
+                        <li class="menu-item">
+                            <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                <div data-i18n="Delivered">Доставленные</div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
             </ul>
         </aside>
 

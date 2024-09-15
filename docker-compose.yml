@@ -18,6 +18,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./configs/site.conf:/etc/nginx/conf.d/site.conf
       - ./static:/data/static
+      - ./media:/data/media
     depends_on:
       - django
   db:
