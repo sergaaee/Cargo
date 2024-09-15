@@ -12,7 +12,6 @@ from django.http import JsonResponse
 
 @login_required
 def delete_photo(request, pk):
-    print("here")
     photo = get_object_or_404(Photo, pk=pk)
     if request.method == 'DELETE':
         photo.delete()
@@ -77,6 +76,11 @@ def incoming_edit(request, pk):
             for inventory_number_obj in inventory_numbers:
                 inventory_number_obj.is_occupied = True
                 inventory_number_obj.save()
+
+            # Сохраняем фото
+            for file in request.FILES.getlist('photo'):
+                photo = Photo(photo=file, incoming=incoming)
+                photo.save()
 
             return redirect('deliveries:list-incoming')
     else:
