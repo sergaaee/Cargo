@@ -78,63 +78,87 @@
                         <div data-i18n="Profile">Профиль</div>
                     </a>
                 </li>
+                {% if user.is_staff %}
+                    <!-- Incoming Menu -->
+                    <li class="menu-item">
+                        <a class="menu-link menu-toggle">
+                            <i class="bi bi-box-fill"></i>
+                            <div data-i18n="Incoming">Приемка</div>
+                        </a>
+                        <ul class="menu-sub">
 
-                <!-- Incoming Menu -->
-                <li class="menu-item">
-                    <a class="menu-link menu-toggle">
-                        <i class="bi bi-box-fill"></i>
-                        <div data-i18n="Incoming">Приемка</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                <div data-i18n="Incoming new">Поступление</div>
-                            </a>
-                        </li>
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-table-large"></i>
-                                <div data-i18n="Incoming List">Журнал приемки</div>
-                            </a>
-                        </li>
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
-                                <div data-i18n="Unidentified">Неопознанные</div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Поступление</div>
+                                </a>
+                            </li>
 
-                <!-- Shipping Menu -->
-                <li class="menu-item">
-                    <a class="menu-link menu-toggle">
-                        <i class="bi bi-box"></i>
-                        <div data-i18n="Delivery">Доставка</div>
-                    </a>
-                    <ul class="menu-sub">
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                <div data-i18n="Depart">Отправка</div>
-                            </a>
-                            <!-- если в базе нет метки, то груз поулчает статус андефайнд, пользователя создавать не надо. Крестик очистки полей !-->
-                        </li>
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-table-large"></i>
-                                <div data-i18n="Packaging">Упаковка</div>
-                            </a>
-                        </li>
-                        <li class="menu-item">
-                            <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
-                                <div data-i18n="Delivered">Доставленные</div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="Incoming List">Журнал приемки</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                    <div data-i18n="Unidentified">Неопознанные</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Shipping Menu -->
+                    <li class="menu-item">
+                        <a class="menu-link menu-toggle">
+                            <i class="bi bi-box"></i>
+                            <div data-i18n="Delivery">Доставка</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Depart">Отправка</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="Packaging">Упаковка</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                    <div data-i18n="Delivered">Доставленные</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <!-- Tags Menu -->
+                    <li class="menu-item">
+                        <a class="menu-link menu-toggle">
+                            <i class="bi bi-pencil-square"></i>
+                            <div data-i18n="Tags">Метки</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-tag' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="List">Список</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:new-tag' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="Create new">Добавить метку</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                {% endif %}
             </ul>
         </aside>
 

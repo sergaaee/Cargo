@@ -5,6 +5,7 @@ from PIL import Image
 from deliveries.choices import StateType, PackageType, PackageStatus
 from deliveries.mixins import UUIDMixin, TimeStampedMixin
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings  # Для импорта модели User
 
 
 class Photo(UUIDMixin, TimeStampedMixin):
@@ -30,6 +31,7 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
 
 class Tag(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Created by'))  # Поле для записи пользователя
 
     def __str__(self):
         return self.name

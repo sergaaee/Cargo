@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Все метки{% endblock %}
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Метки/</span>Все</h4>
+        <!-- Форма поиска -->
+        <form method="GET" action="">
+            <div class="input-group mb-3">
+                <input type="text" name="q" class="form-control"
+                       aria-label="Поиск по имени"
+                       placeholder="Поиск по имени"
+                       value="{{ query|default_if_none:''|escape }}">
+                <button class="btn btn-primary" type="submit">Поиск</button>
+            </div>
+        </form>
+        <div class="card-datatable table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                <tr>
+                    {% for column, label in columns %}
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                {{ label }}
+                            </a>
+                        </th>
+                    {% endfor %}
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for tag in page_obj %}
+                    <tr>
+                        <td>{{ tag.name|default_if_none:"-" }}</td>
+                        <td>
+                            <a href="{% url 'deliveries:edit-tag' tag.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-tag' tag.id %}">Удалить</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8">Нет данных для отображения.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination-container">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+            {% endif %}
+            <span class="current">
+                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+            </span>
+            {% if page_obj.has_next %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+            {% endif %}
+        </span>
+        </div>
+    </div>
+{% endblock %}

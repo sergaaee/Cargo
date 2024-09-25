@@ -2,9 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import IncomingForm, PhotoFormSet
+from .forms import IncomingForm, PhotoFormSet, TagForm
 from .models import Tag, Photo, Incoming, InventoryNumber
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -61,6 +62,7 @@ def incoming_new(request):
         'available_inventory_numbers': available_inventory_numbers,
     })
 
+
 @login_required
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
@@ -87,7 +89,6 @@ def incoming_edit(request, pk):
         form = IncomingForm(instance=incoming)
 
     return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming})
-
 
 
 @login_required
@@ -134,17 +135,93 @@ def incoming_list(request):
     })
 
 
+@login_required
+def tag_list(request):
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
 
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    tags = Tag.objects.all().filter(created_by=request.user)
+
+    if query:
+        tags = tags.filter(
+            Q(name__icontains=query)
+        )
+
+    tags = tags.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(tags, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+    ]
+
+    return render(request, 'deliveries/client-side/tag/tag-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@login_required
+def tag_new(request):
+    if request.method == 'POST':
+        form = TagForm(request.POST)
+        if form.is_valid():
+            tag = form.save(commit=False)
+            tag.created_by = request.user
+            tag.save()
+            messages.success(request, 'Новый тег успешно создан!')
+            return redirect('deliveries:list-tag')
+    else:
+        form = TagForm()
+
+    return render(request, 'deliveries/client-side/tag/tag-new.html', {'form': form})
+
+
+@login_required
+def tag_edit(request, pk):
+    tag = get_object_or_404(Tag, pk=pk)
+
+    if request.method == 'POST':
+        form = TagForm(request.POST, instance=tag)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-tag')
+    else:
+        form = TagForm(instance=tag)
+
+    return render(request, 'deliveries/client-side/tag/tag-edit.html', {'form': form, 'tag': tag})
+
+
+@login_required
+def tag_delete(request, pk):
+    tag = get_object_or_404(Tag, pk=pk)
+    if request.method == 'POST':
+        tag.delete()
+        return redirect('deliveries:list-tag')
+    return render(request, 'deliveries/client-side/tag/tag-delete.html', {'tag': tag})
 
 
 class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
     template_name = 'deliveries/incoming-unidentified.html'
 
+
 @login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
     return render(request, 'deliveries/incoming-detail.html', {'incoming': incoming})
-
 
 
 @login_required

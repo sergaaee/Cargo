@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class CustomClearableFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True  # Поддержка множественного выбора
 
@@ -22,16 +23,26 @@ class CustomClearableFileInput(forms.ClearableFileInput):
         return upload
 
 
+class TagForm(forms.ModelForm):
+    class Meta:
+        model = Tag
+        fields = ['name']  # Поле должно быть списком или кортежем
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
 # Стандартная форма Incoming
 class IncomingForm(forms.ModelForm):
     class Meta:
         model = Incoming
-        fields = ['track_number', 'inventory_numbers', 'places_count', 'arrival_date', 'size', 'weight', 'state', 'package_type', 'status', 'tag']
+        fields = ['track_number', 'inventory_numbers', 'places_count', 'arrival_date', 'size', 'weight', 'state',
+                  'package_type', 'status', 'tag']
         widgets = {
             'track_number': forms.TextInput(attrs={'class': 'form-control'}),
             'arrival_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'size': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '000x000x000',
-                'data-inputmask': "'mask': '999x999x999'" }),
+                                           'data-inputmask': "'mask': '999x999x999'"}),
             'state': forms.Select(attrs={'class': 'form-control'}),
             'package_type': forms.Select(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
@@ -40,8 +51,10 @@ class IncomingForm(forms.ModelForm):
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
     weight = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
-    inventory_numbers = forms.CharField(required=True, widget=forms.TextInput(attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}))
-    tag = forms.CharField(required=False, widget=forms.TextInput(attrs={'list': 'tag-list', 'class': 'form-control'}))  # Поле для автозаполнения
+    inventory_numbers = forms.CharField(required=True, widget=forms.TextInput(
+        attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}))
+    tag = forms.CharField(required=False, widget=forms.TextInput(
+        attrs={'list': 'tag-list', 'class': 'form-control'}))  # Поле для автозаполнения
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,14 +64,6 @@ class IncomingForm(forms.ModelForm):
         if tag_name:
             # Get or create the tag
             tag, created = Tag.objects.get_or_create(name=tag_name)
-
-            # Check if a user with this username (equal to tag name) exists
-            user, user_created = User.objects.get_or_create(username=tag_name)
-
-            # If the user is newly created, set a default password
-            if user_created:
-                user.set_password(os.environ.get('DEFAULT_PASSWORD'))
-                user.save()
 
             return tag
         return None
@@ -92,7 +97,8 @@ class IncomingForm(forms.ModelForm):
 
         return None
 
-#29.4 14:30
+
+# 29.4 14:30
 class PhotoForm(forms.ModelForm):
     class Meta:
         model = Photo
@@ -100,5 +106,6 @@ class PhotoForm(forms.ModelForm):
         widgets = {
             'photo': CustomClearableFileInput(),  # Используем кастомный виджет
         }
+
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)

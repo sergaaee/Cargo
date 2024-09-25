@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Удаление метки{% endblock %}
+
+{% block content %}
+  <div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Метки/</span>Удаление метки</h4>
+    <p>Вы действительно хотите удалить метку "{{ tag.name }}"?</p>
+    <form method="POST">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Удалить</button>
+      <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+  </div>
+{% endblock %}
