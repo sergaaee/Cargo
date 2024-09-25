@@ -1,8 +1,6 @@
 from django import forms
 from django.forms.models import inlineformset_factory
-from django.contrib.auth.models import User
-from .models import Incoming, Photo, Tag, InventoryNumber
-import os
+from .models import Incoming, Photo, Tag, InventoryNumber, Tracker
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,9 +24,20 @@ class CustomClearableFileInput(forms.ClearableFileInput):
 class TagForm(forms.ModelForm):
     class Meta:
         model = Tag
-        fields = ['name']  # Поле должно быть списком или кортежем
+        fields = ['name']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class TrackerForm(forms.ModelForm):
+    class Meta:
+        model = Tracker
+        fields = ['name', 'codes', 'status']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'codes': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
@@ -36,10 +45,9 @@ class TagForm(forms.ModelForm):
 class IncomingForm(forms.ModelForm):
     class Meta:
         model = Incoming
-        fields = ['track_number', 'inventory_numbers', 'places_count', 'arrival_date', 'size', 'weight', 'state',
+        fields = ['inventory_numbers', 'places_count', 'arrival_date', 'size', 'weight', 'state',
                   'package_type', 'status', 'tag']
         widgets = {
-            'track_number': forms.TextInput(attrs={'class': 'form-control'}),
             'arrival_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'size': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '000x000x000',
                                            'data-inputmask': "'mask': '999x999x999'"}),
@@ -54,7 +62,10 @@ class IncomingForm(forms.ModelForm):
     inventory_numbers = forms.CharField(required=True, widget=forms.TextInput(
         attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}))
     tag = forms.CharField(required=False, widget=forms.TextInput(
-        attrs={'list': 'tag-list', 'class': 'form-control'}))  # Поле для автозаполнения
+        attrs={'list': 'tag-list', 'class': 'form-control'}))
+    tracker = forms.CharField(required=False, widget=forms.TextInput(
+        attrs={'list': 'tracker-list', 'class': 'form-control'}
+    ))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

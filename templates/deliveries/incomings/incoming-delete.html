@@ -6,7 +6,7 @@
 {% block content %}
   <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Удаление поступления</h4>
-    <p>Вы действительно хотите удалить запись о поступлении с номером отслеживания {{ incoming.track_number }}?</p>
+    <p>Вы действительно хотите удалить запись о поступлении с номером отслеживания {{ incoming.tracker.codes }}?</p>
     <form method="POST">
       {% csrf_token %}
       <button type="submit" class="btn btn-danger">Удалить</button>

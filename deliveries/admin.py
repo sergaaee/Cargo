@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Incoming, Tag, TagIncoming, Photo
+from .models import Incoming, Tag, TagIncoming, Photo, TrackerIncoming
 
 
 class TagIncomingInline(admin.TabularInline):
@@ -9,6 +9,10 @@ class TagIncomingInline(admin.TabularInline):
 class PhotoAdmin(admin.TabularInline):
     model = Photo
     extra = 1
+
+
+class TrackerIncomingInline(admin.TabularInline):
+    model = TrackerIncoming
 
 
 @admin.register(Tag)
@@ -24,7 +28,7 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Incoming)
 class IncomingAdmin(admin.ModelAdmin):
-    inlines = [PhotoAdmin]
+    inlines = [PhotoAdmin, TrackerIncomingInline]
 
-    list_display = ('track_number', 'arrival_date', 'places_count', 'weight')
-    search_fields = ['track_number', 'inventory_numbers']
+    list_display = ('arrival_date', 'places_count', 'weight')
+    search_fields = ['inventory_numbers']

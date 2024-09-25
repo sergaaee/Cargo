@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Журнал приемки{% endblock %}
+{% block title %}Все трекинги{% endblock %}
 {% block content %}
     <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Трекинги/</span>Все</h4>
         <!-- Форма поиска -->
         <form method="GET" action="">
             <div class="input-group mb-3">
                 <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по трек-номеру или инвентарным номерам"
-                       placeholder="Поиск по трек-номеру или инвентарным номерам"
+                       aria-label="Поиск по имени"
+                       placeholder="Поиск по имени"
                        value="{{ query|default_if_none:''|escape }}">
                 <button class="btn btn-primary" type="submit">Поиск</button>
             </div>
@@ -29,26 +29,15 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for incoming in page_obj %}
+                {% for tracker in page_obj %}
                     <tr>
-                        <td>{{ incoming.tracker|default_if_none:"-" }}</td>
-                        <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
-                        <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                        <!-- Отображаем все связанные инвентарные номера -->
+                        <td>{{ tracker.name|default_if_none:"-" }}</td>
+                        <td>{{ tracker.codes|join:", "|default_if_none:"-" }}</td>
+                        <td>{{ tracker.status|default_if_none:"-" }}</td>
                         <td>
-                            <ul>
-                                {% for inventory_number in incoming.inventory_numbers.all %}
-                                    <li>{{ inventory_number.number }}</li>
-                                {% endfor %}
-                            </ul>
-                        </td>
-                        <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                        <td>{{ incoming.weight|default_if_none:"-" }}</td>
-                        <td>{{ incoming.status|default_if_none:"-" }}</td>
-                        <td>
-                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
+                            <a href="{% url 'deliveries:detail-tracker' tracker.id %}">Подробнее</a> |
+                            <a href="{% url 'deliveries:edit-tracker' tracker.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-tracker' tracker.id %}">Удалить</a>
                         </td>
                     </tr>
                 {% empty %}

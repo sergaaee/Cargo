@@ -5,10 +5,13 @@ from django.db.models import Q
 from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import IncomingForm, PhotoFormSet, TagForm
-from .models import Tag, Photo, Incoming, InventoryNumber
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.db.models import CharField
+from django.db.models.functions import Cast
+
 
 
 @login_required
@@ -106,7 +109,7 @@ def incoming_list(request):
 
     if query:
         incomings = incomings.filter(
-            Q(track_number__icontains=query) | Q(inventory_numbers__number__icontains=query)
+            Q(tracker__codes__contains=query) | Q(inventory_numbers__number__icontains=query)
         )
 
     incomings = incomings.order_by(f'{order_prefix}{sort_by}')
@@ -117,7 +120,7 @@ def incoming_list(request):
 
     # Добавляем колонки с метками для отображения в таблице
     columns = [
-        ('track_number', 'Трек-номер'),
+        ('tracker', 'Трек-номер'),
         ('tag__name', 'Тег'),
         ('arrival_date', 'Дата прибытия'),
         ('inventory_numbers', 'Инвентарные номера'),
@@ -222,6 +225,95 @@ class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
     return render(request, 'deliveries/incomings/incoming-detail.html', {'incoming': incoming})
+
+
+@login_required
+def tracker_list(request):
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    trackers = Tracker.objects.all().filter(created_by=request.user)
+
+    if query:
+        trackers = trackers.annotate(
+            codes_str=Cast('codes', CharField())  # Преобразуем массив codes в строку
+        ).filter(
+            Q(name__icontains=query) | Q(codes_str__icontains=query)
+        )
+
+    trackers = trackers.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(trackers, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('codes', 'Коды'),
+        ('status', 'Статус')
+    ]
+
+    return render(request, 'deliveries/client-side/tracker/tracker-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns
+    })
+
+
+@login_required
+def tracker_new(request):
+    if request.method == 'POST':
+        form = TrackerForm(request.POST)
+        if form.is_valid():
+            tracker = form.save(commit=False)
+            tracker.created_by = request.user
+            tracker.save()
+            messages.success(request, 'Новый трек-номер успешно создан!')
+            return redirect('deliveries:list-tracker')
+    else:
+        form = TrackerForm()
+
+    return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
+
+
+@login_required
+def tracker_detail(request, pk):
+    tracker = get_object_or_404(Tracker, pk=pk)  # Получаем объект по первичному ключу (id)
+    return render(request, 'deliveries/client-side/tracker/tracker-detail.html', {'tracker': tracker})
+
+
+@login_required
+def tracker_delete(request, pk):
+    tracker = get_object_or_404(Tracker, pk=pk)
+    if request.method == 'POST':
+        tracker.delete()
+        return redirect('deliveries:list-tracker')
+    return render(request, 'deliveries/client-side/tracker/tracker-delete.html', {'tracker': tracker})
+
+
+@login_required
+def tracker_edit(request, pk):
+    tracker = get_object_or_404(Tracker, pk=pk)
+
+    if request.method == 'POST':
+        form = TrackerForm(request.POST, instance=tracker)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-tracker')
+    else:
+        form = TrackerForm(instance=tracker)
+
+    return render(request, 'deliveries/client-side/tracker/tracker-edit.html', {'form': form, 'tracker': tracker})
 
 
 @login_required

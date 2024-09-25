@@ -20,3 +20,8 @@ class PackageStatus(models.Choices):
     TO_DELIVER = 'To Deliver'
     STORED = 'Stored'
     UNDECIDED = 'Undecided'
+
+
+class TrackerStatus(models.Choices):
+    ACTIVE = 'Active'
+    INACTIVE = 'Inactive'
