@@ -70,6 +70,24 @@ class IncomingForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def clean_tracker(self):
+        tracker_codes = self.cleaned_data.get('tracker')
+        if tracker_codes:
+            # Разбиваем строку с кодами на список
+            tracker_codes_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
+            tracker_objects = []
+
+            # Проверяем каждый код
+            for tracker_code in tracker_codes_list:
+                tracker = Tracker.objects.filter(codes__contains=[tracker_code]).first()
+                if tracker:
+                    tracker_objects.append(tracker)
+                else:
+                    raise forms.ValidationError(f'Tracker with code {tracker_code} not found.')
+
+            return tracker_objects  # Возвращаем список объектов Tracker
+        return None
+
     def clean_tag(self):
         tag_name = self.cleaned_data.get('tag')
         if tag_name:

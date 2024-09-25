@@ -27,14 +27,25 @@
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.tracker.label_tag }}
-                                        {{ form.tracker }}
+                                        <label for="tracker-input">Трекеры</label>
+                                        <input id="tracker-input" list="tracker-list" class="form-control"
+                                               placeholder="Введите код трекера">
                                         <datalist id="tracker-list">
                                             {% for track in trackers %}
-                                                <p>{{ track }}</p>
-                                                <option value="{{ tracker.codes }}"></option>
+                                                {% for code in track.codes %}
+                                                    <option value="{{ code }}"></option>
+                                                    <!-- Выводим каждый код в отдельный <option> -->
+                                                {% endfor %}
                                             {% endfor %}
                                         </datalist>
+
+                                        <!-- Скрытое поле для передачи выбранных трекеров -->
+                                        <input type="hidden" id="selected-trackers-input" name="tracker">
+
+                                        <!-- Блок для отображения выбранных трекеров -->
+                                        <div id="selected-trackers" class="mt-2">
+                                            <!-- Здесь будут динамически добавляться выбранные коды -->
+                                        </div>
                                     </div>
                                 </div>
 
@@ -84,14 +95,24 @@
                                 <!-- Поле для выбора инвентарных номеров -->
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.inventory_numbers.label_tag }}
-                                        {{ form.inventory_numbers }}
-                                        <datalist id="tag-list">
+                                        <label for="inventory-input">Инвентарные номера</label>
+                                        <input id="inventory-input" list="inventory-list" class="form-control"
+                                               placeholder="Введите инвентарный номер">
+                                        <datalist id="inventory-list">
                                             {% for inventory_number in available_inventory_numbers %}
-                                                <option value="{% if inventory_number.is_occupied == False %}{{ inventory_number.number }}{% endif %}"></option>
+                                                {% if inventory_number.is_occupied == False %}
+                                                    <option value="{{ inventory_number.number }}"></option>
+                                                {% endif %}
                                             {% endfor %}
                                         </datalist>
-                                        {{ form.errors }}
+
+                                        <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
+                                        <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
+
+                                        <!-- Блок для отображения выбранных инвентарных номеров -->
+                                        <div id="selected-inventory-numbers" class="mt-2">
+                                            <!-- Здесь будут динамически добавляться выбранные инвентарные номера -->
+                                        </div>
                                     </div>
                                 </div>
 
@@ -160,18 +181,55 @@
             <button type="submit" class="btn btn-primary mt-4">Добавить поступление</button>
         </form>
     </div>
+    <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script>
-        var places_count_el = document.getElementById("id_places_count");
-        var weight_el = document.getElementById("id_weight");
-        var size_el = document.getElementById('id_size');
+        document.addEventListener("DOMContentLoaded", function () {
+            const trackerInput = document.getElementById('tracker-input');
+            const selectedTrackersContainer = document.getElementById('selected-trackers');
+            const selectedTrackersInput = document.getElementById('selected-trackers-input');
 
-        places_count_el.onchange = function () {
-            var is_multiple_places = places_count_el.value > 1;
+            let selectedTrackers = [];
 
-            weight_el.value = is_multiple_places ? 0 : weight_el.value;
-            weight_el.disabled = is_multiple_places;
-            size_el.disabled = is_multiple_places;
-        };
+            function updateSelectedTrackers() {
+                selectedTrackersContainer.innerHTML = '';
+                selectedTrackersInput.value = selectedTrackers.join(',');  // Обновляем скрытое поле
+
+                selectedTrackers.forEach((code, index) => {
+                    const trackerDiv = document.createElement('div');
+                    trackerDiv.classList.add('selected-tracker', 'badge', 'bg-primary', 'me-1', 'mb-1');
+                    trackerDiv.textContent = code;
+
+                    const removeBtn = document.createElement('span');
+                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.style.cursor = 'pointer';
+
+                    removeBtn.addEventListener('click', () => {
+                        selectedTrackers.splice(index, 1);  // Удаляем выбранный код из массива
+                        updateSelectedTrackers();  // Обновляем отображение
+                    });
+
+                    trackerDiv.appendChild(removeBtn);
+                    selectedTrackersContainer.appendChild(trackerDiv);
+                });
+            }
+
+            trackerInput.addEventListener('change', function () {
+                const selectedCode = trackerInput.value.trim();
+
+                if (selectedCode && !selectedTrackers.includes(selectedCode)) {
+                    selectedTrackers.push(selectedCode);
+                    updateSelectedTrackers();
+                }
+
+                trackerInput.value = '';  // Очищаем поле ввода для следующего ввода
+            });
+
+            // Обновляем скрытое поле непосредственно перед отправкой формы
+            document.querySelector('form').addEventListener('submit', function () {
+                selectedTrackersInput.value = selectedTrackers.join(',');
+            });
+        });
     </script>
-
+    <script src="{% static 'js/inventory-numbers-adding.js' %}"></script>
 {% endblock %}

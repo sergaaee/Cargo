@@ -34,6 +34,11 @@ def incoming_new(request):
             incoming.tag = form.cleaned_data['tag']
             incoming.save()  # Сначала сохраняем основной объект
 
+            trackers = form.cleaned_data.get('tracker')
+            if trackers:
+                for tracker in trackers:
+                    incoming.tracker.add(tracker)
+
             # Получаем инвентарные номера из формы
             inventory_numbers = form.cleaned_data['inventory_numbers']
 
@@ -56,12 +61,14 @@ def incoming_new(request):
         formset = PhotoFormSet()
 
     tags = Tag.objects.all()
+    trackers = Tracker.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
     return render(request, 'deliveries/incomings/incoming-new.html', {
         'form': form,
         'formset': formset,
         'tags': tags,
+        'trackers': trackers,
         'available_inventory_numbers': available_inventory_numbers,
     })
 
@@ -76,11 +83,31 @@ def incoming_edit(request, pk):
             # Сначала сохраняем основной объект
             incoming = form.save()
 
-            # Обновляем инвентарные номера и устанавливаем is_occupied
-            inventory_numbers = form.cleaned_data['inventory_numbers']
-            for inventory_number_obj in inventory_numbers:
+            incoming.tracker.clear()
+            trackers = form.cleaned_data.get('tracker')
+            for tracker in trackers:
+                incoming.tracker.add(tracker)
+                incoming.save()
+
+            # Получаем старые и новые инвентарные номера
+            new_inventory_numbers = set(form.cleaned_data['inventory_numbers'])
+            initial_inventory_numbers = set(request.POST.get('initial_inventory_numbers', '').split(','))
+
+            # Определяем удаленные инвентарные номера
+            removed_inventory_numbers = initial_inventory_numbers - new_inventory_numbers
+
+            # Обновляем is_occupied для удаленных номеров
+            for removed_inventory_number in removed_inventory_numbers:
+                inventory_number_obj = InventoryNumber.objects.get(number=removed_inventory_number)
+                inventory_number_obj.is_occupied = False
+                inventory_number_obj.save()
+
+            # Устанавливаем is_occupied для новых инвентарных номеров
+            incoming.inventory_numbers.clear()  # Очищаем текущие инвентарные номера
+            for inventory_number_obj in new_inventory_numbers:
                 inventory_number_obj.is_occupied = True
                 inventory_number_obj.save()
+                incoming.inventory_numbers.add(inventory_number_obj)
 
             # Сохраняем фото
             for file in request.FILES.getlist('photo'):
@@ -91,7 +118,11 @@ def incoming_edit(request, pk):
     else:
         form = IncomingForm(instance=incoming)
 
-    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming})
+    tags = Tag.objects.all()
+    trackers = Tracker.objects.all()
+    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+
+    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers, 'available_inventory_numbers': available_inventory_numbers})
 
 
 @login_required
@@ -108,8 +139,10 @@ def incoming_list(request):
     incomings = Incoming.objects.all()
 
     if query:
-        incomings = incomings.filter(
-            Q(tracker__codes__contains=query) | Q(inventory_numbers__number__icontains=query)
+        incomings = incomings.annotate(
+            codes_str=Cast('tracker__codes', CharField())  # Преобразуем массив codes в строку
+        ).filter(
+            Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
         )
 
     incomings = incomings.order_by(f'{order_prefix}{sort_by}')

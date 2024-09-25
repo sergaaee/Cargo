@@ -31,7 +31,15 @@
                 <tbody>
                 {% for incoming in page_obj %}
                     <tr>
-                        <td>{{ incoming.tracker|default_if_none:"-" }}</td>
+                        <td>
+                            <ul>
+                                {% for tracker in incoming.tracker.all %}
+                                    {% for code in tracker.codes %}
+                                        <li>{{ code }}</li>
+                                        {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </td>
                         <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
                         <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
                         <!-- Отображаем все связанные инвентарные номера -->
