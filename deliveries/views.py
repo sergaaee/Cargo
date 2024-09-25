@@ -55,7 +55,7 @@ def incoming_new(request):
     tags = Tag.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
-    return render(request, 'deliveries/incoming-new.html', {
+    return render(request, 'deliveries/incomings/incoming-new.html', {
         'form': form,
         'formset': formset,
         'tags': tags,
@@ -88,7 +88,7 @@ def incoming_edit(request, pk):
     else:
         form = IncomingForm(instance=incoming)
 
-    return render(request, 'deliveries/incoming-edit.html', {'form': form, 'incoming': incoming})
+    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming})
 
 
 @login_required
@@ -126,7 +126,7 @@ def incoming_list(request):
         ('status', 'Статус'),
     ]
 
-    return render(request, 'deliveries/incoming-list.html', {
+    return render(request, 'deliveries/incomings/incoming-list.html', {
         'page_obj': page_obj,
         'query': query,
         'sort_by': sort_by,
@@ -215,13 +215,13 @@ def tag_delete(request, pk):
 
 
 class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
-    template_name = 'deliveries/incoming-unidentified.html'
+    template_name = 'deliveries/incomings/incoming-unidentified.html'
 
 
 @login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
-    return render(request, 'deliveries/incoming-detail.html', {'incoming': incoming})
+    return render(request, 'deliveries/incomings/incoming-detail.html', {'incoming': incoming})
 
 
 @login_required
@@ -236,4 +236,4 @@ def incoming_delete(request, pk):
     if request.method == 'POST':
         incoming.delete()
         return redirect('deliveries:list-incoming')  # Перенаправляем на список после удаления
-    return render(request, 'deliveries/incoming-delete.html', )
+    return render(request, 'deliveries/incomings/incoming-delete.html', )

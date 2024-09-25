@@ -22,8 +22,8 @@ class Photo(UUIDMixin, TimeStampedMixin):
 
 
 class InventoryNumber(UUIDMixin, TimeStampedMixin):
-    number = models.CharField(max_length=100, unique=True)  # Уникальный инвентарный номер
-    is_occupied = models.BooleanField(default=False)  # Поле для проверки занятости
+    number = models.CharField(max_length=100, unique=True)
+    is_occupied = models.BooleanField(default=False)
 
     def __str__(self):
         return self.number
@@ -31,7 +31,7 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
 
 class Tag(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Created by'))  # Поле для записи пользователя
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Created by'))
 
     def __str__(self):
         return self.name
