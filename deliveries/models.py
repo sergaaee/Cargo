@@ -1,11 +1,11 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator
 
 from PIL import Image
 from deliveries.choices import StateType, PackageType, PackageStatus
 from deliveries.mixins import UUIDMixin, TimeStampedMixin
 from django.utils.translation import gettext_lazy as _
-from multiselectfield import MultiSelectField
+
 
 class Photo(UUIDMixin, TimeStampedMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set')
