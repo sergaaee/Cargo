@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import user_passes_test
 
 from .choices import TrackerStatus
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit
@@ -15,7 +16,11 @@ from django.db.models import CharField
 from django.db.models.functions import Cast
 
 
+def staff_required(user):
+    return user.is_staff
 
+
+@user_passes_test(staff_required)
 @login_required
 def delete_photo(request, pk):
     photo = get_object_or_404(Photo, pk=pk)
@@ -25,6 +30,7 @@ def delete_photo(request, pk):
     return JsonResponse({'status': 'error'}, status=400)
 
 
+@user_passes_test(staff_required)
 @login_required
 def incoming_new(request):
     if request.method == 'POST':
@@ -96,8 +102,7 @@ def incoming_new(request):
     })
 
 
-
-
+@user_passes_test(staff_required)
 @login_required
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
@@ -152,6 +157,7 @@ def incoming_edit(request, pk):
     return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers, 'available_inventory_numbers': available_inventory_numbers, 'active_tracker_codes': active_tracker_codes})
 
 
+@user_passes_test(staff_required)
 @login_required
 def incoming_list(request):
     query = request.GET.get('q')
@@ -281,6 +287,7 @@ class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
     template_name = 'deliveries/incomings/incoming-unidentified.html'
 
 
+@user_passes_test(staff_required)
 @login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
@@ -393,6 +400,7 @@ def tracker_edit(request, pk):
     return render(request, 'deliveries/client-side/tracker/tracker-edit.html', {'form': form, 'tracker': tracker})
 
 
+@user_passes_test(staff_required)
 @login_required
 def incoming_delete(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
