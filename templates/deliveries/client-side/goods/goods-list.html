@@ -25,7 +25,6 @@
                             </a>
                         </th>
                     {% endfor %}
-                    <th>Действие</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -34,9 +33,11 @@
                         <td>
                             <ul>
                                 {% for tracker in incoming.tracker.all %}
-                                    {% for code in tracker.codes %}
-                                        <li>{{ code }}</li>
-                                        {% endfor %}
+                                    {% for code in tracker.tracking_codes.all %}
+                                        {% if code.status == 'Active' %}
+                                            <li>{{ code.code }}</li>
+                                        {% endif %}
+                                    {% endfor %}
                                 {% endfor %}
                             </ul>
                         </td>
@@ -51,13 +52,8 @@
                             </ul>
                         </td>
                         <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                        <td>{{ incoming.client.email|default_if_none:"-" }}</td>
+                        <td>{{ incoming.manager.email|default_if_none:"-" }}</td>
                         <td>{{ incoming.status|default_if_none:"-" }}</td>
-                        <td>
-                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
-                        </td>
                     </tr>
                 {% empty %}
                     <tr>

@@ -205,6 +205,52 @@ def incoming_list(request):
 
 
 @login_required
+def goods_list(request):
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'arrival_date')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    incomings = Incoming.objects.filter(client=request.user)
+
+    if query:
+        incomings = incomings.annotate(
+            codes_str=Cast('tracker__tracking_codes', CharField())
+        ).filter(
+            Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
+        )
+
+    incomings = incomings.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(incomings, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('tracker', 'Трек-номер'),
+        ('tag__name', 'Тег'),
+        ('arrival_date', 'Дата прибытия'),
+        ('inventory_numbers', 'Инвентарные номера'),
+        ('places_count', 'Количество мест'),
+        ('manager', 'Менеджер'),
+        ('status', 'Статус'),
+    ]
+
+    return render(request, 'deliveries/client-side/goods/goods-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@login_required
 def tag_list(request):
     query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
