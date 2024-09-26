@@ -97,10 +97,14 @@ def incoming_edit(request, pk):
             removed_inventory_numbers = initial_inventory_numbers - new_inventory_numbers
 
             # Обновляем is_occupied для удаленных номеров
+
             for removed_inventory_number in removed_inventory_numbers:
-                inventory_number_obj = InventoryNumber.objects.get(number=removed_inventory_number)
-                inventory_number_obj.is_occupied = False
-                inventory_number_obj.save()
+                try:
+                    inventory_number_obj = InventoryNumber.objects.get(number=removed_inventory_number)
+                    inventory_number_obj.is_occupied = False
+                    inventory_number_obj.save()
+                except InventoryNumber.DoesNotExist:
+                    break
 
             # Устанавливаем is_occupied для новых инвентарных номеров
             incoming.inventory_numbers.clear()  # Очищаем текущие инвентарные номера

@@ -57,7 +57,7 @@ class IncomingForm(forms.ModelForm):
         }
 
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    weight = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    weight = forms.IntegerField(initial=1, required=False, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
     inventory_numbers = forms.CharField(required=True, widget=forms.TextInput(
         attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}))
@@ -73,11 +73,9 @@ class IncomingForm(forms.ModelForm):
     def clean_tracker(self):
         tracker_codes = self.cleaned_data.get('tracker')
         if tracker_codes:
-            # Разбиваем строку с кодами на список
             tracker_codes_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
             tracker_objects = []
 
-            # Проверяем каждый код
             for tracker_code in tracker_codes_list:
                 tracker = Tracker.objects.filter(codes__contains=[tracker_code]).first()
                 if tracker:
@@ -85,46 +83,57 @@ class IncomingForm(forms.ModelForm):
                 else:
                     raise forms.ValidationError(f'Tracker with code {tracker_code} not found.')
 
-            return tracker_objects  # Возвращаем список объектов Tracker
+            return tracker_objects
         return None
 
     def clean_tag(self):
         tag_name = self.cleaned_data.get('tag')
         if tag_name:
-            # Get or create the tag
             tag, created = Tag.objects.get_or_create(name=tag_name)
-
             return tag
         return None
 
+    def clean_places_count(self):
+        places_count = self.cleaned_data.get('places_count')
+        if places_count is None:
+            raise forms.ValidationError("Places count must be provided.")
+        return places_count
+
     def clean_inventory_numbers(self):
         inventory_numbers = self.cleaned_data.get('inventory_numbers')
+
         if inventory_numbers:
             inventory_numbers = [num.strip() for num in inventory_numbers.split(',')]
             inventory_number_objects = []
 
-            # Получаем объект текущего поступления
             incoming = self.instance
-
             for inventory_number in inventory_numbers:
                 try:
-                    # Получаем объект инвентарного номера
                     inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
-
-                    # Проверяем, занят ли инвентарный номер, и принадлежит ли он текущему Incoming
                     if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
                         raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
-
-                    # Помечаем инвентарный номер как занятый (если не принадлежит другому Incoming)
                     inventory_number_objects.append(inventory_number_obj)
-
                 except InventoryNumber.DoesNotExist:
                     raise forms.ValidationError(f'Inventory number {inventory_number} does not exist.')
 
-            # Возвращаем список объектов инвентарных номеров
             return inventory_number_objects
-
         return None
+
+    def clean(self):
+        cleaned_data = super().clean()
+        inventory_numbers = cleaned_data.get('inventory_numbers')
+        places_count = cleaned_data.get('places_count')
+        weight = cleaned_data.get('weight')
+
+        if weight is None:
+            cleaned_data['weight'] = 1
+
+        if inventory_numbers and places_count:
+            if len(inventory_numbers) != places_count:
+                raise forms.ValidationError(
+                    f"The number of inventory numbers ({len(inventory_numbers)}) does not match the number of places ({places_count})."
+                )
+        return cleaned_data
 
 
 # 29.4 14:30
