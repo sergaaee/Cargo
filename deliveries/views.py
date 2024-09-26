@@ -7,7 +7,6 @@ from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test
 
-from .choices import TrackerStatus
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode
 from django.contrib.auth.decorators import login_required
@@ -42,34 +41,30 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
 
-            # Получаем введенный трекер
+            # Получаем трекер и трек-коды
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
             # Привязываем трекер к клиенту
             incoming.client = tracker.created_by
+
+            if tracker.created_by is None:
+                incoming.status = 'Unidentified'
             incoming.save()
 
-            if tracker:
-                # Количество всех кодов, связанных с трекером
-                all_codes = tracker.tracking_codes.all()
-                all_codes_count = all_codes.count()
-
-                # Если все коды введены, статус трекера становится "Completed"
-                if len(tracker_codes.split(',')) == all_codes_count:
-                    tracker.status = 'Completed'
-                else:
-                    tracker.status = 'Partly completed'
-                tracker.save()
-
-                for tracker_code in tracker_codes.split(','):
+            # Привязываем трек-коды к трекеру и обновляем их статус
+            for tracker_code in tracker_codes:
+                try:
                     tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
                     tracker_code_obj.status = 'Active'
                     tracker_code_obj.save()
+                except TrackerCode.DoesNotExist:
+                    tracker_code_obj = TrackerCode.objects.create(code=tracker_code, created_by=request.user, status="Active", source="Unknown")
+                    tracker_code_obj.save()
 
-                tracker.save()
-                incoming.tracker.add(tracker)
+            # Привязываем трекер к поступлению
+            incoming.tracker.add(tracker)
 
-            # Обработка инвентарных номеров
+            # Обрабатываем инвентарные номера
             inventory_numbers = form.cleaned_data['inventory_numbers']
             for inventory_number in inventory_numbers:
                 inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
@@ -77,7 +72,7 @@ def incoming_new(request):
                 inventory_number_obj.save()
                 incoming.inventory_numbers.add(inventory_number_obj)
 
-            # Сохранение фотографий
+            # Сохраняем фотографии
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
@@ -169,7 +164,7 @@ def incoming_list(request):
     else:
         order_prefix = ''
 
-    incomings = Incoming.objects.all()
+    incomings = Incoming.objects.exclude(status="Unidentified")
 
     if query:
         incomings = incomings.annotate(
@@ -329,8 +324,51 @@ def tag_delete(request, pk):
     return render(request, 'deliveries/client-side/tag/tag-delete.html', {'tag': tag})
 
 
-class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
-    template_name = 'deliveries/incomings/incoming-unidentified.html'
+@user_passes_test(staff_required)
+@login_required
+def incoming_unidentified(request):
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'arrival_date')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    incomings = Incoming.objects.filter(status="Unidentified")
+
+    if query:
+        incomings = incomings.annotate(
+            codes_str=Cast('tracker__tracking_codes', CharField())  # Преобразуем массив codes в строку
+        ).filter(
+            Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
+        )
+
+    incomings = incomings.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(incomings, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('tracker', 'Трек-номер'),
+        ('tag__name', 'Тег'),
+        ('arrival_date', 'Дата прибытия'),
+        ('inventory_numbers', 'Инвентарные номера'),
+        ('places_count', 'Количество мест'),
+        ('client', 'Клиент'),
+        ('status', 'Статус'),
+    ]
+
+    return render(request, 'deliveries/incomings/incoming-unidentified.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
 
 
 @user_passes_test(staff_required)

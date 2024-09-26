@@ -47,7 +47,7 @@ class Tracker(UUIDMixin, TimeStampedMixin):
                               max_length=100)
     tracking_codes = models.ManyToManyField(TrackerCode, through='TrackerCodeTracker',
                                             blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'))
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True)
 
 
     def __str__(self):

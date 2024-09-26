@@ -94,17 +94,29 @@ class IncomingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
     def clean_tracker(self):
-        tracker_code = self.cleaned_data.get('tracker')
+        tracker_codes = self.cleaned_data.get('tracker')
+        if not tracker_codes:
+            raise forms.ValidationError("Трек-коды не были введены.")
 
-        if not tracker_code:
-            raise forms.ValidationError("Трек-код не был введен.")
+        # Получаем список трек-кодов
+        code_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
 
-        try:
-            tracker_obj = Tracker.objects.get(trackercodetracker__tracker_code__code=tracker_code.split(",")[0])
-        except Tracker.DoesNotExist:
-            raise forms.ValidationError(f'Трек-код "{tracker_code}" не найден.')
+        # Ищем трекер, к которому привязан хотя бы один из этих кодов
+        tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
 
-        return tracker_obj, tracker_code
+        # Если трекер не найден, создаем новый
+        if not tracker_obj:
+            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list),)
+
+            # Привязываем коды к новому трекеру
+            for code in code_list:
+                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active',
+                                                                                               'source': 'Unknown'})
+                tracker_code.tracker = tracker_obj
+                tracker_obj.tracking_codes.add(tracker_code)
+                tracker_code.save()
+            tracker_obj.save()
+        return tracker_obj, code_list
 
     def clean_tag(self):
         tag_name = self.cleaned_data.get('tag')
