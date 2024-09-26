@@ -84,7 +84,24 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     status = models.CharField(_('Status'), choices=PackageStatus.choices, default=PackageStatus.UNDECIDED,
                               max_length=100)
 
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='incoming_clients',
+        verbose_name=_('Client')
+    )
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='incoming_managers',
+        verbose_name=_('Manager')
+    )
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, blank=True, null=True)
+
     images = models.ManyToManyField(Photo, through='PhotoIncoming', related_name='incoming_images', blank=True)
     tracker = models.ManyToManyField(Tracker, through='TrackerIncoming', blank=True, verbose_name=_('Tracker'))
     inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberIncoming',

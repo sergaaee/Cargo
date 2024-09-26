@@ -33,11 +33,10 @@ class TagForm(forms.ModelForm):
 class TrackerForm(forms.ModelForm):
     class Meta:
         model = Tracker
-        fields = ['name', 'codes', 'status']
+        fields = ['name', 'codes']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'codes': forms.TextInput(attrs={'class': 'form-control'}),
-            'status': forms.Select(attrs={'class': 'form-control'}),
         }
 
 

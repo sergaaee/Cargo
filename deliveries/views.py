@@ -5,6 +5,8 @@ from django.db.models import Q
 from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
+
+from .choices import TrackerStatus
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker
 from django.contrib.auth.decorators import login_required
@@ -31,25 +33,31 @@ def incoming_new(request):
 
         if form.is_valid():
             incoming = form.save(commit=False)
+            incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
-            incoming.save()  # Сначала сохраняем основной объект
 
             trackers = form.cleaned_data.get('tracker')
+            first_tracker = trackers[0]
+            incoming.client = first_tracker.created_by
+
+
+            incoming.save()
+
             if trackers:
                 for tracker in trackers:
-                    incoming.tracker.add(tracker)
+                    tracker_obj = Tracker.objects.get(name=tracker)
+                    tracker_obj.status = "Active"
+                    tracker_obj.save()
+                    incoming.tracker.add(tracker_obj)
 
-            # Получаем инвентарные номера из формы
             inventory_numbers = form.cleaned_data['inventory_numbers']
 
-            # Привязываем инвентарные номера
             for inventory_number in inventory_numbers:
                 inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
-                inventory_number_obj.is_occupied = True  # Обновляем статус занятости
+                inventory_number_obj.is_occupied = True
                 inventory_number_obj.save()
                 incoming.inventory_numbers.add(inventory_number_obj)
 
-            # Сохраняем фото
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
@@ -59,6 +67,7 @@ def incoming_new(request):
     else:
         form = IncomingForm()
         formset = PhotoFormSet()
+
 
     tags = Tag.objects.all()
     trackers = Tracker.objects.all()
@@ -80,14 +89,21 @@ def incoming_edit(request, pk):
     if request.method == 'POST':
         form = IncomingForm(request.POST, instance=incoming)
         if form.is_valid():
-            # Сначала сохраняем основной объект
-            incoming = form.save()
+            incoming = form.save(commit=False)
+            incoming.manager = request.user
+            incoming.tag = form.cleaned_data['tag']
 
-            incoming.tracker.clear()
             trackers = form.cleaned_data.get('tracker')
+            first_tracker = trackers[0]
+            incoming.client = first_tracker.created_by
+
+            incoming.save()
+            incoming.tracker.clear()
             for tracker in trackers:
-                incoming.tracker.add(tracker)
-                incoming.save()
+                tracker_obj = Tracker.objects.get(name=tracker)
+                tracker_obj.status = "Active"
+                tracker_obj.save()
+                incoming.tracker.add(tracker_obj)
 
             # Получаем старые и новые инвентарные номера
             new_inventory_numbers = set(form.cleaned_data['inventory_numbers'])
@@ -97,14 +113,13 @@ def incoming_edit(request, pk):
             removed_inventory_numbers = initial_inventory_numbers - new_inventory_numbers
 
             # Обновляем is_occupied для удаленных номеров
-
             for removed_inventory_number in removed_inventory_numbers:
                 try:
                     inventory_number_obj = InventoryNumber.objects.get(number=removed_inventory_number)
                     inventory_number_obj.is_occupied = False
                     inventory_number_obj.save()
                 except InventoryNumber.DoesNotExist:
-                    break
+                    raise ("Linter bug in incoming-edit HTML with inventory numbers field, SPACES!!")
 
             # Устанавливаем is_occupied для новых инвентарных номеров
             incoming.inventory_numbers.clear()  # Очищаем текущие инвентарные номера
@@ -162,7 +177,7 @@ def incoming_list(request):
         ('arrival_date', 'Дата прибытия'),
         ('inventory_numbers', 'Инвентарные номера'),
         ('places_count', 'Количество мест'),
-        ('weight', 'Вес'),
+        ('client', 'Клиент'),
         ('status', 'Статус'),
     ]
 
@@ -313,6 +328,7 @@ def tracker_new(request):
         if form.is_valid():
             tracker = form.save(commit=False)
             tracker.created_by = request.user
+            tracker.status = TrackerStatus.INACTIVE
             tracker.save()
             messages.success(request, 'Новый трек-номер успешно создан!')
             return redirect('deliveries:list-tracker')

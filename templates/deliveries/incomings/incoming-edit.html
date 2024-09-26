@@ -142,8 +142,7 @@
                                         <!-- Скрытое поле для хранения изначальных инвентарных номеров -->
                                         <input type="hidden" id="initial-inventory-numbers"
                                                name="initial_inventory_numbers"
-                                               value="
-                                                       {% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                                               value="{% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
 
 
                                         <!-- Блок для отображения выбранных инвентарных номеров -->
@@ -370,5 +369,5 @@
             });
         });
     </script>
-
+     <!-- TODO: add check for tag-owner + track-number-owner !-->
 {% endblock %}

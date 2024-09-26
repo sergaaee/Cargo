@@ -179,7 +179,7 @@
                 </div>
             </div>
             <button type="submit" class="btn btn-primary mt-4">Добавить поступление</button>
-        {{ form.errors }}
+            {{ form.errors }}
         </form>
     </div>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
@@ -232,5 +232,6 @@
             });
         });
     </script>
+    <!-- TODO: add check for tag-owner + track-number-owner !-->
     <script src="{% static 'js/inventory-numbers-adding.js' %}"></script>
 {% endblock %}

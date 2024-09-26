@@ -51,7 +51,7 @@
                             </ul>
                         </td>
                         <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                        <td>{{ incoming.weight|default_if_none:"-" }}</td>
+                        <td>{{ incoming.client.email|default_if_none:"-" }}</td>
                         <td>{{ incoming.status|default_if_none:"-" }}</td>
                         <td>
                             <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
