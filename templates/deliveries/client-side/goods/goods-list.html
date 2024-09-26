@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Журнал приемки{% endblock %}
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал</h4>
+        <!-- Форма поиска -->
+        <form method="GET" action="">
+            <div class="input-group mb-3">
+                <input type="text" name="q" class="form-control"
+                       aria-label="Поиск по трек-номеру или инвентарным номерам"
+                       placeholder="Поиск по трек-номеру или инвентарным номерам"
+                       value="{{ query|default_if_none:''|escape }}">
+                <button class="btn btn-primary" type="submit">Поиск</button>
+            </div>
+        </form>
+        <div class="card-datatable table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                <tr>
+                    {% for column, label in columns %}
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                {{ label }}
+                            </a>
+                        </th>
+                    {% endfor %}
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for incoming in page_obj %}
+                    <tr>
+                        <td>
+                            <ul>
+                                {% for tracker in incoming.tracker.all %}
+                                    {% for code in tracker.codes %}
+                                        <li>{{ code }}</li>
+                                        {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
+                        <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
+                        <!-- Отображаем все связанные инвентарные номера -->
+                        <td>
+                            <ul>
+                                {% for inventory_number in incoming.inventory_numbers.all %}
+                                    <li>{{ inventory_number.number }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>{{ incoming.places_count|default_if_none:"-" }}</td>
+                        <td>{{ incoming.client.email|default_if_none:"-" }}</td>
+                        <td>{{ incoming.status|default_if_none:"-" }}</td>
+                        <td>
+                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
+                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8">Нет данных для отображения.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination-container">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+            {% endif %}
+            <span class="current">
+                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+            </span>
+            {% if page_obj.has_next %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+            {% endif %}
+        </span>
+        </div>
+    </div>
+{% endblock %}

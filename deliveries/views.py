@@ -328,7 +328,7 @@ def tracker_new(request):
         if form.is_valid():
             tracker = form.save(commit=False)
             tracker.created_by = request.user
-            tracker.status = TrackerStatus.INACTIVE
+            tracker.status = "Inactive"
             tracker.save()
             messages.success(request, 'Новый трек-номер успешно создан!')
             return redirect('deliveries:list-tracker')
