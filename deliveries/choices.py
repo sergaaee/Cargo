@@ -22,6 +22,13 @@ class PackageStatus(models.Choices):
     UNDECIDED = 'Undecided'
 
 
-class TrackerStatus(models.Choices):
+
+class CodeStatus(models.Choices):
     ACTIVE = 'Active'
     INACTIVE = 'Inactive'
+
+
+class TrackerStatus(models.Choices):
+    COMPLETED = 'Completed'
+    PARTLY_COMPLETED = 'Partly Completed'
+    INCOMPLETE = 'Incomplete'

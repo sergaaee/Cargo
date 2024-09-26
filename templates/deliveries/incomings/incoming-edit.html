@@ -41,35 +41,15 @@
                             <!-- Поля формы Incoming -->
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="tracker-input">Трекеры</label>
-                                        <input id="tracker-input" list="tracker-list" class="form-control"
-                                               placeholder="Введите код трекера">
-                                        <datalist id="tracker-list">
-                                            {% for track in trackers %}
-                                                {% for code in track.codes %}
-                                                    <option value="{{ code }}"></option>
-                                                {% endfor %}
-                                            {% endfor %}
-                                        </datalist>
-
-                                        <!-- Скрытое поле для передачи выбранных трекеров -->
-                                        <input type="hidden" id="selected-trackers-input" name="tracker">
-
-                                        <!-- Блок для отображения выбранных трекеров -->
-                                        <div id="selected-trackers" class="mt-2">
-                                            {% for track in incoming.tracker.all %}
-                                                {% for code in track.codes %}
-                                                    <div class="selected-tracker badge bg-primary me-1 mb-1"
-                                                         data-code="{{ code }}">
-                                                        {{ code }}
-                                                        <span class="ms-2 text-white cursor-pointer">&times;</span>
-                                                    </div>
-                                                {% endfor %}
-                                            {% endfor %}
-                                        </div>
-                                    </div>
+                                <div class="form-group">
+                                    <h5>Активные трек-коды:</h5>
+                                    <ul>
+                                        {% for code in active_tracker_codes %}
+                                            <li>{{ code.code }}</li>
+                                        {% endfor %}
+                                    </ul>
                                 </div>
+                            </div>
 
                                 <div class="col-md-4">
                                     <div class="form-group">
@@ -369,5 +349,5 @@
             });
         });
     </script>
-     <!-- TODO: add check for tag-owner + track-number-owner !-->
+    <!-- TODO: add check for tag-owner + track-number-owner !-->
 {% endblock %}

@@ -1,3 +1,5 @@
+from random import choices
+
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 
@@ -29,21 +31,37 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
         return self.number
 
 
+class TrackerCode(UUIDMixin, TimeStampedMixin):
+    code = models.CharField(_('Code'), max_length=1000, unique=True)
+    status = models.CharField(_('Status'), choices=CodeStatus.choices, default="Inactive")
+    source = models.CharField(_('Source'), max_length=100)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True, blank=True)
+
+    def __str__(self):
+        return self.code
+
+
 class Tracker(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100)
-    codes = ArrayField(models.CharField(max_length=100), unique=True)
-    status = models.CharField(_('Status'), choices=TrackerStatus.choices, default=TrackerStatus.INACTIVE,
+    status = models.CharField(_('Status'), choices=TrackerStatus.choices, default="Incomplete",
                               max_length=100)
+    tracking_codes = models.ManyToManyField(TrackerCode, through='TrackerCodeTracker',
+                                            blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'))
 
-    def get_codes(self):
-        return self.codes.split(',')
-
-    def set_codes(self, codes_list):
-        self.codes = ','.join(codes_list)
 
     def __str__(self):
         return self.name
+
+
+class TrackerCodeTracker(UUIDMixin):
+    tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE)
+    tracker_code = models.ForeignKey(TrackerCode, on_delete=models.CASCADE)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['tracker_id', 'tracker_code_id'], name='tracker_code_tracker_idx'),
+        ]
 
 
 class TrackerIncoming(UUIDMixin):

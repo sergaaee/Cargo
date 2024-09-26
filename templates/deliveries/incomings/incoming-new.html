@@ -32,12 +32,14 @@
                                                placeholder="Введите код трекера">
                                         <datalist id="tracker-list">
                                             {% for track in trackers %}
-                                                {% for code in track.codes %}
-                                                    <option value="{{ code }}"></option>
-                                                    <!-- Выводим каждый код в отдельный <option> -->
+                                                {% for tracker_code in track.tracking_codes.all %}
+                                                    {% if tracker_code.status == 'Inactive' %}
+                                                        <option value="{{ tracker_code.code }}"></option>
+                                                    {% endif %}
                                                 {% endfor %}
                                             {% endfor %}
                                         </datalist>
+
 
                                         <!-- Скрытое поле для передачи выбранных трекеров -->
                                         <input type="hidden" id="selected-trackers-input" name="tracker">

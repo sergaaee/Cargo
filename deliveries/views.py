@@ -7,8 +7,8 @@ from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .choices import TrackerStatus
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm
-from .models import Tag, Photo, Incoming, InventoryNumber, Tracker
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import CharField
@@ -36,28 +36,42 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
 
-            trackers = form.cleaned_data.get('tracker')
-            first_tracker = trackers[0]
-            incoming.client = first_tracker.created_by
+            # Получаем введенный трекер
+            tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-
+            # Привязываем трекер к клиенту
+            incoming.client = tracker.created_by
             incoming.save()
 
-            if trackers:
-                for tracker in trackers:
-                    tracker_obj = Tracker.objects.get(name=tracker)
-                    tracker_obj.status = "Active"
-                    tracker_obj.save()
-                    incoming.tracker.add(tracker_obj)
+            if tracker:
+                # Количество всех кодов, связанных с трекером
+                all_codes = tracker.tracking_codes.all()
+                all_codes_count = all_codes.count()
 
+                # Если все коды введены, статус трекера становится "Completed"
+                if len(tracker_codes.split(',')) == all_codes_count:
+                    tracker.status = 'Completed'
+                else:
+                    tracker.status = 'Partly completed'
+                tracker.save()
+
+                for tracker_code in tracker_codes.split(','):
+                    tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
+                    tracker_code_obj.status = 'Active'
+                    tracker_code_obj.save()
+
+                tracker.save()
+                incoming.tracker.add(tracker)
+
+            # Обработка инвентарных номеров
             inventory_numbers = form.cleaned_data['inventory_numbers']
-
             for inventory_number in inventory_numbers:
                 inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
                 inventory_number_obj.is_occupied = True
                 inventory_number_obj.save()
                 incoming.inventory_numbers.add(inventory_number_obj)
 
+            # Сохранение фотографий
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
@@ -68,9 +82,9 @@ def incoming_new(request):
         form = IncomingForm()
         formset = PhotoFormSet()
 
-
-    tags = Tag.objects.all()
+    # Получаем доступные трекеры и инвентарные номера
     trackers = Tracker.objects.all()
+    tags = Tag.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
     return render(request, 'deliveries/incomings/incoming-new.html', {
@@ -82,28 +96,21 @@ def incoming_new(request):
     })
 
 
+
+
 @login_required
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
     if request.method == 'POST':
-        form = IncomingForm(request.POST, instance=incoming)
+        form = IncomingFormEdit(request.POST, instance=incoming)
+
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
 
-            trackers = form.cleaned_data.get('tracker')
-            first_tracker = trackers[0]
-            incoming.client = first_tracker.created_by
-
             incoming.save()
-            incoming.tracker.clear()
-            for tracker in trackers:
-                tracker_obj = Tracker.objects.get(name=tracker)
-                tracker_obj.status = "Active"
-                tracker_obj.save()
-                incoming.tracker.add(tracker_obj)
 
             # Получаем старые и новые инвентарные номера
             new_inventory_numbers = set(form.cleaned_data['inventory_numbers'])
@@ -118,8 +125,8 @@ def incoming_edit(request, pk):
                     inventory_number_obj = InventoryNumber.objects.get(number=removed_inventory_number)
                     inventory_number_obj.is_occupied = False
                     inventory_number_obj.save()
-                except InventoryNumber.DoesNotExist:
-                    raise ("Linter bug in incoming-edit HTML with inventory numbers field, SPACES!!")
+                except Exception:
+                    raise "Linter bug in incoming-edit HTML with inventory numbers field, SPACES!!"
 
             # Устанавливаем is_occupied для новых инвентарных номеров
             incoming.inventory_numbers.clear()  # Очищаем текущие инвентарные номера
@@ -135,13 +142,14 @@ def incoming_edit(request, pk):
 
             return redirect('deliveries:list-incoming')
     else:
-        form = IncomingForm(instance=incoming)
+        form = IncomingFormEdit(instance=incoming)
 
+    active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
     tags = Tag.objects.all()
     trackers = Tracker.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
-    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers, 'available_inventory_numbers': available_inventory_numbers})
+    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers, 'available_inventory_numbers': available_inventory_numbers, 'active_tracker_codes': active_tracker_codes})
 
 
 @login_required
@@ -159,7 +167,7 @@ def incoming_list(request):
 
     if query:
         incomings = incomings.annotate(
-            codes_str=Cast('tracker__codes', CharField())  # Преобразуем массив codes в строку
+            codes_str=Cast('tracker__tracking_codes', CharField())  # Преобразуем массив codes в строку
         ).filter(
             Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
         )
@@ -275,8 +283,15 @@ class UnidentifiedIncomingView(LoginRequiredMixin, TemplateView):
 
 @login_required
 def incoming_detail(request, pk):
-    incoming = get_object_or_404(Incoming, pk=pk)  # Получаем объект по первичному ключу (id)
-    return render(request, 'deliveries/incomings/incoming-detail.html', {'incoming': incoming})
+    incoming = get_object_or_404(Incoming, pk=pk)
+
+    # Получаем только активные трек-коды
+    active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
+
+    return render(request, 'deliveries/incomings/incoming-detail.html', {
+        'incoming': incoming,
+        'active_tracker_codes': active_tracker_codes
+    })
 
 
 @login_required
@@ -290,14 +305,12 @@ def tracker_list(request):
     else:
         order_prefix = ''
 
-    trackers = Tracker.objects.all().filter(created_by=request.user)
+    trackers = Tracker.objects.filter(created_by=request.user)
 
     if query:
-        trackers = trackers.annotate(
-            codes_str=Cast('codes', CharField())  # Преобразуем массив codes в строку
-        ).filter(
-            Q(name__icontains=query) | Q(codes_str__icontains=query)
-        )
+        trackers = trackers.filter(
+            Q(name__icontains=query) | Q(tracking_codes__code__icontains=query)
+        ).distinct()
 
     trackers = trackers.order_by(f'{order_prefix}{sort_by}')
 
@@ -308,7 +321,7 @@ def tracker_list(request):
     # Добавляем колонки с метками для отображения в таблице
     columns = [
         ('name', 'Название'),
-        ('codes', 'Коды'),
+        ('tracking_codes', 'Коды'),
         ('status', 'Статус')
     ]
 
@@ -328,9 +341,20 @@ def tracker_new(request):
         if form.is_valid():
             tracker = form.save(commit=False)
             tracker.created_by = request.user
-            tracker.status = "Inactive"
             tracker.save()
-            messages.success(request, 'Новый трек-номер успешно создан!')
+
+            # Получаем список кодов из формы
+            tracking_codes = form.cleaned_data['tracking_codes']
+
+            # Создаем объекты TrackerCode и привязываем к трекеру
+            for code in tracking_codes:
+                tracker_code = TrackerCode.objects.get(code=code)
+                tracker_code.created_by = request.user
+                tracker_code.save()
+                tracker.tracking_codes.add(tracker_code)
+
+            tracker.save()
+            messages.success(request, 'Новый трекер успешно создан!')
             return redirect('deliveries:list-tracker')
     else:
         form = TrackerForm()

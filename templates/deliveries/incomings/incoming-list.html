@@ -34,9 +34,11 @@
                         <td>
                             <ul>
                                 {% for tracker in incoming.tracker.all %}
-                                    {% for code in tracker.codes %}
-                                        <li>{{ code }}</li>
-                                        {% endfor %}
+                                    {% for code in tracker.tracking_codes.all %}
+                                        {% if code.status == 'Active' %}
+                                            <li>{{ code.code }}</li>
+                                        {% endif %}
+                                    {% endfor %}
                                 {% endfor %}
                             </ul>
                         </td>

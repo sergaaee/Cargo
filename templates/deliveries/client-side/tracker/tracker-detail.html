@@ -12,7 +12,16 @@
                 <h5 class="card-title">Номер отслеживания: {{ incoming.tracker.codes }}</h5>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item"><strong>Название:</strong> {{ tracker.name }}</li>
-                    <li class="list-group-item"><strong>Коды:</strong> {{ tracker.codes|join:", "|default_if_none:"-" }}</li>
+                    <li class="list-group-item">
+                        <strong>Коды:</strong>
+                        {% if tracker.tracking_codes.exists %}
+                            {% for code in tracker.tracking_codes.all %}
+                                {{ code.code }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </li>
                     <li class="list-group-item"><strong>Статус:</strong> {{ tracker.status }}</li>
                 </ul>
                 <a href="{% url 'deliveries:list-tracker' %}" class="btn btn-primary mt-3">Назад к списку</a>

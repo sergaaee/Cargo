@@ -8,8 +8,8 @@
         <form method="GET" action="">
             <div class="input-group mb-3">
                 <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по имени"
-                       placeholder="Поиск по имени"
+                       aria-label="Поиск по имени или трекинг-коду"
+                       placeholder="Поиск по имени или трекинг-коду"
                        value="{{ query|default_if_none:''|escape }}">
                 <button class="btn btn-primary" type="submit">Поиск</button>
             </div>
@@ -32,12 +32,17 @@
                 {% for tracker in page_obj %}
                     <tr>
                         <td>{{ tracker.name|default_if_none:"-" }}</td>
-                        <td>{{ tracker.codes|join:", "|default_if_none:"-" }}</td>
+                        <td>
+                            {% for code in tracker.tracking_codes.all %}
+                                {{ code.code }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+
                         <td>{{ tracker.status|default_if_none:"-" }}</td>
                         <td>
                             <a href="{% url 'deliveries:detail-tracker' tracker.id %}">Подробнее</a> |
                             <a href="{% url 'deliveries:edit-tracker' tracker.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-tracker' tracker.id %}">Удалить</a>
+                            <!-- <a href="{% url 'deliveries:delete-tracker' tracker.id %}">Удалить</a> !-->
                         </td>
                     </tr>
                 {% empty %}
