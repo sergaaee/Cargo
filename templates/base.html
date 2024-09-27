@@ -223,9 +223,15 @@
                                 </a>
                             </li>
                             <li class="menu-item">
-                                <a href="{% url 'orders:new-buying' %}" class="menu-link">
+                                <a href="{% url 'orders:new-production' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-table-large"></i>
                                     <div data-i18n="Production">Производство</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'orders:list-orders' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="My orders">Мои заказы</div>
                                 </a>
                             </li>
                         </ul>

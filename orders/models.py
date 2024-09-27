@@ -6,7 +6,7 @@ from django.conf import settings
 
 
 class PhotoForOrder(UUIDMixin, TimeStampedMixin):
-    order = models.ForeignKey('Order', on_delete=models.CASCADE, verbose_name=_('Order'))
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, verbose_name=_('Order'), related_name='images_set')
     photo = models.ImageField(upload_to='images/')
 
     def save(self, *args, **kwargs):

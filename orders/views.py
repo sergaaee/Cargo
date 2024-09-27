@@ -1,9 +1,11 @@
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
+from django.db.models import Q
 from orders.forms import OrderForm, PhotoOrderFormSet
-from orders.models import PhotoForOrder
+from orders.models import PhotoForOrder, Order
 
 
 @login_required
@@ -100,3 +102,73 @@ def order_new_buying(request):
         'form': form,
         'formset': formset,
     })
+
+
+@login_required
+def order_list(request):
+    query = request.GET.get('q')
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    orders = Order.objects.all().filter(created_by=request.user)
+
+    if query:
+        orders = orders.filter(
+            Q(name__icontains=query) | Q(description__icontains=query)
+        )
+
+    orders = orders.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(orders, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('description', 'Описание'),
+        ('type', 'Тип заказа')
+    ]
+
+    return render(request, 'deliveries/client-side/orders/order-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@login_required
+def order_edit(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST, instance=order)
+        if form.is_valid():
+            form.save()
+
+            # Сохраняем фото
+            for file in request.FILES.getlist('photo'):
+                photo = PhotoForOrder(photo=file, order=order)
+                photo.save()
+
+            return redirect('orders:list-orders')
+    else:
+        form = OrderForm(instance=order)
+
+    return render(request, 'deliveries/client-side/orders/order-edit.html', {'form': form, 'order': order})
+
+
+@login_required
+def order_delete(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+    if request.method == 'POST':
+        order.delete()
+        return redirect('deliveries:list-order')
+    return render(request, 'deliveries/client-side/orders/order-delete.html', {'order': order})
