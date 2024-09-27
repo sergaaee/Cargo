@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Задача - поиск{% endblock %}
+
+{% block content %}
+    <script src="{% static 'js/input-size-mask.js' %}"></script>
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Закупка</h4>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="accordion" id="collapsibleSection">
+                <!-- первая строка -->
+                <div class="card accordion-item active">
+                    <h2 class="accordion-header" id="headingBaseOrderBuying">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseBaseOrderBuying" aria-expanded="true"
+                                aria-controls="collapseBaseOrderBuying">
+                            1. Детали заказа
+                        </button>
+                    </h2>
+                    <div id="collapseBaseOrderBuying" class="accordion-collapse collapse show"
+                         aria-labelledby="headingBaseOrderBuying" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <!-- Поля формы OrderBuying -->
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.name.label_tag }} {{ form.name }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.description.label_tag }} {{ form.description }}
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- вторая строка: фотографии -->
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingPhotoOrderBuying">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePhotoOrderBuying" aria-expanded="false"
+                                aria-controls="collapsePhotoOrderBuying">
+                            2. Фотографии заказа (опционально)
+                        </button>
+                    </h2>
+                    <div id="collapsePhotoOrderBuying" class="accordion-collapse collapse"
+                         aria-labelledby="headingPhotoOrderBuying" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="card-body">
+                                        <div id="formset-container">
+                                            {{ formset.management_form }}
+                                            <label for="photo">Загрузить фото:</label>
+                                            <input type="file" name="photo" multiple>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">Добавить заказ</button>
+            <a href="{% url 'index' %}" class="btn btn-secondary mt-4">Отмена</a>
+            {{ form.errors }}
+        </form>
+    </div>
+{% endblock %}
