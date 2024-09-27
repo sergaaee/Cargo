@@ -7,6 +7,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'deliveries.apps.DeliveriesConfig',
+    'orders.apps.OrdersConfig',
     'rangefilter',
     'multiselectfield',
     'django_cleanup.apps.CleanupConfig',

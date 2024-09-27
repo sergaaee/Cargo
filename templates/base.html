@@ -202,6 +202,34 @@
                             </li>
                         </ul>
                     </li>
+
+                    <!-- Orders Menu -->
+                    <li class="menu-item">
+                        <a class="menu-link menu-toggle">
+                            <i class="bi bi-list-stars me-2"></i>
+                            <div data-i18n="Orders">Заказы</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <li class="menu-item">
+                                <a href="{% url 'orders:new-searching' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Searching">Поиск</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'orders:new-buying' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="Buyer">Закупка</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'orders:new-buying' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <div data-i18n="Production">Производство</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                 {% endif %}
             </ul>
         </aside>

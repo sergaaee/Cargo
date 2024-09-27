@@ -1,5 +1,3 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
@@ -58,7 +56,8 @@ def incoming_new(request):
                     tracker_code_obj.status = 'Active'
                     tracker_code_obj.save()
                 except TrackerCode.DoesNotExist:
-                    tracker_code_obj = TrackerCode.objects.create(code=tracker_code, created_by=request.user, status="Active", source="Unknown")
+                    tracker_code_obj = TrackerCode.objects.create(code=tracker_code, created_by=request.user,
+                                                                  status="Active", source="Unknown")
                     tracker_code_obj.save()
 
             # Привязываем трекер к поступлению
@@ -77,7 +76,7 @@ def incoming_new(request):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            return redirect('index')
+            return redirect('deliveries:list-incoming')
 
     else:
         form = IncomingForm()
@@ -149,7 +148,10 @@ def incoming_edit(request, pk):
     trackers = Tracker.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
-    return render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers, 'available_inventory_numbers': available_inventory_numbers, 'active_tracker_codes': active_tracker_codes})
+    return render(request, 'deliveries/incomings/incoming-edit.html',
+                  {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers,
+                   'available_inventory_numbers': available_inventory_numbers,
+                   'active_tracker_codes': active_tracker_codes})
 
 
 @user_passes_test(staff_required)

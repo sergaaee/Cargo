@@ -1,6 +1,3 @@
-from random import choices
-
-from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 
 from PIL import Image

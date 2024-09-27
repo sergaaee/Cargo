@@ -1,9 +1,6 @@
 from django import forms
 from django.forms.models import inlineformset_factory
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -81,7 +78,8 @@ class IncomingForm(forms.ModelForm):
         }
 
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    weight = forms.IntegerField(initial=1, required=False, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    weight = forms.IntegerField(initial=1, required=False,
+                                widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
     inventory_numbers = forms.CharField(required=True, widget=forms.TextInput(
         attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}))
@@ -107,7 +105,7 @@ class IncomingForm(forms.ModelForm):
 
         # Если трекер не найден, создаем новый
         if not tracker_obj:
-            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list),)
+            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list), )
 
             # Привязываем коды к новому трекеру
             for code in code_list:
@@ -169,7 +167,6 @@ class IncomingForm(forms.ModelForm):
         return cleaned_data
 
 
-
 class IncomingFormEdit(forms.ModelForm):
     class Meta:
         model = Incoming
@@ -199,7 +196,6 @@ class IncomingFormEdit(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
     def clean_tag(self):
         tag_name = self.cleaned_data.get('tag')
@@ -257,7 +253,7 @@ class PhotoForm(forms.ModelForm):
         model = Photo
         fields = ['photo']
         widgets = {
-            'photo': CustomClearableFileInput(),  # Используем кастомный виджет
+            'photo': CustomClearableFileInput(),
         }
 
 
