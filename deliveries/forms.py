@@ -109,8 +109,7 @@ class IncomingForm(forms.ModelForm):
 
             # Привязываем коды к новому трекеру
             for code in code_list:
-                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active',
-                                                                                               'source': 'Unknown'})
+                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active',})
                 tracker_code.tracker = tracker_obj
                 tracker_obj.tracking_codes.add(tracker_code)
                 tracker_code.save()
