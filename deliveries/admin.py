@@ -1,4 +1,3 @@
-from PIL.ImImagePlugin import number
 from django.contrib import admin
 from .models import Incoming, Tag, TagIncoming, Photo, TrackerIncoming, Tracker, InventoryNumber
 
