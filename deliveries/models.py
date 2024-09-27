@@ -34,7 +34,6 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
 class TrackerCode(UUIDMixin, TimeStampedMixin):
     code = models.CharField(_('Code'), max_length=1000, unique=True)
     status = models.CharField(_('Status'), choices=CodeStatus.choices, default="Inactive")
-    source = models.CharField(_('Source'), max_length=100)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True, blank=True)
 
     def __str__(self):
@@ -47,6 +46,7 @@ class Tracker(UUIDMixin, TimeStampedMixin):
                               max_length=100)
     tracking_codes = models.ManyToManyField(TrackerCode, through='TrackerCodeTracker',
                                             blank=True)
+    source = models.CharField(_('Source'), max_length=100, blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True)
 
 

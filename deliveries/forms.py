@@ -38,9 +38,10 @@ class TrackerForm(forms.ModelForm):
 
     class Meta:
         model = Tracker
-        fields = ['name']
+        fields = ['name', 'source']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'source': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -58,7 +59,7 @@ class TrackerForm(forms.ModelForm):
 
         tracker_codes = []
         for code in code_list:
-            tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive", source="Unknown")
+            tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive")
             tracker_codes.append(tracker_code)
 
         return tracker_codes

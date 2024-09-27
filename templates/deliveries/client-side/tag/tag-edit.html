@@ -25,6 +25,7 @@
             <button type="submit" class="btn btn-primary mt-4">
                 {% if tag.id %}Обновить метку{% else %}Создать метку{% endif %}
             </button>
+            <a href="{% url 'deliveries:list-tag' %}" class="btn btn-secondary mt-4">Отмена</a>
         </form>
     </div>
 {% endblock %}

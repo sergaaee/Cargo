@@ -23,6 +23,7 @@
                         {% endif %}
                     </li>
                     <li class="list-group-item"><strong>Статус:</strong> {{ tracker.status }}</li>
+                    <li class="list-group-item"><strong>Источник:</strong> {{ tracker.source }}</li>
                 </ul>
                 <a href="{% url 'deliveries:list-tracker' %}" class="btn btn-primary mt-3">Назад к списку</a>
             </div>

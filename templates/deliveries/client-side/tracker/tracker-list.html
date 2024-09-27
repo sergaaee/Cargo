@@ -37,7 +37,7 @@
                                 {{ code.code }}{% if not forloop.last %}, {% endif %}
                             {% endfor %}
                         </td>
-
+                        <td>{{ tracker.source|default_if_none:"-" }}</td>
                         <td>{{ tracker.status|default_if_none:"-" }}</td>
                         <td>
                             <a href="{% url 'deliveries:detail-tracker' tracker.id %}">Подробнее</a> |

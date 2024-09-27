@@ -413,6 +413,7 @@ def tracker_list(request):
     columns = [
         ('name', 'Название'),
         ('tracking_codes', 'Коды'),
+        ('source', 'Источник'),
         ('status', 'Статус')
     ]
 
@@ -475,7 +476,18 @@ def tracker_edit(request, pk):
     if request.method == 'POST':
         form = TrackerForm(request.POST, instance=tracker)
         if form.is_valid():
-            form.save()
+            tracker = form.save(commit=False)
+
+            tracking_codes = form.cleaned_data['tracking_codes']
+
+            # Создаем объекты TrackerCode и привязываем к трекеру
+            for code in tracking_codes:
+                tracker_code = TrackerCode.objects.get(code=code)
+                tracker_code.created_by = request.user
+                tracker_code.save()
+                tracker.tracking_codes.add(tracker_code)
+
+            tracker.save()
 
             return redirect('deliveries:list-tracker')
     else:

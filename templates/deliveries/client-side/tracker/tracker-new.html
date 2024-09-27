@@ -25,12 +25,19 @@
                                 {{ form.tracking_codes.label_tag }} {{ form.tracking_codes }}
                             </div>
                         </div>
+
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                {{ form.source.label_tag }} {{ form.source }}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             <button type="submit" class="btn btn-primary mt-4">
                 Создать трекинг
             </button>
+            <a href="{% url 'deliveries:list-tracker' %}" class="btn btn-secondary mt-4">Назад</a>
         </form>
     </div>
 {% endblock %}
