@@ -1,5 +1,6 @@
+from PIL.ImImagePlugin import number
 from django.contrib import admin
-from .models import Incoming, Tag, TagIncoming, Photo, TrackerIncoming
+from .models import Incoming, Tag, TagIncoming, Photo, TrackerIncoming, Tracker, InventoryNumber
 
 
 class TagIncomingInline(admin.TabularInline):
@@ -13,6 +14,26 @@ class PhotoAdmin(admin.TabularInline):
 
 class TrackerIncomingInline(admin.TabularInline):
     model = TrackerIncoming
+    extra = 1
+
+
+@admin.register(InventoryNumber)
+class InventoryNumberAdmin(admin.ModelAdmin):
+    search_fields = ['number']
+    list_display = ['number', 'is_occupied']
+
+
+@admin.register(Tracker)
+class TrackerAdmin(admin.ModelAdmin):
+    inlines = [TrackerIncomingInline]
+    search_fields = ['name']
+    list_display = ['name', 'status', 'source', 'created_by']
+    fields = ['name', 'source', 'created_by']
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Tag)
