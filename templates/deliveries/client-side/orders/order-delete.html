@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Удаление метки{% endblock %}
+{% block title %}Удаление заказа{% endblock %}
 
 {% block content %}
   <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Метки/</span>Удаление метки</h4>
+    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Удаление заказа</h4>
     <p>Вы действительно хотите удалить заказ "{{ order.name }}"?</p>
     <form method="POST">
       {% csrf_token %}
