@@ -284,70 +284,81 @@
                 });
             });
         });
-
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const inventoryInput = document.getElementById('inventory-input');
-            const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
-            const selectedInventoryInput = document.getElementById('selected-inventory-input');
-            const initialInventoryInput = document.getElementById('initial-inventory-numbers');
+    const inventoryInput = document.getElementById('inventory-input');
+    const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
+    const selectedInventoryInput = document.getElementById('selected-inventory-input');
+    const initialInventoryInput = document.getElementById('initial-inventory-numbers');
 
+    let selectedInventoryNumbers = [];
+    let initialInventoryNumbers = initialInventoryInput.value.split(',').filter(n => n.trim() !== '');
 
-            let selectedInventoryNumbers = [];
-            let initialInventoryNumbers = initialInventoryInput.value.split(',').filter(n => n.trim() !== '');
+    // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
+    {% for inventory_number in incoming.inventory_numbers.all %}
+        selectedInventoryNumbers.push("{{ inventory_number.number }}");
+    {% endfor %}
 
-            // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
-            {% for inventory_number in incoming.inventory_numbers.all %}
-                selectedInventoryNumbers.push("{{ inventory_number.number }}");
-            {% endfor %}
+    // Функция для обновления списка выбранных инвентарных номеров
+    function updateSelectedInventoryNumbers() {
+        selectedInventoryContainer.innerHTML = '';
+        selectedInventoryInput.value = selectedInventoryNumbers.join(',');
 
-            function updateSelectedInventoryNumbers() {
-                selectedInventoryContainer.innerHTML = '';
-                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
+        selectedInventoryNumbers.forEach((number) => {
+            const inventoryDiv = document.createElement('div');
+            inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-primary', 'me-1', 'mb-1');
+            inventoryDiv.textContent = number;
 
-                selectedInventoryNumbers.forEach((number) => {
-                    const inventoryDiv = document.createElement('div');
-                    inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-primary', 'me-1', 'mb-1');
-                    inventoryDiv.textContent = number;
-
-                    const removeBtn = document.createElement('span');
-                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
-                    removeBtn.innerHTML = '&times;';
-                    removeBtn.addEventListener('click', () => {
-                        selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== number);
-                        updateSelectedInventoryNumbers();
-                    });
-
-                    inventoryDiv.appendChild(removeBtn);
-                    selectedInventoryContainer.appendChild(inventoryDiv);
-                });
-            }
-
-            // Обработка добавления нового инвентарного номера
-            inventoryInput.addEventListener('change', function () {
-                const selectedNumber = inventoryInput.value.trim();
-                if (selectedNumber && !selectedInventoryNumbers.includes(selectedNumber)) {
-                    selectedInventoryNumbers.push(selectedNumber);
-                    updateSelectedInventoryNumbers();
-                }
-                inventoryInput.value = '';
+            const removeBtn = document.createElement('span');
+            removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.addEventListener('click', () => {
+                selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== number);
+                updateSelectedInventoryNumbers();
             });
 
-            // Инициализируем удаление для уже существующих инвентарных номеров
-            document.querySelectorAll('#selected-inventory-numbers .cursor-pointer').forEach(removeBtn => {
-                removeBtn.addEventListener('click', function () {
-                    const numberToRemove = this.getAttribute('data-number');
-                    selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== numberToRemove);
-                    updateSelectedInventoryNumbers();
-                });
-            });
-
-            // Обновляем скрытое поле перед отправкой формы
-            document.querySelector('form').addEventListener('submit', function () {
-                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
-            });
+            inventoryDiv.appendChild(removeBtn);
+            selectedInventoryContainer.appendChild(inventoryDiv);
         });
+    }
+
+    // Функция для добавления нового инвентарного номера
+    function addSelectedInventoryNumber() {
+        const selectedNumber = inventoryInput.value.trim();
+        if (selectedNumber && !selectedInventoryNumbers.includes(selectedNumber)) {
+            selectedInventoryNumbers.push(selectedNumber);
+            updateSelectedInventoryNumbers();
+        }
+        inventoryInput.value = '';  // Очищаем поле ввода
+    }
+
+    // Обработка добавления нового инвентарного номера при изменении (выборе из списка)
+    inventoryInput.addEventListener('change', addSelectedInventoryNumber);
+
+    // Обработка добавления нового инвентарного номера при нажатии Enter
+    inventoryInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();  // Предотвращаем стандартное поведение (например, отправку формы)
+            addSelectedInventoryNumber();
+        }
+    });
+
+    // Инициализируем удаление для уже существующих инвентарных номеров
+    document.querySelectorAll('#selected-inventory-numbers .cursor-pointer').forEach(removeBtn => {
+        removeBtn.addEventListener('click', function () {
+            const numberToRemove = this.getAttribute('data-number');
+            selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== numberToRemove);
+            updateSelectedInventoryNumbers();
+        });
+    });
+
+    // Обновляем скрытое поле перед отправкой формы
+    document.querySelector('form').addEventListener('submit', function () {
+        selectedInventoryInput.value = selectedInventoryNumbers.join(',');
+    });
+});
+
     </script>
     <!-- TODO: add check for tag-owner + track-number-owner !-->
 {% endblock %}
