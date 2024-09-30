@@ -25,6 +25,7 @@
                             </a>
                         </th>
                     {% endfor %}
+                    <th>Действие</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -34,6 +35,10 @@
                         <td>{{ order.description|default_if_none:"-" }}</td>
                         <td>{{ order.order_type|default_if_none:"-" }}</td>
                         <td>{{ order.created_by.email|default_if_none:"-" }}</td>
+                        <td>{{ order.status|default_if_none:"-" }}</td>
+                        <td>
+                            <a href="{% url 'orders:edit-order-manager' order.id %}">Редактировать</a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>

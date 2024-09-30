@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
 from django.db.models import Q
-from orders.forms import OrderForm, PhotoOrderFormSet
+from orders.forms import OrderForm, PhotoOrderFormSet, OrderManagerForm
 from orders.models import PhotoForOrder, Order
 
 
@@ -132,7 +132,8 @@ def order_list(request):
     columns = [
         ('name', 'Название'),
         ('description', 'Описание'),
-        ('type', 'Тип заказа')
+        ('type', 'Тип заказа'),
+        ('status', 'Статус')
     ]
 
     return render(request, 'orders/client-side/order-list.html', {
@@ -163,6 +164,23 @@ def order_edit(request, pk):
         form = OrderForm(instance=order)
 
     return render(request, 'orders/client-side/order-edit.html', {'form': form, 'order': order})
+
+
+@user_passes_test(lambda u: u.is_staff)
+@login_required
+def order_edit_manager(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+
+    if request.method == 'POST':
+        form = OrderManagerForm(request.POST, instance=order)
+        if form.is_valid():
+            form.save()
+
+            return redirect('orders:list-order-manager')
+    else:
+        form = OrderManagerForm(instance=order)
+
+    return render(request, 'orders/manager-side/order-edit-manager.html', {'form': form, 'order': order})
 
 
 @login_required
@@ -204,7 +222,8 @@ def order_list_manager(request):
         ('name', 'Название'),
         ('description', 'Описание'),
         ('type', 'Тип заказа'),
-        ('client', 'Клиент')
+        ('client', 'Клиент'),
+        ('status', 'Статус')
     ]
 
     return render(request, 'orders/manager-side/order-list-manager.html', {

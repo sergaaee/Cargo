@@ -34,6 +34,7 @@
                         <td>{{ order.name|default_if_none:"-" }}</td>
                         <td>{{ order.description|default_if_none:"-" }}</td>
                         <td>{{ order.order_type|default_if_none:"-" }}</td>
+                        <td>{{ order.status|default_if_none:"-" }}</td>
                         <td>
                             <a href="{% url 'orders:edit-order' order.id %}">Редактировать</a> |
                             <a href="{% url 'orders:delete-order' order.id %}">Удалить</a>

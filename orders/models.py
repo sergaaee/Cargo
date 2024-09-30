@@ -3,6 +3,7 @@ from deliveries.choices import *
 from deliveries.mixins import UUIDMixin, TimeStampedMixin
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from .choices import OrderStatus
 
 
 class PhotoForOrder(UUIDMixin, TimeStampedMixin):
@@ -34,6 +35,7 @@ class Order(UUIDMixin, TimeStampedMixin):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
                                    blank=True)
     order_type = models.CharField(_('Type'), max_length=100, default='Searching')
+    status = models.CharField(_('Status'), max_length=100, default='Under review', choices=OrderStatus.choices, null=True, blank=True)
     images = models.ManyToManyField(PhotoForOrder, through='PhotoOrder', related_name='order_images', blank=True)
 
     def __str__(self):

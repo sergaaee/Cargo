@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Редактировать поступление{% endblock %}
+
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Редактировать заказ</h4>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="accordion" id="collapsibleSection">
+                <!-- первая строка -->
+                <div class="card accordion-item active">
+                    <h2 class="accordion-header" id="headingBaseIncoming">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseBaseIncoming" aria-expanded="true"
+                                aria-controls="collapseBaseIncoming">
+                             Детали заказа
+                        </button>
+                    </h2>
+                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show"
+                         aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+
+                            <div class="row g-3">
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.name.label_tag }} {{ form.name }}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.status.label_tag }} {{ form.status }}
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
+            <a href="{% url 'orders:list-orders' %}" class="btn btn-secondary mt-4">Отмена</a>
+            {{ form.errors }}
+        </form>
+    </div>
+{% endblock %}

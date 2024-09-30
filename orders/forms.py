@@ -28,6 +28,16 @@ class OrderForm(forms.ModelForm):
         }
 
 
+class OrderManagerForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ['name', 'status']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+
 class PhotoOrderForm(forms.ModelForm):
     class Meta:
         model = PhotoForOrder

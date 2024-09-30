@@ -4,7 +4,6 @@
 {% block title %}Редактировать поступление{% endblock %}
 
 {% block content %}
-    <script src="{% static 'js/input-size-mask.js' %}"></script>
     <script>
         function removePhotoEdit(photoId) {
             // Отправка AJAX-запроса для удаления фото
@@ -40,12 +39,6 @@
                         <div class="accordion-body">
                             <!-- Поля формы Incoming -->
                             <div class="row g-3">
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        {{ form.name.label_tag }} {{ form.name }}
-                                    </div>
-                                </div>
 
                                 <div class="col-md-4">
                                     <div class="form-group">
