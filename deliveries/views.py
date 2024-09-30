@@ -390,6 +390,22 @@ def incoming_detail(request, pk):
 
 
 @login_required
+def goods_detail(request, pk):
+    incoming = get_object_or_404(Incoming, pk=pk)
+
+    # Получаем только активные трек-коды
+    active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
+
+    if request.user == incoming.client:
+        return render(request, 'deliveries/incomings/incoming-detail.html', {
+            'incoming': incoming,
+            'active_tracker_codes': active_tracker_codes
+        })
+    else:
+        return redirect('web:profile')
+
+
+@login_required
 def tracker_list(request):
     query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')

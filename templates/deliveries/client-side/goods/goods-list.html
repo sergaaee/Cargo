@@ -25,6 +25,7 @@
                             </a>
                         </th>
                     {% endfor %}
+                <th>Действие</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -54,6 +55,9 @@
                         <td>{{ incoming.places_count|default_if_none:"-" }}</td>
                         <td>{{ incoming.manager.email|default_if_none:"-" }}</td>
                         <td>{{ incoming.status|default_if_none:"-" }}</td>
+                        <td>
+                            <a href="{% url 'deliveries:detail-goods' incoming.id %}">Просмотр</a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
