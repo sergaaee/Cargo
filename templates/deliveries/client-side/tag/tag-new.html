@@ -26,6 +26,7 @@
                 Создать метку
             </button>
             <a href="{% url 'deliveries:list-tag' %}" class="btn btn-secondary mt-4">Отмена</a>
+                        {{ form.errors }}
         </form>
     </div>
 {% endblock %}

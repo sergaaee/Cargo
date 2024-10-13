@@ -26,6 +26,14 @@ class TagForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+    def clean_name(self):
+        try:
+            tag = Tag.objects.get(name=self.cleaned_data['name'])
+            if tag:
+                raise forms.ValidationError(f'Тэг с именем "{tag.name}" уже существует')
+        except Tag.DoesNotExist:
+            return self.cleaned_data['name']
+
 
 class TrackerForm(forms.ModelForm):
     tracking_codes = forms.CharField(
