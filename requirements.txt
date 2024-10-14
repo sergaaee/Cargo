@@ -19,3 +19,6 @@ django-jazzmin-admin-rangefilter
 django-multiselectfield
 pillow
 django-cleanup
+djangorestframework
+django-phonenumber-field[phonenumbers]
+

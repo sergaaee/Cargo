@@ -3,6 +3,8 @@ from django.db.models import Q
 from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
+
+from user_profile.models import ClientManagerRelation
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list
 
@@ -158,6 +160,16 @@ def goods_list(request):
 
     incomings = Incoming.objects.filter(client=request.user)
 
+    if request.user.groups.filter(name='Clients').exists():
+        # Пытаемся получить связь, где текущий пользователь является клиентом
+        try:
+            relation = ClientManagerRelation.objects.get(client=request.user)
+            manager = relation.manager
+        except ClientManagerRelation.DoesNotExist:
+            manager = None
+    else:
+        manager = None
+
     if query:
         incomings = incomings.annotate(
             codes_str=Cast('tracker__tracking_codes', CharField())
@@ -187,7 +199,8 @@ def goods_list(request):
         'query': query,
         'sort_by': sort_by,
         'order': sort_order,
-        'columns': columns  # Передаем колонки в шаблон
+        'columns': columns,
+        'manager': manager, # Передаем колонки в шаблон
     })
 
 
