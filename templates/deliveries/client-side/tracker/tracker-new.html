@@ -23,6 +23,11 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 {{ form.tracking_codes.label_tag }} {{ form.tracking_codes }}
+                                <!-- Скрытое поле для передачи выбранных трек-кодов -->
+                                <input type="hidden" id="selected-tracker-codes-input" name="tracking_codes">
+                                <div id="selected-tracker-codes" class="mt-2">
+                                    <!-- Здесь будут динамически добавляться выбранные коды -->
+                                </div>
                             </div>
                         </div>
 
@@ -38,6 +43,63 @@
                 Создать трекинг
             </button>
             <a href="{% url 'deliveries:list-tracker' %}" class="btn btn-secondary mt-4">Назад</a>
+            {{ form.errors }}
         </form>
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const trackerInput = document.getElementById('id_tracking_codes');
+            const selectedTrackersContainer = document.getElementById('selected-tracker-codes');
+            const selectedTrackersInput = document.getElementById('selected-tracker-codes-input');
+
+            let selectedTrackers = [];
+
+            function updateSelectedTrackers() {
+                selectedTrackersContainer.innerHTML = '';
+                selectedTrackersInput.value = selectedTrackers.join(',');  // Обновляем скрытое поле
+
+                selectedTrackers.forEach((code, index) => {
+                    const trackerDiv = document.createElement('div');
+                    trackerDiv.classList.add('selected-tracker-codes', 'badge', 'bg-primary', 'me-1', 'mb-1');
+                    trackerDiv.textContent = code;
+
+                    const removeBtn = document.createElement('span');
+                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.style.cursor = 'pointer';
+
+                    removeBtn.addEventListener('click', () => {
+                        selectedTrackers.splice(index, 1);  // Удаляем выбранный код из массива
+                        updateSelectedTrackers();  // Обновляем отображение
+                    });
+
+                    trackerDiv.appendChild(removeBtn);
+                    selectedTrackersContainer.appendChild(trackerDiv);
+                });
+            }
+
+            function addSelectedTracker() {
+                const selectedCode = trackerInput.value.trim();
+                if (selectedCode && !selectedTrackers.includes(selectedCode)) {
+                    selectedTrackers.push(selectedCode);
+                    updateSelectedTrackers();
+                }
+                trackerInput.value = '';  // Очищаем поле ввода для следующего ввода
+            }
+
+            trackerInput.addEventListener('change', addSelectedTracker);
+
+            trackerInput.addEventListener('keydown', function (event) {
+                if (event.keyCode === 13) {  // Проверяем нажатие Enter
+                    event.preventDefault();  // Предотвращаем стандартное поведение (например, отправку формы)
+                    addSelectedTracker();
+                }
+            });
+
+            // Обновляем скрытое поле непосредственно перед отправкой формы
+            document.querySelector('form').addEventListener('submit', function () {
+                selectedTrackersInput.value = selectedTrackers.join(',');
+            });
+        });
+    </script>
 {% endblock %}

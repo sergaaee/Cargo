@@ -68,6 +68,10 @@ def incoming_new(request):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
+            if tracker.tracking_codes.filter(status='Inactive').count() == 0:
+                tracker.status = 'Completed'
+                tracker.save()
+
             return redirect('deliveries:list-incoming')
 
     else:
@@ -334,6 +338,7 @@ def tracker_list(request):
     query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
     sort_order = request.GET.get('order', 'asc')
+    hide_completed = request.GET.get('hide_completed', '')
 
     if sort_order == 'desc':
         order_prefix = '-'
@@ -348,6 +353,9 @@ def tracker_list(request):
         ).distinct()
 
     trackers = trackers.order_by(f'{order_prefix}{sort_by}')
+
+    if hide_completed == 'on':
+        trackers = trackers.exclude(status='Completed')
 
     paginator = Paginator(trackers, 10)
     page_number = request.GET.get('page')
@@ -366,7 +374,8 @@ def tracker_list(request):
         'query': query,
         'sort_by': sort_by,
         'order': sort_order,
-        'columns': columns
+        'columns': columns,
+        'hide_completed': hide_completed,
     })
 
 

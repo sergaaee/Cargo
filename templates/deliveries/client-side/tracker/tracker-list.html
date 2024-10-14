@@ -13,6 +13,11 @@
                        value="{{ query|default_if_none:''|escape }}">
                 <button class="btn btn-primary" type="submit">Поиск</button>
             </div>
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" id="hide-completed" name="hide_completed"
+                       {% if hide_completed == 'on' %}checked{% endif %}>
+                <label class="form-check-label" for="hide-completed">Скрыть выполненные трекинги</label>
+            </div>
         </form>
         <div class="card-datatable table-responsive">
             <table class="table table-bordered">
@@ -34,9 +39,18 @@
                         <td>{{ tracker.name|default_if_none:"-" }}</td>
                         <td>
                             {% for code in tracker.tracking_codes.all %}
-                                {{ code.code }}{% if not forloop.last %}, {% endif %}
+                                <span class="
+                                    {% if code.status == 'Active' %}
+                                        badge bg-success
+                                    {% elif code.status == 'Inactive' %}
+                                        badge bg-warning
+                                    {% endif %}">
+                                    {{ code.code }}
+                                </span>
+                                {% if not forloop.last %}, {% endif %}
                             {% endfor %}
                         </td>
+
                         <td>{{ tracker.source|default_if_none:"-" }}</td>
                         <td>{{ tracker.status|default_if_none:"-" }}</td>
                         <td>

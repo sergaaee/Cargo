@@ -37,16 +37,16 @@ class TagForm(forms.ModelForm):
 
 class TrackerForm(forms.ModelForm):
     tracking_codes = forms.CharField(
-        required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите коды через запятую'})
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите код, а затем нажмите enter'})
     )
 
     class Meta:
         model = Tracker
-        fields = ['name', 'source']
+        fields = ['name', 'source', 'tracking_codes']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'source': forms.TextInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите название'}),
+            'source': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите источник (прим. CDEK)'}),
         }
 
     def __init__(self, *args, **kwargs):
