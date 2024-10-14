@@ -6,7 +6,5 @@ from django.contrib.auth.models import User
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if created:
-        pass
-    else:
+    if not created:
         instance.profile.save()
