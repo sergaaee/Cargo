@@ -40,16 +40,28 @@
                         <div class="accordion-body">
                             <!-- Поля формы Incoming -->
                             <div class="row g-3">
+
                                 <div class="col-md-4">
-                                <div class="form-group">
-                                    <h5>Активные трек-коды:</h5>
-                                    <ul>
-                                        {% for code in active_tracker_codes %}
-                                            <li>{{ code.code }}</li>
-                                        {% endfor %}
-                                    </ul>
+                                    <div class="form-group">
+                                        <h5>Активные трек-коды:</h5>
+                                        <ul>
+                                            {% for code in active_tracker_codes %}
+                                                <li>{{ code.code }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
                                 </div>
-                            </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <h5>Инвентарные номера:</h5>
+                                        <ul>
+                                            {% for inventory_number in incoming.inventory_numbers.all %}
+                                                <li>{{ inventory_number.number }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
 
                                 <div class="col-md-4">
                                     <div class="form-group">
@@ -60,18 +72,6 @@
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.arrival_date.label_tag }} {{ form.arrival_date }}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        {{ form.size.label_tag }} {{ form.size }}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        {{ form.weight.label_tag }} {{ form.weight }}
                                     </div>
                                 </div>
 
@@ -100,41 +100,6 @@
                                         <label for="tag">Тег клиента:</label>
                                         <input type="text" name="tag" class="form-control"
                                                value="{{ incoming.tag.name }}">
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="inventory-input">Инвентарные номера</label>
-                                        <input id="inventory-input" list="inventory-list" class="form-control"
-                                               placeholder="Введите инвентарный номер">
-                                        <datalist id="inventory-list">
-                                            {% for inventory_number in available_inventory_numbers %}
-                                                {% if inventory_number.is_occupied == False %}
-                                                    <option value="{{ inventory_number.number }}"></option>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </datalist>
-
-                                        <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
-                                        <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
-
-                                        <!-- Скрытое поле для хранения изначальных инвентарных номеров -->
-                                        <input type="hidden" id="initial-inventory-numbers"
-                                               name="initial_inventory_numbers"
-                                               value="{% for inventory_number in incoming.inventory_numbers.all %}{{ inventory_number.number }}{% if not forloop.last %},{% endif %}{% endfor %}">
-
-
-                                        <!-- Блок для отображения выбранных инвентарных номеров -->
-                                        <div id="selected-inventory-numbers" class="mt-2">
-                                            {% for inventory_number in incoming.inventory_numbers.all %}
-                                                <div class="selected-inventory badge bg-primary me-1 mb-1">
-                                                    {{ inventory_number.number }}
-                                                    <span class="ms-2 text-white cursor-pointer"
-                                                          data-number="{{ inventory_number.number }}">&times;</span>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -210,7 +175,17 @@
                         <div class="accordion-body">
                             <!-- Прочие поля формы -->
                             <div class="row g-3">
-                                <!-- Добавьте дополнительные поля, если нужно -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.size.label_tag }} {{ form.size }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ form.weight.label_tag }} {{ form.weight }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -222,6 +197,7 @@
             {{ form.errors }}
         </form>
     </div>
+    <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const trackerInput = document.getElementById('tracker-input');
@@ -287,77 +263,77 @@
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-    const inventoryInput = document.getElementById('inventory-input');
-    const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
-    const selectedInventoryInput = document.getElementById('selected-inventory-input');
-    const initialInventoryInput = document.getElementById('initial-inventory-numbers');
+            const inventoryInput = document.getElementById('inventory-input');
+            const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
+            const selectedInventoryInput = document.getElementById('selected-inventory-input');
+            const initialInventoryInput = document.getElementById('initial-inventory-numbers');
 
-    let selectedInventoryNumbers = [];
-    let initialInventoryNumbers = initialInventoryInput.value.split(',').filter(n => n.trim() !== '');
+            let selectedInventoryNumbers = [];
+            let initialInventoryNumbers = initialInventoryInput.value.split(',').filter(n => n.trim() !== '');
 
-    // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
-    {% for inventory_number in incoming.inventory_numbers.all %}
-        selectedInventoryNumbers.push("{{ inventory_number.number }}");
-    {% endfor %}
+            // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
+            {% for inventory_number in incoming.inventory_numbers.all %}
+                selectedInventoryNumbers.push("{{ inventory_number.number }}");
+            {% endfor %}
 
-    // Функция для обновления списка выбранных инвентарных номеров
-    function updateSelectedInventoryNumbers() {
-        selectedInventoryContainer.innerHTML = '';
-        selectedInventoryInput.value = selectedInventoryNumbers.join(',');
+            // Функция для обновления списка выбранных инвентарных номеров
+            function updateSelectedInventoryNumbers() {
+                selectedInventoryContainer.innerHTML = '';
+                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
 
-        selectedInventoryNumbers.forEach((number) => {
-            const inventoryDiv = document.createElement('div');
-            inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-primary', 'me-1', 'mb-1');
-            inventoryDiv.textContent = number;
+                selectedInventoryNumbers.forEach((number) => {
+                    const inventoryDiv = document.createElement('div');
+                    inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-primary', 'me-1', 'mb-1');
+                    inventoryDiv.textContent = number;
 
-            const removeBtn = document.createElement('span');
-            removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
-            removeBtn.innerHTML = '&times;';
-            removeBtn.addEventListener('click', () => {
-                selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== number);
-                updateSelectedInventoryNumbers();
+                    const removeBtn = document.createElement('span');
+                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.addEventListener('click', () => {
+                        selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== number);
+                        updateSelectedInventoryNumbers();
+                    });
+
+                    inventoryDiv.appendChild(removeBtn);
+                    selectedInventoryContainer.appendChild(inventoryDiv);
+                });
+            }
+
+            // Функция для добавления нового инвентарного номера
+            function addSelectedInventoryNumber() {
+                const selectedNumber = inventoryInput.value.trim();
+                if (selectedNumber && !selectedInventoryNumbers.includes(selectedNumber)) {
+                    selectedInventoryNumbers.push(selectedNumber);
+                    updateSelectedInventoryNumbers();
+                }
+                inventoryInput.value = '';  // Очищаем поле ввода
+            }
+
+            // Обработка добавления нового инвентарного номера при изменении (выборе из списка)
+            inventoryInput.addEventListener('change', addSelectedInventoryNumber);
+
+            // Обработка добавления нового инвентарного номера при нажатии Enter
+            inventoryInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();  // Предотвращаем стандартное поведение (например, отправку формы)
+                    addSelectedInventoryNumber();
+                }
             });
 
-            inventoryDiv.appendChild(removeBtn);
-            selectedInventoryContainer.appendChild(inventoryDiv);
+            // Инициализируем удаление для уже существующих инвентарных номеров
+            document.querySelectorAll('#selected-inventory-numbers .cursor-pointer').forEach(removeBtn => {
+                removeBtn.addEventListener('click', function () {
+                    const numberToRemove = this.getAttribute('data-number');
+                    selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== numberToRemove);
+                    updateSelectedInventoryNumbers();
+                });
+            });
+
+            // Обновляем скрытое поле перед отправкой формы
+            document.querySelector('form').addEventListener('submit', function () {
+                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
+            });
         });
-    }
-
-    // Функция для добавления нового инвентарного номера
-    function addSelectedInventoryNumber() {
-        const selectedNumber = inventoryInput.value.trim();
-        if (selectedNumber && !selectedInventoryNumbers.includes(selectedNumber)) {
-            selectedInventoryNumbers.push(selectedNumber);
-            updateSelectedInventoryNumbers();
-        }
-        inventoryInput.value = '';  // Очищаем поле ввода
-    }
-
-    // Обработка добавления нового инвентарного номера при изменении (выборе из списка)
-    inventoryInput.addEventListener('change', addSelectedInventoryNumber);
-
-    // Обработка добавления нового инвентарного номера при нажатии Enter
-    inventoryInput.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();  // Предотвращаем стандартное поведение (например, отправку формы)
-            addSelectedInventoryNumber();
-        }
-    });
-
-    // Инициализируем удаление для уже существующих инвентарных номеров
-    document.querySelectorAll('#selected-inventory-numbers .cursor-pointer').forEach(removeBtn => {
-        removeBtn.addEventListener('click', function () {
-            const numberToRemove = this.getAttribute('data-number');
-            selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== numberToRemove);
-            updateSelectedInventoryNumbers();
-        });
-    });
-
-    // Обновляем скрытое поле перед отправкой формы
-    document.querySelector('form').addEventListener('submit', function () {
-        selectedInventoryInput.value = selectedInventoryNumbers.join(',');
-    });
-});
 
     </script>
     <!-- TODO: add check for tag-owner + track-number-owner !-->
