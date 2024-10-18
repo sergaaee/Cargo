@@ -95,7 +95,7 @@ class BaseIncomingForm(forms.ModelForm):
     weight = forms.IntegerField(initial=1, required=False,
                                 widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
-    inventory_numbers = forms.CharField(required=True,
+    inventory_numbers = forms.CharField(required=False,
                                         widget=forms.TextInput(attrs={'list': 'inventory-numbers-list', 'class': 'form-control'},),
                                         error_messages={
                                             'required': 'Пожалуйста, введите инвентарные номера.',

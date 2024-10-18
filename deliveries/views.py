@@ -39,10 +39,14 @@ def incoming_new(request):
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
             if tracker.created_by is None:
-                if incoming.tag.created_by is None:
-                    incoming.status = 'Unidentified'
+                if incoming.tag:
+                    if incoming.tag.created_by is None:
+                        incoming.status = 'Unidentified'
+                    else:
+                        incoming.client = incoming.tag.created_by
                 else:
-                    incoming.client = incoming.tag.created_by
+                    incoming.status = 'Unidentified'
+                    incoming.client = None
             else:
                 incoming.client = tracker.created_by
             incoming.save()
@@ -55,7 +59,7 @@ def incoming_new(request):
                     tracker_code_obj.save()
                 except TrackerCode.DoesNotExist:
                     tracker_code_obj = TrackerCode.objects.create(code=tracker_code, created_by=request.user,
-                                                                  status="Active", source="Unknown")
+                                                                  status="Active")
                     tracker_code_obj.save()
 
             # Привязываем трекер к поступлению

@@ -172,6 +172,8 @@
                         </div>
                     </div>
                 </div>
+                <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
+                <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
             </div>
             <button type="submit" class="btn btn-primary mt-4">Добавить поступление</button>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
@@ -192,12 +194,10 @@
                         <div class="form-group">
                             <label for="inventory-input">Инвентарные номера</label>
                             <input id="inventory-input" list="inventory-list" class="form-control"
-                                   placeholder="Введите инвентарный номер">
+                                   placeholder="Введите инвентарный номер" name="inventory_numbers">
                             <datalist id="inventory-list">
                                 <!-- Список доступных инвентарных номеров -->
                             </datalist>
-                            <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
-                            <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
                             <!-- Блок для отображения выбранных инвентарных номеров -->
                             <div id="selected-inventory-numbers" class="mt-2">
                                 <!-- Здесь будут динамически добавляться выбранные инвентарные номера -->
@@ -206,28 +206,14 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button name="button-close-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button name="button-close-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Закрыть
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-    <!-- Очищение localStorage -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const form = document.querySelector('form');
-            const cancelButton = document.querySelector('.btn-secondary');
-
-            // Очищаем localStorage при сабмите формы
-            form.addEventListener('submit', function () {
-                localStorage.removeItem('trackerInventoryMap');
-            });
-
-            // Очищаем localStorage при нажатии на "Отмена"
-            cancelButton.addEventListener('click', function () {
-                localStorage.removeItem('trackerInventoryMap');
-            });
-        });
-    </script>
+    <script src="{% static 'js/submit-logic.js' %}"></script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
