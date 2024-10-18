@@ -132,16 +132,18 @@ class BaseIncomingForm(forms.ModelForm):
 
             incoming = self.instance
             for inventory_number in inventory_numbers:
-                try:
-                    #TODO: make get_or_create
-                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
-                    if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
-                        raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
-                    inventory_number_objects.append(inventory_number_obj)
-                except InventoryNumber.DoesNotExist:
-                    raise forms.ValidationError(f'Инвентарный номер {inventory_number} не существует.')
+                # Используем get_or_create для поиска или создания инвентарного номера
+                inventory_number_obj, created = InventoryNumber.objects.get_or_create(number=inventory_number)
+
+                # Проверяем, занят ли инвентарный номер, если он уже существует и не принадлежит текущему объекту Incoming
+                if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
+                    raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
+
+                # Добавляем инвентарный номер в список, чтобы вернуть его в cleaned_data
+                inventory_number_objects.append(inventory_number_obj)
 
             return inventory_number_objects
+
         return None
 
     def clean(self):

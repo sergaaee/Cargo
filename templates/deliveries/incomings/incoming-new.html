@@ -206,7 +206,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button name="button-close-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                 </div>
             </div>
         </div>
@@ -214,19 +214,17 @@
     <!-- Очищение localStorage -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const form = document.querySelector('form'); // Находим форму
-            const cancelButton = document.querySelector('.btn-secondary'); // Находим кнопку "Отмена"
+            const form = document.querySelector('form');
+            const cancelButton = document.querySelector('.btn-secondary');
 
             // Очищаем localStorage при сабмите формы
             form.addEventListener('submit', function () {
-                localStorage.removeItem('trackerInventoryMap'); // Удаляем конкретный элемент или используйте clear для полного очищения
-                console.log('localStorage очищен при сабмите');
+                localStorage.removeItem('trackerInventoryMap');
             });
 
             // Очищаем localStorage при нажатии на "Отмена"
             cancelButton.addEventListener('click', function () {
-                localStorage.removeItem('trackerInventoryMap'); // Удаляем элемент
-                console.log('localStorage очищен при нажатии на "Отмена"');
+                localStorage.removeItem('trackerInventoryMap');
             });
         });
     </script>
@@ -240,6 +238,8 @@
             const inventoryInput = document.getElementById('inventory-input');
             const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
             const selectedInventoryInput = document.getElementById('selected-inventory-input');
+            const closeButtonX = document.querySelector('.modal .btn-close');
+            const closeButton = document.querySelector('button[name="button-close-close"]');
 
             let selectedTrackers = [];
             let trackerInventoryMap = JSON.parse(localStorage.getItem('trackerInventoryMap')) || {};
@@ -344,6 +344,29 @@
                 }
             });
 
+            function addInventoryNumber() {
+                const selectedNumber = inventoryInput.value.trim();
+                const currentTracker = selectedTrackers[selectedTrackers.length - 1]; // последний добавленный трек-код
+
+                if (selectedNumber && currentTracker) {
+                    trackerInventoryMap[currentTracker] = trackerInventoryMap[currentTracker] || [];
+                    if (!trackerInventoryMap[currentTracker].includes(selectedNumber)) {
+                        trackerInventoryMap[currentTracker].push(selectedNumber);
+                        localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+                        loadInventoryNumbersForTracker(currentTracker);
+                    }
+                }
+                inventoryInput.value = ''; // очищаем поле ввода
+            }
+
+            // Привязываем инвентарный номер при нажатии на кнопку "Закрыть"
+            closeButtonX.addEventListener('click', function () {
+                addInventoryNumber();
+            });
+            closeButton.addEventListener('click', function () {
+                addInventoryNumber();
+            });
+
             trackerInput.addEventListener('change', addSelectedTracker);
             trackerInput.addEventListener('keydown', function (event) {
                 if (event.keyCode === 13) {
@@ -353,5 +376,5 @@
             });
         });
     </script>
-    <!-- TODO: add check for tag-owner + track-number-owner !-->
+    <!-- TODO: add check for tag-owner + track-number-owner -->
 {% endblock %}
