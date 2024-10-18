@@ -23,6 +23,7 @@ class Photo(UUIDMixin, TimeStampedMixin):
 class InventoryNumber(UUIDMixin, TimeStampedMixin):
     number = models.CharField(max_length=100, unique=True)
     is_occupied = models.BooleanField(default=False)
+    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True, related_name='inventory_numbers_tracker_code')
 
     def __str__(self):
         return self.number
@@ -31,10 +32,22 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
 class TrackerCode(UUIDMixin, TimeStampedMixin):
     code = models.CharField(_('Code'), max_length=1000, unique=True)
     status = models.CharField(_('Status'), choices=CodeStatus.choices, default="Inactive")
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True, blank=True)
+    inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberTrackerCode', related_name='tracker_code_inventory_numbers', blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), blank=True, null=True)
 
     def __str__(self):
         return self.code
+
+
+class InventoryNumberTrackerCode(UUIDMixin, TimeStampedMixin):
+    tracker_code = models.ForeignKey(TrackerCode, on_delete=models.CASCADE)
+    inventory_number = models.ForeignKey(InventoryNumber, on_delete=models.CASCADE)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['tracker_code_id', 'inventory_number_id'], name='tracker_code_IN_idx'),
+        ]
+
 
 
 class Tracker(UUIDMixin, TimeStampedMixin):
