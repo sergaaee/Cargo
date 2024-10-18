@@ -1,3 +1,5 @@
+import json
+
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
@@ -9,7 +11,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     paginated_query_incoming_list
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit
-from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode
 from django.http import JsonResponse
 from django.db.models import CharField
 from django.db.models.functions import Cast
@@ -52,6 +54,17 @@ def incoming_new(request):
             incoming.save()
 
             # Привязываем трек-коды к трекеру и обновляем их статус
+            tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
+            for tracker_code, inventory_numbers in tracker_inventory_map.items():
+                tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
+
+                for inventory_number in inventory_numbers:
+                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
+                    InventoryNumberTrackerCode.objects.create(
+                        tracker_code=tracker_code_obj,
+                        inventory_number=inventory_number_obj
+                    )
+
             for tracker_code in tracker_codes:
                 try:
                     tracker_code_obj = TrackerCode.objects.get(code=tracker_code)

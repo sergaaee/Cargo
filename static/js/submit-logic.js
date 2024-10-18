@@ -16,7 +16,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (selectedInventoryInput) {
             selectedInventoryInput.value = inventoryNumbers.join(',');
         }
-
+        trackerInventoryMap = JSON.stringify(trackerInventoryMap);
+        document.getElementById('tracker_inventory_map_input').value = trackerInventoryMap;
         // Удаляем данные из localStorage
         localStorage.removeItem('trackerInventoryMap');
     });
