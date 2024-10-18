@@ -133,6 +133,7 @@ class BaseIncomingForm(forms.ModelForm):
             incoming = self.instance
             for inventory_number in inventory_numbers:
                 try:
+                    #TODO: make get_or_create
                     inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
                     if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
                         raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
