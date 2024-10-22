@@ -190,6 +190,7 @@
                         </div>
                     </div>
                 </div>
+                    <input id="initial-inventory-numbers" type="hidden" name="inventory_numbers">
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
@@ -200,138 +201,20 @@
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const trackerInput = document.getElementById('tracker-input');
-            const selectedTrackersContainer = document.getElementById('selected-trackers');
-            const selectedTrackersInput = document.getElementById('selected-trackers-input');
-
-            // Массив для хранения выбранных трек-номеров
-            let selectedTrackers = [];
-
-            // Инициализируем массив уже существующих трек-номеров, если они есть
-            document.querySelectorAll('#selected-trackers .selected-tracker').forEach(function (trackerDiv) {
-                const trackerCode = trackerDiv.getAttribute('data-code');
-                selectedTrackers.push(trackerCode.trim());  // Убираем возможные пробелы
-            });
-
-            // Функция для обновления отображения выбранных трек-номеров и скрытого поля
-            function updateSelectedTrackers() {
-                selectedTrackersContainer.innerHTML = '';  // Очистка контейнера
-                selectedTrackersInput.value = selectedTrackers.join(',');  // Обновление скрытого поля
-
-                selectedTrackers.forEach((code) => {
-                    const trackerDiv = document.createElement('div');
-                    trackerDiv.classList.add('selected-tracker', 'badge', 'bg-primary', 'me-1', 'mb-1');
-                    trackerDiv.textContent = code.trim();  // Убираем пробелы
-
-                    const removeBtn = document.createElement('span');
-                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
-                    removeBtn.innerHTML = '&times;';
-                    removeBtn.addEventListener('click', () => {
-                        selectedTrackers = selectedTrackers.filter(c => c !== code.trim());  // Удаляем код из массива
-                        updateSelectedTrackers();  // Обновляем отображение
-                    });
-
-                    trackerDiv.appendChild(removeBtn);
-                    selectedTrackersContainer.appendChild(trackerDiv);
-                });
-            }
-
-            // Добавление трек-номера при выборе
-            trackerInput.addEventListener('change', function () {
-                const selectedCode = trackerInput.value.trim();  // Убираем пробелы
-                if (selectedCode && !selectedTrackers.includes(selectedCode)) {
-                    selectedTrackers.push(selectedCode);  // Добавляем код в массив
-                    updateSelectedTrackers();  // Обновляем отображение
-                }
-                trackerInput.value = '';  // Очищаем поле для следующего ввода
-            });
-
-            // Обновляем скрытое поле непосредственно перед отправкой формы
-            document.querySelector('form').addEventListener('submit', function () {
-                selectedTrackersInput.value = selectedTrackers.join(',');
-            });
-
-            // Обработка удаления уже существующих трек-номеров при клике на крестик
-            document.querySelectorAll('#selected-trackers .cursor-pointer').forEach(removeBtn => {
-                removeBtn.addEventListener('click', function () {
-                    const codeToRemove = this.parentNode.getAttribute('data-code').trim();  // Убираем пробелы
-                    selectedTrackers = selectedTrackers.filter(c => c !== codeToRemove);  // Удаляем код из массива
-                    updateSelectedTrackers();
-                });
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const inventoryInput = document.getElementById('inventory-input');
-            const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
-            const selectedInventoryInput = document.getElementById('selected-inventory-input');
             const initialInventoryInput = document.getElementById('initial-inventory-numbers');
 
             let selectedInventoryNumbers = [];
-            let initialInventoryNumbers = initialInventoryInput.value.split(',').filter(n => n.trim() !== '');
 
             // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
             {% for inventory_number in incoming.inventory_numbers.all %}
                 selectedInventoryNumbers.push("{{ inventory_number.number }}");
             {% endfor %}
-
-            // Функция для обновления списка выбранных инвентарных номеров
-            function updateSelectedInventoryNumbers() {
-                selectedInventoryContainer.innerHTML = '';
-                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
-
-                selectedInventoryNumbers.forEach((number) => {
-                    const inventoryDiv = document.createElement('div');
-                    inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-primary', 'me-1', 'mb-1');
-                    inventoryDiv.textContent = number;
-
-                    const removeBtn = document.createElement('span');
-                    removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
-                    removeBtn.innerHTML = '&times;';
-                    removeBtn.addEventListener('click', () => {
-                        selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== number);
-                        updateSelectedInventoryNumbers();
-                    });
-
-                    inventoryDiv.appendChild(removeBtn);
-                    selectedInventoryContainer.appendChild(inventoryDiv);
-                });
-            }
-
-            // Функция для добавления нового инвентарного номера
-            function addSelectedInventoryNumber() {
-                const selectedNumber = inventoryInput.value.trim();
-                if (selectedNumber && !selectedInventoryNumbers.includes(selectedNumber)) {
-                    selectedInventoryNumbers.push(selectedNumber);
-                    updateSelectedInventoryNumbers();
-                }
-                inventoryInput.value = '';  // Очищаем поле ввода
-            }
-
-            // Обработка добавления нового инвентарного номера при изменении (выборе из списка)
-            inventoryInput.addEventListener('change', addSelectedInventoryNumber);
-
-            // Обработка добавления нового инвентарного номера при нажатии Enter
-            inventoryInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();  // Предотвращаем стандартное поведение (например, отправку формы)
-                    addSelectedInventoryNumber();
-                }
-            });
-
-            // Инициализируем удаление для уже существующих инвентарных номеров
-            document.querySelectorAll('#selected-inventory-numbers .cursor-pointer').forEach(removeBtn => {
-                removeBtn.addEventListener('click', function () {
-                    const numberToRemove = this.getAttribute('data-number');
-                    selectedInventoryNumbers = selectedInventoryNumbers.filter(n => n !== numberToRemove);
-                    updateSelectedInventoryNumbers();
-                });
-            });
+            console.log(selectedInventoryNumbers)
+            initialInventoryInput.value = selectedInventoryNumbers.join(',');
 
             // Обновляем скрытое поле перед отправкой формы
             document.querySelector('form').addEventListener('submit', function () {
-                selectedInventoryInput.value = selectedInventoryNumbers.join(',');
+                initialInventoryInput.value = selectedInventoryNumbers.join(',');
             });
         });
 

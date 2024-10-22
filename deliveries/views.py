@@ -128,8 +128,8 @@ def incoming_edit(request, pk):
             initial_inventory_numbers = set(request.POST.get('initial_inventory_numbers', '').split(','))
 
             removed_inventory_numbers = initial_inventory_numbers - new_inventory_numbers
-            update_inventory_numbers(removed_inventory_numbers, incoming, occupied=False)
-            update_inventory_numbers(new_inventory_numbers, incoming, occupied=True)
+            # update_inventory_numbers(removed_inventory_numbers, incoming, occupied=False)
+            # update_inventory_numbers(new_inventory_numbers, incoming, occupied=True)
 
             # Сохраняем фото
             for file in request.FILES.getlist('photo'):
@@ -426,16 +426,25 @@ def tracker_new(request):
 
 def new_consolidation(request):
     if request.method == 'POST':
+        selected_incomings_ids = request.POST.getlist('selected_incomings')
+        if not selected_incomings_ids:
+            messages.error(request, 'Не выбраны отправления для консолидации.')
+            return redirect('deliveries:list-incoming')
+
+        selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
+
         form = ConsolidationForm(request.POST)
-        if form.is_valid():
-            pass
+        return render(request, 'deliveries/outcomings/consolidation.html', {
+            'form': form,
+            'incomings': selected_incomings,
+            'users': UserProfile.objects.all()
+        })
     else:
-        form = ConsolidationForm()
-
-    users = UserProfile.objects.all()
-    incomings = Incoming.objects.filter(status="Received")
-
-    return render(request, 'deliveries/outcomings/consolidation.html', {'form': form, 'users': users, 'incomings': incomings})
+        form = ConsolidationForm(request.POST)
+        return render(request, 'deliveries/outcomings/consolidation.html', {
+            'form': form,
+            'users': UserProfile.objects.all()
+        })
 
 
 @login_required
