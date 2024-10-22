@@ -11,7 +11,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     paginated_query_incoming_list
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
-from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, ConsolidationCode, Consolidation
 from django.http import JsonResponse
 from django.db.models import CharField
 from django.db.models.functions import Cast
@@ -425,26 +425,43 @@ def tracker_new(request):
 
 
 def new_consolidation(request):
+    # Генерация трек-кода, но без сохранения
+    consolidation_code = ConsolidationCode.generate_code()
+
     if request.method == 'POST':
         selected_incomings_ids = request.POST.getlist('selected_incomings')
         if not selected_incomings_ids:
             messages.error(request, 'Не выбраны отправления для консолидации.')
             return redirect('deliveries:list-incoming')
 
+        # Получаем выбранные отправления по их ID
         selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
 
         form = ConsolidationForm(request.POST)
-        return render(request, 'deliveries/outcomings/consolidation.html', {
-            'form': form,
-            'incomings': selected_incomings,
-            'users': UserProfile.objects.all()
-        })
+        if form.is_valid():
+            consolidation = form.save(commit=False)
+            consolidation.manager = request.user
+
+            # Сохраняем трек-код после сабмита
+            consolidation_code_instance = ConsolidationCode.objects.create(code=consolidation_code, status="Active")
+            consolidation.track_code = consolidation_code_instance
+            consolidation.save()
+
+            # Привязываем выбранные отправления к консолидации
+            consolidation.incomings.set(selected_incomings)
+
+            return redirect('deliveries:list-incoming')
     else:
-        form = ConsolidationForm(request.POST)
-        return render(request, 'deliveries/outcomings/consolidation.html', {
-            'form': form,
-            'users': UserProfile.objects.all()
-        })
+        form = ConsolidationForm()
+
+    return render(request, 'deliveries/outcomings/consolidation.html', {
+        'form': form,
+        'incomings': selected_incomings if request.method == 'POST' else [],
+        'users': UserProfile.objects.all(),
+        'consolidation_code': consolidation_code  # Передаем сгенерированный код в шаблон
+    })
+
+
 
 
 @login_required

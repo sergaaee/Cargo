@@ -148,10 +148,18 @@ class Incoming(UUIDMixin, TimeStampedMixin):
 
 class Consolidation(UUIDMixin, TimeStampedMixin):
     incomings = models.ManyToManyField(Incoming, blank=True)
-    track_code = models.CharField(_('Track code'), max_length=200)
+    track_code = models.OneToOneField(
+        'ConsolidationCode',
+        on_delete=models.CASCADE,
+        related_name='consolidation',  # обратное отношение
+        blank=True,
+        null=True,
+        verbose_name=_('Consolidation code')
+    )
     instruction = models.TextField(_('Instruction'), blank=True, null=True)
-    delivery_type = models.CharField(_('Delivery type'), choices=DeliveryType.choices, default=DeliveryType.AVIA,
-                                    max_length=100)
+    delivery_type = models.CharField(
+        _('Delivery type'), choices=DeliveryType.choices, default=DeliveryType.AVIA, max_length=100
+    )
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -166,6 +174,26 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         related_name='consolidation_manager',
         verbose_name=_('Manager')
     )
+
+
+class ConsolidationCode(UUIDMixin, TimeStampedMixin):
+    code = models.CharField(_('Code'), max_length=1000, unique=True)
+    status = models.CharField(_('Status'), choices=CodeStatus.choices, default="Active")
+
+    def __str__(self):
+        return self.code
+
+    @staticmethod
+    def generate_code():
+        # Получаем последний созданный код
+        last_code = ConsolidationCode.objects.order_by('-id').first()
+        if last_code and last_code.code.startswith('ST'):
+            last_number = int(last_code.code[2:])  # Получаем число из кода
+            new_number = last_number + 1
+        else:
+            new_number = 1  # Если кодов нет, начать с 1
+        return f'ST{new_number}'
+
 
 
 class InventoryNumberIncoming(UUIDMixin):
