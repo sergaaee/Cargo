@@ -6,11 +6,11 @@ from django.contrib import messages
 
 from django.shortcuts import render, redirect, get_object_or_404
 
-from user_profile.models import ClientManagerRelation
+from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode
 from django.http import JsonResponse
 from django.db.models import CharField
@@ -422,6 +422,20 @@ def tracker_new(request):
         form = TrackerForm()
 
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
+
+
+def new_consolidation(request):
+    if request.method == 'POST':
+        form = ConsolidationForm(request.POST)
+        if form.is_valid():
+            pass
+    else:
+        form = ConsolidationForm()
+
+    users = UserProfile.objects.all()
+    incomings = Incoming.objects.filter(status="Received")
+
+    return render(request, 'deliveries/outcomings/consolidation.html', {'form': form, 'users': users, 'incomings': incomings})
 
 
 @login_required

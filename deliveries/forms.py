@@ -1,6 +1,6 @@
 from django import forms
 from django.forms.models import inlineformset_factory
-from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode
+from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -95,12 +95,13 @@ class BaseIncomingForm(forms.ModelForm):
     weight = forms.IntegerField(initial=1, required=False,
                                 widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
-    inventory_numbers = forms.CharField(required=False,
-                                        widget=forms.TextInput(attrs={'list': 'inventory-numbers-list', 'class': 'form-control'},),
+    inventory_numbers = forms.CharField(required=True,
+                                        widget=forms.TextInput(
+                                            attrs={'list': 'inventory-numbers-list', 'class': 'form-control'}, ),
                                         error_messages={
                                             'required': 'Пожалуйста, введите инвентарные номера.',
                                             'invalid': 'Некорректный формат инвентарного номера.',
-                                        },)
+                                        }, )
 
     tag = forms.CharField(required=False, widget=forms.TextInput(attrs={'list': 'tag-list', 'class': 'form-control'}))
     tracker = forms.CharField(required=False,
@@ -201,6 +202,26 @@ class PhotoForm(forms.ModelForm):
         widgets = {
             'photo': CustomClearableFileInput(),
         }
+
+
+class ConsolidationForm(forms.ModelForm):
+    class Meta:
+        model = Consolidation
+        fields = ['client', 'delivery_type', 'track_code', 'instruction']
+        widgets = {
+            'created_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'delivery_type': forms.Select(attrs={'class': 'form-control'}),
+            'track_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Трек-номер',}),
+            'instruction': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
+        }
+
+    client = forms.CharField(required=True,
+                             widget=forms.TextInput(
+                                 attrs={'list': 'clients-list', 'class': 'form-control', 'placeholder': 'Начните писать номер',}, ),
+                             error_messages={
+                                 'required': 'Пожалуйста, выберите клиента.',
+                                 'invalid': 'Некорректный клиент.',
+                             }, )
 
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)

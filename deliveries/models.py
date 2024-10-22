@@ -146,6 +146,28 @@ class Incoming(UUIDMixin, TimeStampedMixin):
         ]
 
 
+class Consolidation(UUIDMixin, TimeStampedMixin):
+    incomings = models.ManyToManyField(Incoming, blank=True)
+    track_code = models.CharField(_('Track code'), max_length=200)
+    instruction = models.TextField(_('Instruction'), blank=True, null=True)
+    delivery_type = models.CharField(_('Delivery type'), choices=DeliveryType.choices, default=DeliveryType.AVIA,
+                                    max_length=100)
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        blank=True,
+        related_name='consolidation_client',
+        verbose_name=_('Client')
+    )
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        blank=True,
+        related_name='consolidation_manager',
+        verbose_name=_('Manager')
+    )
+
+
 class InventoryNumberIncoming(UUIDMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     inventory_number = models.ForeignKey('InventoryNumber', on_delete=models.CASCADE)

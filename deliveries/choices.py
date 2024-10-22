@@ -14,6 +14,13 @@ class PackageType(models.Choices):
     CASE = 'Case'
 
 
+class DeliveryType(models.Choices):
+    AVIA = 'Avia'
+    EXPRESS_TRAIN = 'Express Train'
+    AUTO = 'Auto'
+    AUTO_MEDAL = 'Auto Medal'
+
+
 class PackageStatus(models.Choices):
     RECEIVED = 'Received'
     DECLINED = 'Declined'
