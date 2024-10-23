@@ -463,7 +463,9 @@ def new_consolidation(request):
         form = ConsolidationForm()
 
     # Получаем все инкаминги, которые еще не были выбраны, исключая уже выбранные
-    incomings = Incoming.objects.exclude(id__in=request.POST.getlist('selected_incomings'))
+    incomings = Incoming.objects.exclude(
+        Q(id__in=request.POST.getlist('selected_incomings')) | Q(status='Unidentified')
+    )
     selected_incomings = Incoming.objects.filter(id__in=request.POST.getlist('selected_incomings'))  # Выбранные инкаминги
 
     package_types = PackageType.choices

@@ -4,6 +4,16 @@
 {% block title %}Консолидация{% endblock %}
 
 {% block content %}
+    <script>
+    function removeSelectedIncoming(button) {
+        const listItem = button.closest('li');
+
+        if (listItem) {
+            listItem.remove();
+        }
+        
+    }
+</script>
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4">Отправка/Консолидация</h4>
         <div class="card mb-4">
@@ -106,9 +116,12 @@
                                                     <span class="bi bi-zoom-in me-2"></span>
                                                 </button>
                                                 <button type="button" class="btn btn-icon btn-outline-danger"
-                                                        data-repeater-delete>
+                                                        data-id="{{ selected_incoming.id }}"
+                                                        onclick="removeSelectedIncoming(this)">
                                                     <i class="bi bi-x me-2"></i>
                                                 </button>
+
+
                                             </div>
                                         </div>
 
@@ -278,7 +291,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <button type="submit" class="btn btn-primary" form="consolidation-selection-form">Консолидация
+                    <button type="submit" class="btn btn-primary" name="consolidation-button"
+                            form="consolidation-selection-form">Консолидация
                     </button>
                 </div>
             </div>
