@@ -424,42 +424,59 @@ def tracker_new(request):
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
 
+from .choices import PackageType  # Импортируем PackageType
+
+
+@login_required
 def new_consolidation(request):
-    # Генерация трек-кода, но без сохранения
-    consolidation_code = ConsolidationCode.generate_code()
-
     if request.method == 'POST':
+        # Получаем все инкаминги, которые были выбраны в модальном окне или ранее
         selected_incomings_ids = request.POST.getlist('selected_incomings')
-        if not selected_incomings_ids:
-            messages.error(request, 'Не выбраны отправления для консолидации.')
+
+        # Если были выбраны инкаминги, обрабатываем их
+        if selected_incomings_ids:
+            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
+
+            form = ConsolidationForm(request.POST)
+            if form.is_valid():
+                consolidation = form.save(commit=False)
+                consolidation.manager = request.user
+
+                # Генерация трек-кода для консолидации
+                consolidation_code_instance = ConsolidationCode.objects.create(
+                    code=ConsolidationCode.generate_code(),
+                    status="Active"
+                )
+                consolidation.track_code = consolidation_code_instance
+                consolidation.save()
+
+                # Привязка выбранных инкамингов к консолидации
+                consolidation.incomings.set(selected_incomings)
+
+                return redirect('deliveries:list-incoming')
+
+        else:
+            messages.error(request, 'Вы не выбрали ни одного инкаминга.')
             return redirect('deliveries:list-incoming')
 
-        # Получаем выбранные отправления по их ID
-        selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
-
-        form = ConsolidationForm(request.POST)
-        if form.is_valid():
-            consolidation = form.save(commit=False)
-            consolidation.manager = request.user
-
-            # Сохраняем трек-код после сабмита
-            consolidation_code_instance = ConsolidationCode.objects.create(code=consolidation_code, status="Active")
-            consolidation.track_code = consolidation_code_instance
-            consolidation.save()
-
-            # Привязываем выбранные отправления к консолидации
-            consolidation.incomings.set(selected_incomings)
-
-            return redirect('deliveries:list-incoming')
     else:
         form = ConsolidationForm()
 
+    # Получаем все инкаминги, которые еще не были выбраны, исключая уже выбранные
+    incomings = Incoming.objects.exclude(id__in=request.POST.getlist('selected_incomings'))
+    selected_incomings = Incoming.objects.filter(id__in=request.POST.getlist('selected_incomings'))  # Выбранные инкаминги
+
+    package_types = PackageType.choices
+
     return render(request, 'deliveries/outcomings/consolidation.html', {
         'form': form,
-        'incomings': selected_incomings if request.method == 'POST' else [],
+        'incomings': incomings,  # Передаем доступные для выбора инкаминги
+        'selected_incomings': selected_incomings,  # Передаем уже выбранные инкаминги
+        'consolidation_code': ConsolidationCode.generate_code(),
+        'package_types': package_types,
         'users': UserProfile.objects.all(),
-        'consolidation_code': consolidation_code  # Передаем сгенерированный код в шаблон
     })
+
 
 
 
