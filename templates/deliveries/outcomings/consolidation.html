@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Главная - Cargo{% endblock %}
+
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4">Отправка/Консолидация</h4>
+        <div class="card mb-4">
+            <div id="sticky-wrapper" class="sticky-wrapper">
+                <div class="card-header sticky-element bg-label-secondary d-flex justify-content-sm-between align-items-sm-center flex-column flex-sm-row">
+                    <h5>Консолидация</h5>
+                    <div class="action-btns">
+                        <button type="button" class="btn btn-sm btn-label-success me-3 waves-effect"
+                                data-bs-toggle="tooltip" data-bs-original-title="
+                        Сохранение формы в базу, в момент сохранения, пытается автоматически заполнить поле клиент и менежер, Условие: заполненые валидные инвентарые номера в количестве равном количеству мест, имеется хотябы одно фото, Запрос: в модальном окне - отсутствует метка и трек номер? (в случае, если оба или одно из полей отсуствуют)
+                        ">
+                            <span class="bi bi-floppy me-2"></span>
+                            Записать
+                        </button>
+                        <button type="button" class="btn btn-sm btn-label-success waves-effect" data-bs-toggle="tooltip"
+                                data-bs-original-title="
+                            Сохраняет форму в базу и очищает её (чтобы сразу можно создать следующую) при это выводит модальное окно см Проверить, в момент сохранения, пытается автоматически заполнить поле клиент и менежер, Условие: см записать
+                            ">
+                            <span class="bi bi-check-circle me-2"></span>
+                            ОК
+                        </button>
+                        <button type="button" class="btn btn-sm btn-label-danger waves-effect" data-bs-toggle="tooltip"
+                                data-bs-original-title="
+                            Очищает форму и удаляет документ из базы, Запрос: подтверждение удаления
+                            ">
+                            <span class="bi bi-trash3 me-2"></span>
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <h6>1. Основные детали</h6>
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        {{ form.client.label }}
+                        {{ form.client }}
+                        <datalist id="clients-list">
+                            {% for user in users %}
+                                <option value="{{ user.phone_number }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.delivery_type.label }}
+                        {{ form.delivery_type }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="track_code">Трек-код</label>
+                        <input type="text" name="track_code" class="form-control" value="{{ consolidation_code }}">
+                    </div>
+
+                </div>
+                <hr class="my-4 mx-n4">
+                <h6>2. Детали отправления</h6>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <h6>Выбранные отправления</h6>
+                        <ul>
+                            {% for incoming in incomings %}
+                                <li>{{ incoming.client }} - {{ incoming.inventory_numbers.all|join:", " }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <hr class="my-4 mx-n4">
+                <h6>3. Инструкция</h6>
+                <div class="row g-4">
+                    <div class="col-12">
+                        {{ form.instruction }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
