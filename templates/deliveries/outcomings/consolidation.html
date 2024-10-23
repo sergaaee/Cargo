@@ -131,7 +131,7 @@
                                                         <ul class="list-group list-group-flush">
                                                             <li class="list-group-item"><strong>Трек-коды:</strong>
                                                                 <ul>
-                                                                    {% for code in selected_incoming.tracker.all %}
+                                                                    {% for code in selected_incoming.tracker.tracking_codes.all %}
                                                                         <li>{{ code.code }}</li>
                                                                     {% endfor %}
                                                                 </ul>
@@ -231,13 +231,13 @@
     </div>
 
 
-    <!-- Модальное окно для выбора инкамингов -->
+    <!-- Модальное окно для выбора поступлений -->
     <div class="modal fade" id="consolidationModal" tabindex="-1" aria-labelledby="consolidationModalLabel"
          aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="consolidationModalLabel">Выбор инкамингов для консолидации</h5>
+                    <h5 class="modal-title" id="consolidationModalLabel">Выбор поступлений для консолидации</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
