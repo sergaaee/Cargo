@@ -72,16 +72,15 @@
                                             <div class="col-md-3">
                                                 <label for="places_count_{{ selected_incoming.id }}">Количество
                                                     мест</label>
-                                                <input
-                                                        type="number"
-                                                        name="places_count_{{ selected_incoming.id }}"
-                                                        class="form-control"
-                                                        min="1"
-                                                        max="{{ selected_incoming.places_count }}"
-                                                        value="{{ selected_incoming.places_count }}"
-                                                        step="1"
-                                                        data-bs-toggle="tooltip"
-                                                        title="Выберите количество мест (от 1 до {{ selected_incoming.places_count }})">
+                                                <input type="number"
+                                                       name="places_count_{{ selected_incoming.id }}"
+                                                       class="form-control"
+                                                       min="1"
+                                                       max="{{ selected_incoming.places_count }}"
+                                                       value="{{ selected_incoming.places_count }}"
+                                                       step="1"
+                                                       data-bs-toggle="tooltip"
+                                                       title="Выберите количество мест (от 1 до {{ selected_incoming.places_count }})">
                                             </div>
 
                                             <!-- Поле для выбора упаковки -->
@@ -100,7 +99,10 @@
 
                                             <!-- Кнопки действий -->
                                             <div class="col-md-3 d-flex align-items-center">
-                                                <button type="button" class="btn btn-icon btn-outline-info me-3">
+                                                <!-- Кнопка открытия модального окна -->
+                                                <button type="button" class="btn btn-icon btn-outline-info me-3"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#incomingDetailModal{{ selected_incoming.id }}">
                                                     <span class="bi bi-zoom-in me-2"></span>
                                                 </button>
                                                 <button type="button" class="btn btn-icon btn-outline-danger"
@@ -109,8 +111,66 @@
                                                 </button>
                                             </div>
                                         </div>
+
+                                        <!-- Модальное окно для отображения деталей поступления -->
+                                        <div class="modal fade" id="incomingDetailModal{{ selected_incoming.id }}"
+                                             tabindex="-1"
+                                             aria-labelledby="incomingDetailModalLabel{{ selected_incoming.id }}"
+                                             aria-hidden="true">
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title"
+                                                            id="incomingDetailModalLabel{{ selected_incoming.id }}">
+                                                            Детали поступления #{{ selected_incoming.id }}</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                                aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <!-- Данные поступления -->
+                                                        <ul class="list-group list-group-flush">
+                                                            <li class="list-group-item"><strong>Трек-коды:</strong>
+                                                                <ul>
+                                                                    {% for code in selected_incoming.tracker.all %}
+                                                                        <li>{{ code.code }}</li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </li>
+                                                            <li class="list-group-item"><strong>Инвентарные
+                                                                номера:</strong>
+                                                                <ul>
+                                                                    {% for inventory_number in selected_incoming.inventory_numbers.all %}
+                                                                        <li>{{ inventory_number.number }}</li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </li>
+                                                            <li class="list-group-item"><strong>Количество
+                                                                мест:</strong> {{ selected_incoming.places_count }}</li>
+                                                            <li class="list-group-item"><strong>Дата
+                                                                прибытия:</strong> {{ selected_incoming.arrival_date }}
+                                                            </li>
+                                                            <li class="list-group-item">
+                                                                <strong>Размер:</strong> {{ selected_incoming.size|default:"-" }}
+                                                            </li>
+                                                            <li class="list-group-item">
+                                                                <strong>Вес:</strong> {{ selected_incoming.weight }} кг
+                                                            </li>
+                                                            <li class="list-group-item">
+                                                                <strong>Статус:</strong> {{ selected_incoming.get_status_display }}
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary"
+                                                                data-bs-dismiss="modal">Закрыть
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </li>
                                 {% endfor %}
+
                             </ul>
                             <button type="button" class="btn btn-secondary mt-3" data-bs-toggle="modal"
                                     data-bs-target="#consolidationModal">
@@ -129,6 +189,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Модальное окно для отображения деталей поступления -->
+    <div class="modal fade" id="incomingDetailModal" tabindex="-1" aria-labelledby="incomingDetailModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="incomingDetailModalLabel">Детали поступления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Здесь статически уже выводятся все данные о поступлении -->
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>Трек-коды:</strong>
+                            <ul>
+                                {% for code in incoming.tracker.all %}
+                                    <li>{{ code.code }}</li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li class="list-group-item"><strong>Инвентарные номера:</strong>
+                            <ul>
+                                {% for inventory_number in incoming.inventory_numbers.all %}
+                                    <li>{{ inventory_number.number }}</li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li class="list-group-item"><strong>Количество мест:</strong> {{ incoming.places_count }}</li>
+                        <li class="list-group-item"><strong>Дата прибытия:</strong> {{ incoming.arrival_date }}</li>
+                        <li class="list-group-item"><strong>Размер:</strong> {{ incoming.size|default:"-" }}</li>
+                        <li class="list-group-item"><strong>Вес:</strong> {{ incoming.weight }} кг</li>
+                        <li class="list-group-item"><strong>Статус:</strong> {{ incoming.get_status_display }}</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Модальное окно для выбора инкамингов -->
     <div class="modal fade" id="consolidationModal" tabindex="-1" aria-labelledby="consolidationModalLabel"
