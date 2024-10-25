@@ -4,16 +4,6 @@
 {% block title %}Консолидация{% endblock %}
 
 {% block content %}
-    <script>
-        function removeSelectedIncoming(button) {
-            const listItem = button.closest('li');
-
-            if (listItem) {
-                listItem.remove();
-            }
-
-        }
-    </script>
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4">Отправка/Консолидация</h4>
         <div class="card mb-4">
@@ -42,6 +32,7 @@
                 <form id="consolidation-form" method="POST" action="{% url 'deliveries:consolidation' %}">
                     {% csrf_token %}
 
+                    <input type="hidden" name="selected_incomings" id="selected-incomings">
                     <!-- Скрытое поле для хранения ID удаленных поступлений -->
                     <input type="hidden" name="removed_incomings" id="removed-incomings">
 
@@ -269,59 +260,49 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="consolidation-selection-form" method="POST" action="{% url 'deliveries:consolidation' %}">
-                        {% csrf_token %}
-
-                        <!-- Здесь динамически создаем скрытые поля для уже выбранных инкамингов -->
-                        {% for selected_incoming in selected_incomings %}
-                            <input type="hidden" name="selected_incomings" value="{{ selected_incoming.id }}">
-                        {% endfor %}
-
-                        <div class="card-datatable table-responsive">
-                            <!-- Таблица выбора поступлений -->
-                            <table id="selection-table" class="table table-bordered">
-                                <thead>
-                                <tr>
-                                    <th><input class="form-check-input" type="checkbox" id="modal-select-all"></th>
-                                    <th>Трек-номер</th>
-                                    <th>Инвентарные номера</th>
-                                    <th>Дата прибытия</th>
-                                    <th>Тег</th>
-                                    <th>Клиент</th>
+                    <div class="card-datatable table-responsive">
+                        <table id="selection-table" class="table table-bordered">
+                            <thead>
+                            <tr>
+                                <th><input class="form-check-input" type="checkbox" id="modal-select-all"></th>
+                                <th>Трек-номер</th>
+                                <th>Инвентарные номера</th>
+                                <th>Дата прибытия</th>
+                                <th>Тег</th>
+                                <th>Клиент</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for incoming in incomings %}
+                                <tr data-id="{{ incoming.id }}">
+                                    <td><input type="checkbox" class="form-check-input" name="selected_incoming"
+                                               value="{{ incoming.id }}"></td>
+                                    <td>
+                                        <!-- Выводим трек-коды через трекеры -->
+                                        <ul>
+                                            {% for tracker in incoming.tracker.all %}
+                                                {% for code in tracker.tracking_codes.all %}
+                                                    <li>{{ code.code }}</li>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td>
+                                        <!-- Выводим инвентарные номера -->
+                                        <ul>
+                                            {% for inventory_number in incoming.inventory_numbers.all %}
+                                                <li>{{ inventory_number.number }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td>{{ incoming.arrival_date }}</td>
+                                    <td>{{ incoming.tag.name }}</td>
+                                    <td>{{ incoming.client.profile.phone_number }}</td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                {% for incoming in incomings %}
-                                    <tr data-id="{{ incoming.id }}">
-                                        <td><input type="checkbox" class="form-check-input" name="selected_incomings"
-                                                   value="{{ incoming.id }}"></td>
-                                        <td>
-                                            <!-- Выводим трек-коды через трекеры -->
-                                            <ul>
-                                                {% for tracker in incoming.tracker.all %}
-                                                    {% for code in tracker.tracking_codes.all %}
-                                                        <li>{{ code.code }}</li>
-                                                    {% endfor %}
-                                                {% endfor %}
-                                            </ul>
-                                        </td>
-                                        <td>
-                                            <!-- Выводим инвентарные номера -->
-                                            <ul>
-                                                {% for inventory_number in incoming.inventory_numbers.all %}
-                                                    <li>{{ inventory_number.number }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        </td>
-                                        <td>{{ incoming.arrival_date }}</td>
-                                        <td>{{ incoming.tag.name }}</td>
-                                        <td>{{ incoming.client.profile.phone_number }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </form>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
