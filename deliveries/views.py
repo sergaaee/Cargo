@@ -492,6 +492,27 @@ def new_consolidation(request):
         for incoming in incomings
     ]
 
+    initial_incomings_data = [
+        {
+            "id": incoming.id,
+            "places_count": incoming.places_count,
+            "arrival_date": incoming.arrival_date.isoformat() if incoming.arrival_date else None,
+            "inventory_numbers": [inv.number for inv in incoming.inventory_numbers.all()],
+            "package_type": incoming.package_type,
+            "size": incoming.size,
+            "status": incoming.status,
+            "weight": incoming.weight,
+            "tracking_codes": [
+                track_code.code
+                for tracker in incoming.tracker.all()
+                for track_code in tracker.tracking_codes.all()
+            ],
+            "tag": incoming.tag.name if incoming.tag else None,
+            "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
+        }
+        for incoming in selected_incomings
+    ]
+
     package_types = PackageType.choices
 
     return render(request, 'deliveries/outcomings/consolidation.html', {
@@ -500,6 +521,7 @@ def new_consolidation(request):
         'selected_incomings': selected_incomings,  # Передаем уже выбранные инкаминги
         'consolidation_code': ConsolidationCode.generate_code(),
         'incomings_data': incomings_data,  # JSON-данные для JavaScript
+        'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
         'users': UserProfile.objects.all(),
     })
