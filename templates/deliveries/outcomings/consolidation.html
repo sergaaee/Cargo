@@ -5,15 +5,15 @@
 
 {% block content %}
     <script>
-    function removeSelectedIncoming(button) {
-        const listItem = button.closest('li');
+        function removeSelectedIncoming(button) {
+            const listItem = button.closest('li');
 
-        if (listItem) {
-            listItem.remove();
+            if (listItem) {
+                listItem.remove();
+            }
+
         }
-        
-    }
-</script>
+    </script>
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4">Отправка/Консолидация</h4>
         <div class="card mb-4">
@@ -75,7 +75,8 @@
                                                 <label for="selected_incoming_{{ selected_incoming.id }}">Поступление</label>
                                                 <input type="text"
                                                        name="selected_incoming_id_{{ selected_incoming.id }}"
-                                                       class="form-control" value="{{ selected_incoming.id }}">
+                                                       class="form-control"
+                                                       value="{{ selected_incoming.inventory_numbers.first }}">
                                             </div>
 
                                             <!-- Поле для количества мест -->
@@ -144,8 +145,12 @@
                                                         <ul class="list-group list-group-flush">
                                                             <li class="list-group-item"><strong>Трек-коды:</strong>
                                                                 <ul>
-                                                                    {% for code in selected_incoming.tracker.tracking_codes.all %}
-                                                                        <li>{{ code.code }}</li>
+                                                                    {% for tracker in selected_incoming.tracker.all %}
+                                                                        {% for code in tracker.tracking_codes.all %}
+                                                                            <li>{{ code.code }}</li>
+                                                                        {% endfor %}
+                                                                    {% empty %}
+                                                                        <li>Коды не найдены</li>
                                                                     {% endfor %}
                                                                 </ul>
                                                             </li>
