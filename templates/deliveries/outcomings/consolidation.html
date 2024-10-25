@@ -41,6 +41,10 @@
                 <h6>1. Основные детали</h6>
                 <form id="consolidation-form" method="POST" action="{% url 'deliveries:consolidation' %}">
                     {% csrf_token %}
+
+                    <!-- Скрытое поле для хранения ID удаленных поступлений -->
+                    <input type="hidden" name="removed_incomings" id="removed-incomings">
+
                     <div class="row g-4">
                         <div class="col-md-3">
                             {{ form.client.label }}
@@ -66,9 +70,15 @@
                     <div class="row g-4">
                         <div class="col-12">
                             <h6>Выбранные поступления</h6>
-                            <ul class="list-group">
+                            <ul id="consolidation-list" class="list-group">
                                 {% for selected_incoming in selected_incomings %}
-                                    <li class="list-group-item">
+                                    <li class="list-group-item"
+                                        data-id="{{ selected_incoming.id }}"
+                                        data-tracker-code="{{ selected_incoming.tracker.all.0.tracking_codes.all.0.code|default_if_none:"-" }}"
+                                        data-inventory-number="{{ selected_incoming.inventory_numbers.first.number|default_if_none:"-" }}"
+                                        data-arrival-date="{{ selected_incoming.arrival_date|default_if_none:"-" }}"
+                                        data-tag="{{ selected_incoming.tag.name|default_if_none:"-" }}"
+                                        data-client-phone="{{ selected_incoming.client.profile.phone_number|default_if_none:"-" }}">
                                         <div class="row">
                                             <!-- Поле для поступления (ID) -->
                                             <div class="col-md-3">
@@ -268,7 +278,8 @@
                         {% endfor %}
 
                         <div class="card-datatable table-responsive">
-                            <table class="table table-bordered">
+                            <!-- Таблица выбора поступлений -->
+                            <table id="selection-table" class="table table-bordered">
                                 <thead>
                                 <tr>
                                     <th><input class="form-check-input" type="checkbox" id="modal-select-all"></th>
@@ -281,11 +292,9 @@
                                 </thead>
                                 <tbody>
                                 {% for incoming in incomings %}
-                                    <tr>
-                                        <td>
-                                            <input type="checkbox" class="form-check-input" name="selected_incomings"
-                                                   value="{{ incoming.id }}">
-                                        </td>
+                                    <tr data-id="{{ incoming.id }}">
+                                        <td><input type="checkbox" class="form-check-input" name="selected_incomings"
+                                                   value="{{ incoming.id }}"></td>
                                         <td>
                                             <!-- Выводим трек-коды через трекеры -->
                                             <ul>
@@ -304,13 +313,9 @@
                                                 {% endfor %}
                                             </ul>
                                         </td>
-                                        <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                                        <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
-                                        <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
-                                    </tr>
-                                {% empty %}
-                                    <tr>
-                                        <td colspan="6">Нет доступных поступлений</td>
+                                        <td>{{ incoming.arrival_date }}</td>
+                                        <td>{{ incoming.tag.name }}</td>
+                                        <td>{{ incoming.client.profile.phone_number }}</td>
                                     </tr>
                                 {% endfor %}
                                 </tbody>
@@ -330,12 +335,54 @@
 
 
 
+    <!-- Логика для работы с удаленными поступлениями -->
     <script>
-        document.getElementById('modal-select-all').addEventListener('click', function () {
-            var checkboxes = document.querySelectorAll('#consolidationModal input[name="selected_incomings"]');
-            for (var checkbox of checkboxes) {
-                checkbox.checked = this.checked;
+        function removeSelectedIncoming(button) {
+            const listItem = button.closest('li');
+            const incomingId = listItem.getAttribute('data-id');
+
+            // Извлекаем данные из data-атрибутов
+            const trackerCode = listItem.getAttribute('data-tracker-code');
+            const inventoryNumber = listItem.getAttribute('data-inventory-number');
+            const arrivalDate = listItem.getAttribute('data-arrival-date');
+            const tag = listItem.getAttribute('data-tag');
+            const clientPhone = listItem.getAttribute('data-client-phone');
+
+            // Удаляем элемент из списка консолидации
+            if (listItem) {
+                listItem.remove();
             }
+
+            // Добавляем ID удаленного поступления в скрытое поле
+            const removedIncomingsField = document.getElementById('removed-incomings');
+            let removedIds = removedIncomingsField.value ? removedIncomingsField.value.split(',') : [];
+
+            if (!removedIds.includes(incomingId)) {
+                removedIds.push(incomingId);
+                removedIncomingsField.value = removedIds.join(',');
+            }
+
+            // Восстанавливаем строку в таблице выбора
+            const table = document.getElementById('selection-table').getElementsByTagName('tbody')[0];
+            const row = document.createElement('tr');
+            row.setAttribute('data-id', incomingId);
+
+            row.innerHTML = `
+            <td><input type="checkbox" class="form-check-input" name="selected_incomings" value="${incomingId}"></td>
+            <td>${trackerCode}</td>
+            <td>${inventoryNumber}</td>
+            <td>${arrivalDate}</td>
+            <td>${tag}</td>
+            <td>${clientPhone}</td>
+        `;
+
+            table.appendChild(row);
+        }
+
+        // Логика для выбора всех чекбоксов
+        document.getElementById('modal-select-all').addEventListener('click', function () {
+            const checkboxes = document.querySelectorAll('#selection-table input[name="selected_incomings"]');
+            checkboxes.forEach(checkbox => checkbox.checked = this.checked);
         });
     </script>
 
