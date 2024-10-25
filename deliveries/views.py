@@ -11,7 +11,8 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     paginated_query_incoming_list
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
-from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, ConsolidationCode, Consolidation
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
+    ConsolidationCode, Consolidation
 from django.http import JsonResponse
 from django.db.models import CharField
 from django.db.models.functions import Cast
@@ -221,7 +222,7 @@ def goods_list(request):
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns,
-        'manager': manager, # Передаем колонки в шаблон
+        'manager': manager,  # Передаем колонки в шаблон
     })
 
 
@@ -466,7 +467,30 @@ def new_consolidation(request):
     incomings = Incoming.objects.exclude(
         Q(id__in=request.POST.getlist('selected_incomings')) | Q(status='Unidentified')
     )
-    selected_incomings = Incoming.objects.filter(id__in=request.POST.getlist('selected_incomings'))  # Выбранные инкаминги
+    selected_incomings = Incoming.objects.filter(
+        id__in=request.POST.getlist('selected_incomings'))  # Выбранные инкаминги
+
+    # Подготовка данных инкамингов для JavaScript
+    incomings_data = [
+        {
+            "id": incoming.id,
+            "places_count": incoming.places_count,
+            "arrival_date": incoming.arrival_date.isoformat() if incoming.arrival_date else None,
+            "inventory_numbers": [inv.number for inv in incoming.inventory_numbers.all()],
+            "package_type": incoming.package_type,
+            "size": incoming.size,
+            "status": incoming.status,
+            "weight": incoming.weight,
+            "tracking_codes": [
+                track_code.code
+                for tracker in incoming.tracker.all()
+                for track_code in tracker.tracking_codes.all()
+            ],
+            "tag": incoming.tag.name if incoming.tag else None,
+            "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
+        }
+        for incoming in incomings
+    ]
 
     package_types = PackageType.choices
 
@@ -475,12 +499,10 @@ def new_consolidation(request):
         'incomings': incomings,  # Передаем доступные для выбора инкаминги
         'selected_incomings': selected_incomings,  # Передаем уже выбранные инкаминги
         'consolidation_code': ConsolidationCode.generate_code(),
+        'incomings_data': incomings_data,  # JSON-данные для JavaScript
         'package_types': package_types,
         'users': UserProfile.objects.all(),
     })
-
-
-
 
 
 @login_required

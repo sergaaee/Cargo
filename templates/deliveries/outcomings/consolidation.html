@@ -4,6 +4,9 @@
 {% block title %}Консолидация{% endblock %}
 
 {% block content %}
+    {{ package_types|json_script:"packageTypesJson" }}
+    {{ incomings_data|json_script:"incomingsJson" }}
+
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4">Отправка/Консолидация</h4>
         <div class="card mb-4">
@@ -119,7 +122,7 @@
                                                 </button>
                                                 <button type="button" class="btn btn-icon btn-outline-danger"
                                                         data-id="{{ selected_incoming.id }}"
-                                                        onclick="removeSelectedIncoming(this)">
+                                                        onclick="removeIncomingFromList('{{ selected_incoming.id }}')">
                                                     <i class="bi bi-x me-2"></i>
                                                 </button>
 
@@ -209,47 +212,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно для отображения деталей поступления -->
-    <div class="modal fade" id="incomingDetailModal" tabindex="-1" aria-labelledby="incomingDetailModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="incomingDetailModalLabel">Детали поступления</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Здесь статически уже выводятся все данные о поступлении -->
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><strong>Трек-коды:</strong>
-                            <ul>
-                                {% for code in incoming.tracker.all %}
-                                    <li>{{ code.code }}</li>
-                                {% endfor %}
-                            </ul>
-                        </li>
-                        <li class="list-group-item"><strong>Инвентарные номера:</strong>
-                            <ul>
-                                {% for inventory_number in incoming.inventory_numbers.all %}
-                                    <li>{{ inventory_number.number }}</li>
-                                {% endfor %}
-                            </ul>
-                        </li>
-                        <li class="list-group-item"><strong>Количество мест:</strong> {{ incoming.places_count }}</li>
-                        <li class="list-group-item"><strong>Дата прибытия:</strong> {{ incoming.arrival_date }}</li>
-                        <li class="list-group-item"><strong>Размер:</strong> {{ incoming.size|default:"-" }}</li>
-                        <li class="list-group-item"><strong>Вес:</strong> {{ incoming.weight }} кг</li>
-                        <li class="list-group-item"><strong>Статус:</strong> {{ incoming.get_status_display }}</li>
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Модальное окно для выбора поступлений -->
     <div class="modal fade" id="consolidationModal" tabindex="-1" aria-labelledby="consolidationModalLabel"
          aria-hidden="true">
@@ -274,7 +236,7 @@
                             </thead>
                             <tbody>
                             {% for incoming in incomings %}
-                                <tr data-id="{{ incoming.id }}">
+                                <tr>
                                     <td><input type="checkbox" class="form-check-input" name="selected_incoming"
                                                value="{{ incoming.id }}"></td>
                                     <td>
@@ -305,7 +267,6 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                     <button type="submit" class="btn btn-primary" name="consolidation-button"
                             form="consolidation-selection-form">Консолидация
                     </button>
@@ -314,58 +275,128 @@
         </div>
     </div>
 
-
-
     <!-- Логика для работы с удаленными поступлениями -->
     <script>
-        function removeSelectedIncoming(button) {
-            const listItem = button.closest('li');
-            const incomingId = listItem.getAttribute('data-id');
+        // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
+        let selectedIncomingsData = [];
 
-            // Извлекаем данные из data-атрибутов
-            const trackerCode = listItem.getAttribute('data-tracker-code');
-            const inventoryNumber = listItem.getAttribute('data-inventory-number');
-            const arrivalDate = listItem.getAttribute('data-arrival-date');
-            const tag = listItem.getAttribute('data-tag');
-            const clientPhone = listItem.getAttribute('data-client-phone');
+        document.addEventListener('DOMContentLoaded', function () {
+            // Получаем данные всех инкамингов и типов упаковки
+            const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
+            const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
 
-            // Удаляем элемент из списка консолидации
+            // Функция для добавления инкаминга в интерфейс и создания его модального окна
+            function addIncomingToList(incomingData) {
+                const newItem = document.createElement('li');
+                newItem.className = 'list-group-item';
+                newItem.setAttribute('data-id', incomingData.id);
+
+                // Создаем HTML разметку для отображения инкаминга и модального окна
+                newItem.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <label for="selected_incoming_${incomingData.id}">Поступление</label>
+                <input type="text" name="selected_incoming_id_${incomingData.id}" class="form-control" value="${incomingData.inventory_numbers[0] || '-'}">
+            </div>
+            <div class="col-md-3">
+                <label for="places_count_${incomingData.id}">Количество мест</label>
+                <input type="number" name="places_count_${incomingData.id}" class="form-control" min="1" max="${incomingData.places_count}" value="${incomingData.places_count}" step="1">
+            </div>
+            <div class="col-md-3">
+                <label for="package_type_${incomingData.id}">Упаковка</label>
+                <select name="package_type_${incomingData.id}" class="form-select">
+                    ${packageTypes.map(type => `<option value="${type[0]}" ${type[0] === incomingData.package_type ? 'selected' : ''}>${type[1]}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-center">
+                <button type="button" class="btn btn-icon btn-outline-info me-3" onclick="openIncomingModal('${incomingData.id}')">
+                    <span class="bi bi-zoom-in me-2"></span>
+                </button>
+                <button type="button" class="btn btn-icon btn-outline-danger" onclick="removeIncomingFromList('${incomingData.id}')">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Модальное окно для отображения деталей поступления -->
+        <div class="modal fade" id="incomingDetailModal${incomingData.id}" tabindex="-1" aria-labelledby="incomingDetailModalLabel${incomingData.id}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="incomingDetailModalLabel${incomingData.id}">
+                            Детали поступления #${incomingData.id}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><strong>Трек-коды:</strong> ${incomingData.tracking_codes ? incomingData.tracking_codes.join(', ') : 'Коды не найдены'}</li>
+                            <li class="list-group-item"><strong>Инвентарные номера:</strong> ${incomingData.inventory_numbers.join(', ')}</li>
+                            <li class="list-group-item"><strong>Количество мест:</strong> ${incomingData.places_count}</li>
+                            <li class="list-group-item"><strong>Дата прибытия:</strong> ${incomingData.arrival_date || '-'}</li>
+                            <li class="list-group-item"><strong>Размер:</strong> ${incomingData.size || '-'}</li>
+                            <li class="list-group-item"><strong>Вес:</strong> ${incomingData.weight || '-'} кг</li>
+                            <li class="list-group-item"><strong>Статус:</strong> ${incomingData.status || '-'}</li>
+                        </ul>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+                // Добавляем новый элемент инкаминга со встроенным модальным окном в список
+                document.getElementById('consolidation-list').appendChild(newItem);
+            }
+
+
+            // Добавляем обработчик событий для каждого чекбокса
+            document.querySelectorAll('#selection-table input[name="selected_incoming"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const incomingId = this.value;
+                    const incomingData = allIncomingsData.find(item => item.id === incomingId);
+
+                    if (this.checked && incomingData) {
+                        selectedIncomingsData.push(incomingData);
+                        addIncomingToList(incomingData);
+                    } else {
+                        selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
+                        removeIncomingFromList(incomingId);
+                    }
+                    console.log("Текущие выбранные инкаминги:", selectedIncomingsData);
+                });
+            });
+        });
+
+
+    </script>
+    <script>
+        // Глобальные функции, доступные для вызова из onclick
+        function openIncomingModal(incomingId) {
+            const modalElement = document.getElementById(`incomingDetailModal${incomingId}`);
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+            } else {
+                console.error("Модальное окно не найдено для ID:", incomingId);
+            }
+        }
+
+        function removeIncomingFromList(incomingId) {
+            const listItem = document.querySelector(`#consolidation-list [data-id="${incomingId}"]`);
             if (listItem) {
                 listItem.remove();
             }
 
-            // Добавляем ID удаленного поступления в скрытое поле
-            const removedIncomingsField = document.getElementById('removed-incomings');
-            let removedIds = removedIncomingsField.value ? removedIncomingsField.value.split(',') : [];
-
-            if (!removedIds.includes(incomingId)) {
-                removedIds.push(incomingId);
-                removedIncomingsField.value = removedIds.join(',');
+            const checkbox = document.querySelector(`#selection-table input[value="${incomingId}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
             }
 
-            // Восстанавливаем строку в таблице выбора
-            const table = document.getElementById('selection-table').getElementsByTagName('tbody')[0];
-            const row = document.createElement('tr');
-            row.setAttribute('data-id', incomingId);
-
-            row.innerHTML = `
-            <td><input type="checkbox" class="form-check-input" name="selected_incomings" value="${incomingId}"></td>
-            <td>${trackerCode}</td>
-            <td>${inventoryNumber}</td>
-            <td>${arrivalDate}</td>
-            <td>${tag}</td>
-            <td>${clientPhone}</td>
-        `;
-
-            table.appendChild(row);
+            selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
         }
-
-        // Логика для выбора всех чекбоксов
-        document.getElementById('modal-select-all').addEventListener('click', function () {
-            const checkboxes = document.querySelectorAll('#selection-table input[name="selected_incomings"]');
-            checkboxes.forEach(checkbox => checkbox.checked = this.checked);
-        });
     </script>
-
 
 {% endblock %}
