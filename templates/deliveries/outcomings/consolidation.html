@@ -273,6 +273,7 @@
                                 <tr>
                                     <th><input class="form-check-input" type="checkbox" id="modal-select-all"></th>
                                     <th>Трек-номер</th>
+                                    <th>Инвентарные номера</th>
                                     <th>Дата прибытия</th>
                                     <th>Тег</th>
                                     <th>Клиент</th>
@@ -281,12 +282,35 @@
                                 <tbody>
                                 {% for incoming in incomings %}
                                     <tr>
-                                        <td><input type="checkbox" class="form-check-input" name="selected_incomings"
-                                                   value="{{ incoming.id }}"></td>
-                                        <td>{{ incoming.tracker.all.0.code }}</td>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input" name="selected_incomings"
+                                                   value="{{ incoming.id }}">
+                                        </td>
+                                        <td>
+                                            <!-- Выводим трек-коды через трекеры -->
+                                            <ul>
+                                                {% for tracker in incoming.tracker.all %}
+                                                    {% for code in tracker.tracking_codes.all %}
+                                                        <li>{{ code.code }}</li>
+                                                    {% endfor %}
+                                                {% endfor %}
+                                            </ul>
+                                        </td>
+                                        <td>
+                                            <!-- Выводим инвентарные номера -->
+                                            <ul>
+                                                {% for inventory_number in incoming.inventory_numbers.all %}
+                                                    <li>{{ inventory_number.number }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </td>
                                         <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
                                         <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
                                         <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6">Нет доступных поступлений</td>
                                     </tr>
                                 {% endfor %}
                                 </tbody>
