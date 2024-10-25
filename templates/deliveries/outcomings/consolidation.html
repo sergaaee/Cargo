@@ -279,6 +279,7 @@
     <script>
         // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
         let selectedIncomingsData = [];
+        let tempSelectedIncomings = [];
 
         document.addEventListener('DOMContentLoaded', function () {
             // Получаем данные всех инкамингов и типов упаковки
@@ -352,21 +353,24 @@
             }
 
 
-            // Добавляем обработчик событий для каждого чекбокса
+            // Обработка выбора чекбоксов без добавления в интерфейс
             document.querySelectorAll('#selection-table input[name="selected_incoming"]').forEach(checkbox => {
                 checkbox.addEventListener('change', function () {
                     const incomingId = this.value;
                     const incomingData = allIncomingsData.find(item => item.id === incomingId);
 
                     if (this.checked && incomingData) {
-                        selectedIncomingsData.push(incomingData);
-                        addIncomingToList(incomingData);
+                        tempSelectedIncomings.push(incomingData);
                     } else {
-                        selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
-                        removeIncomingFromList(incomingId);
+                        tempSelectedIncomings = tempSelectedIncomings.filter(item => item.id !== incomingId);
                     }
-                    console.log("Текущие выбранные инкаминги:", selectedIncomingsData);
                 });
+            });
+
+            // Добавляем обработчик для кнопки "Консолидация"
+            document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
+                tempSelectedIncomings.forEach(incomingData => addIncomingToList(incomingData));
+                tempSelectedIncomings = []; // Очистка временного массива
             });
         });
 
