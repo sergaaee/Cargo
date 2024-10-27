@@ -12,7 +12,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
 from django.http import JsonResponse
 from django.db.models import CharField
 from django.db.models.functions import Cast
@@ -63,6 +63,10 @@ def incoming_new(request):
                     inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
                     InventoryNumberTrackerCode.objects.create(
                         tracker_code=tracker_code_obj,
+                        inventory_number=inventory_number_obj
+                    )
+                    InventoryNumberIncoming.objects.create(
+                        incoming=incoming,
                         inventory_number=inventory_number_obj
                     )
 
@@ -443,6 +447,21 @@ def new_consolidation(request):
                 consolidation = form.save(commit=False)
                 consolidation.manager = request.user
 
+                incoming_data = request.POST.getlist('incoming_inv')
+                places_data = request.POST.getlist('places_consolidated')
+                print('incoming_data', incoming_data)
+                print('places_data', places_data)
+
+                for incoming_inv, places in zip(incoming_data, places_data):
+                    incoming = Incoming.objects.get(inventory_numbers__number=incoming_inv)
+
+                    # Создаем запись в ConsolidationIncoming
+                    ConsolidationIncoming.objects.create(
+                        consolidation=consolidation,
+                        incoming=incoming,
+                        places_consolidated=places
+                    )
+
                 # Генерация трек-кода для консолидации
                 consolidation_code_instance = ConsolidationCode.objects.create(
                     code=ConsolidationCode.generate_code(),
@@ -523,7 +542,7 @@ def new_consolidation(request):
         'incomings_data': incomings_data,  # JSON-данные для JavaScript
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
-        'users': UserProfile.objects.all(),
+        'users': UserProfile.objects.filter(user__groups__name="Clients"),
     })
 
 

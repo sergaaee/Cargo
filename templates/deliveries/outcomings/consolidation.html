@@ -79,7 +79,7 @@
                                             <div class="col-md-3">
                                                 <label for="selected_incoming_{{ selected_incoming.id }}">Поступление</label>
                                                 <input type="text"
-                                                       name="selected_incoming_id_{{ selected_incoming.id }}"
+                                                       name="incoming_inv"
                                                        class="form-control"
                                                        value="{{ selected_incoming.inventory_numbers.first }}">
                                             </div>
@@ -89,7 +89,7 @@
                                                 <label for="places_count_{{ selected_incoming.id }}">Количество
                                                     мест</label>
                                                 <input type="number"
-                                                       name="places_count_{{ selected_incoming.id }}"
+                                                       name="places_consolidated"
                                                        class="form-control"
                                                        min="1"
                                                        max="{{ selected_incoming.places_count }}"
@@ -303,11 +303,11 @@
         <div class="row">
             <div class="col-md-3">
                 <label for="selected_incoming_${incomingData.id}">Поступление</label>
-                <input type="text" name="selected_incoming_id_${incomingData.id}" class="form-control" value="${incomingData.inventory_numbers[0] || '-'}">
+                <input type="text" name="incoming_inv" class="form-control" value="${incomingData.inventory_numbers[0] || '-'}">
             </div>
             <div class="col-md-3">
                 <label for="places_count_${incomingData.id}">Количество мест</label>
-                <input type="number" name="places_count_${incomingData.id}" class="form-control" min="1" max="${incomingData.places_count}" value="${incomingData.places_count}" step="1">
+                <input type="number" name="places_consolidated" class="form-control" min="1" max="${incomingData.places_count}" value="${incomingData.places_count}" step="1">
             </div>
             <div class="col-md-3">
                 <label for="package_type_${incomingData.id}">Упаковка</label>
