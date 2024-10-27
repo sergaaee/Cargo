@@ -435,9 +435,12 @@ def tracker_new(request):
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        selected_incomings_ids = request.POST.getlist('selected_incomings')
+        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",")
+        selected_incomings = []
         if selected_incomings_ids:
-            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
+            for incoming_id in selected_incomings_ids:
+                selected_incomings.append(Incoming.objects.get(pk=incoming_id))
+
             form = ConsolidationForm(request.POST)
             if form.is_valid():
                 # Создаем объект консолидации без сохранения в базу
@@ -475,17 +478,24 @@ def new_consolidation(request):
                 return redirect('deliveries:list-incoming')
 
         else:
-            messages.error(request, 'Вы не выбрали ни одного инкаминга.')
+            messages.error(request, 'Вы не выбрали ни одного постуления.')
             return redirect('deliveries:list-incoming')
 
     else:
         form = ConsolidationForm()
 
     # Получаем все инкаминги, которые не были выбраны
-    incomings = Incoming.objects.exclude(
-        Q(id__in=request.POST.getlist('selected_incomings')) | Q(status='Unidentified')
-    )
-    selected_incomings = Incoming.objects.filter(id__in=request.POST.getlist('selected_incomings'))
+    try:
+        incomings = Incoming.objects.exclude(
+            Q(id__in=selected_incomings_ids) | Q(status='Unidentified')
+        )
+    except UnboundLocalError:
+        incomings = Incoming.objects.all()
+
+    try:
+        selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
+    except UnboundLocalError:
+        selected_incomings = []
 
     incomings_data = prepare_incoming_data(incomings)
     initial_incomings_data = prepare_incoming_data(selected_incomings)

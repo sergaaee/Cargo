@@ -293,10 +293,6 @@
                 selectedIncomingsField.value = selectedIncomingsIds.join(',');  // Присваиваем их скрытому полю в виде строки
             }
 
-            // Обновляем скрытое поле при добавлении нового инкаминга
-            document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
-                updateSelectedIncomingsField();
-            });
 
             // Обновляем поле перед отправкой формы
             const form = document.getElementById('consolidation-form');
@@ -313,6 +309,7 @@
                 const newItem = document.createElement('li');
                 newItem.className = 'list-group-item';
                 newItem.setAttribute('data-id', incomingData.id);
+                selectedIncomingsData.push(incomingData)
 
                 // Создаем HTML разметку для отображения инкаминга и модального окна
                 newItem.innerHTML = `
@@ -392,6 +389,7 @@
             // Добавляем обработчик для кнопки "Консолидация"
             document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
                 tempSelectedIncomings.forEach(incomingData => {
+                    updateSelectedIncomingsField();
                     addIncomingToList(incomingData);
                     document.querySelector(`#selection-table input[value="${incomingData.id}"]`).closest('tr').style.display = 'none';
                 });
