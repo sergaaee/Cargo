@@ -146,12 +146,24 @@ class Incoming(UUIDMixin, TimeStampedMixin):
         ]
 
 
+class ConsolidationIncoming(UUIDMixin):
+    consolidation = models.ForeignKey('Consolidation', on_delete=models.CASCADE)
+    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
+    places_consolidated = models.IntegerField(_('Places to consolidate'), validators=[MinValueValidator(1)])
+
+    class Meta:
+        unique_together = ('consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
+        indexes = [
+            models.Index(fields=['consolidation', 'incoming'], name='consolidation_incoming_idx'),
+        ]
+
+
 class Consolidation(UUIDMixin, TimeStampedMixin):
-    incomings = models.ManyToManyField(Incoming, blank=True)
+    incomings = models.ManyToManyField(Incoming, through='ConsolidationIncoming', blank=True)
     track_code = models.OneToOneField(
         'ConsolidationCode',
         on_delete=models.CASCADE,
-        related_name='consolidation',  # обратное отношение
+        related_name='consolidation',
         blank=True,
         null=True,
         verbose_name=_('Consolidation code')
@@ -175,6 +187,11 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         verbose_name=_('Manager')
     )
 
+    is_ok = models.BooleanField(default=0)
+
+    def __str__(self):
+        return f'{self.incomings} ({self.track_code})'
+
 
 class ConsolidationCode(UUIDMixin, TimeStampedMixin):
     code = models.CharField(_('Code'), max_length=1000, unique=True)
@@ -185,13 +202,12 @@ class ConsolidationCode(UUIDMixin, TimeStampedMixin):
 
     @staticmethod
     def generate_code():
-        # Получаем последний созданный код
         last_code = ConsolidationCode.objects.order_by('-id').first()
         if last_code and last_code.code.startswith('ST'):
             last_number = int(last_code.code[2:])  # Получаем число из кода
             new_number = last_number + 1
         else:
-            new_number = 1  # Если кодов нет, начать с 1
+            new_number = 1
         return f'ST{new_number}'
 
 
