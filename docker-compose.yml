@@ -3,7 +3,7 @@ version: '3'
 services:
   django:
     build: .
-    command: sh -c "python manage.py makemigrations && python manage.py migrate && gunicorn -c gunicorn_config.py Cargo.wsgi:application"
+    command: sh -c "gunicorn -c gunicorn_config.py Cargo.wsgi:application"
     expose:
       - "8000"
     volumes:
