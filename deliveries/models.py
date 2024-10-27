@@ -208,7 +208,6 @@ class ConsolidationCode(UUIDMixin, TimeStampedMixin):
             new_number = last_number + 1
         else:
             new_number = 1
-        print(new_number)
         return f'ST{new_number}'
 
 
