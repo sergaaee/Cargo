@@ -3,12 +3,15 @@ import json
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
+from django.db import transaction
+
+from .choices import PackageType  # Импортируем PackageType
 
 from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
-    paginated_query_incoming_list
+    paginated_query_incoming_list, prepare_incoming_data
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
@@ -428,50 +431,46 @@ def tracker_new(request):
 
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
-
-from .choices import PackageType  # Импортируем PackageType
-
-
 @login_required
+@transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        # Получаем все инкаминги, которые были выбраны в модальном окне или ранее
         selected_incomings_ids = request.POST.getlist('selected_incomings')
-
-        # Если были выбраны инкаминги, обрабатываем их
         if selected_incomings_ids:
             selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
-
             form = ConsolidationForm(request.POST)
             if form.is_valid():
+                # Создаем объект консолидации без сохранения в базу
                 consolidation = form.save(commit=False)
                 consolidation.manager = request.user
-
-                incoming_data = request.POST.getlist('incoming_inv')
-                places_data = request.POST.getlist('places_consolidated')
-                print('incoming_data', incoming_data)
-                print('places_data', places_data)
-
-                for incoming_inv, places in zip(incoming_data, places_data):
-                    incoming = Incoming.objects.get(inventory_numbers__number=incoming_inv)
-
-                    # Создаем запись в ConsolidationIncoming
-                    ConsolidationIncoming.objects.create(
-                        consolidation=consolidation,
-                        incoming=incoming,
-                        places_consolidated=places
-                    )
-
-                # Генерация трек-кода для консолидации
-                consolidation_code_instance = ConsolidationCode.objects.create(
-                    code=ConsolidationCode.generate_code(),
-                    status="Active"
-                )
-                consolidation.track_code = consolidation_code_instance
+                consolidation.client = form.cleaned_data['client']
+                consolidation.track_code = form.cleaned_data['track_code']
                 consolidation.save()
 
-                # Привязка выбранных инкамингов к консолидации
+                form.save_m2m()  # Сохраняем ManyToMany отношения
+
+                # Обрабатываем выбранные поступления и количество мест
+                incoming_data = request.POST.getlist('incoming_inv')
+                places_data = request.POST.getlist('places_consolidated')
+
+                # Загружаем все инкаминги одним запросом, чтобы избежать N+1 проблемы
+                incoming_objects = Incoming.objects.filter(inventory_numbers__number__in=incoming_data).distinct()
+
+                for incoming_inv, places in zip(incoming_data, places_data):
+                    try:
+                        incoming = incoming_objects.get(inventory_numbers__number=incoming_inv)
+                        ConsolidationIncoming.objects.create(
+                            consolidation=consolidation,
+                            incoming=incoming,
+                            places_consolidated=places
+                        )
+                    except Incoming.DoesNotExist:
+                        messages.error(request, f'Incoming with inventory number {incoming_inv} not found.')
+                        return redirect('deliveries:list-incoming')
+
+                # Устанавливаем связанные инкаминги
                 consolidation.incomings.set(selected_incomings)
+                consolidation.save()
 
                 return redirect('deliveries:list-incoming')
 
@@ -482,64 +481,23 @@ def new_consolidation(request):
     else:
         form = ConsolidationForm()
 
-    # Получаем все инкаминги, которые еще не были выбраны, исключая уже выбранные
+    # Получаем все инкаминги, которые не были выбраны
     incomings = Incoming.objects.exclude(
         Q(id__in=request.POST.getlist('selected_incomings')) | Q(status='Unidentified')
     )
-    selected_incomings = Incoming.objects.filter(
-        id__in=request.POST.getlist('selected_incomings'))  # Выбранные инкаминги
+    selected_incomings = Incoming.objects.filter(id__in=request.POST.getlist('selected_incomings'))
 
-    # Подготовка данных инкамингов для JavaScript
-    incomings_data = [
-        {
-            "id": incoming.id,
-            "places_count": incoming.places_count,
-            "arrival_date": incoming.arrival_date.isoformat() if incoming.arrival_date else None,
-            "inventory_numbers": [inv.number for inv in incoming.inventory_numbers.all()],
-            "package_type": incoming.package_type,
-            "size": incoming.size,
-            "status": incoming.status,
-            "weight": incoming.weight,
-            "tracking_codes": [
-                track_code.code
-                for tracker in incoming.tracker.all()
-                for track_code in tracker.tracking_codes.all()
-            ],
-            "tag": incoming.tag.name if incoming.tag else None,
-            "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
-        }
-        for incoming in incomings
-    ]
-
-    initial_incomings_data = [
-        {
-            "id": incoming.id,
-            "places_count": incoming.places_count,
-            "arrival_date": incoming.arrival_date.isoformat() if incoming.arrival_date else None,
-            "inventory_numbers": [inv.number for inv in incoming.inventory_numbers.all()],
-            "package_type": incoming.package_type,
-            "size": incoming.size,
-            "status": incoming.status,
-            "weight": incoming.weight,
-            "tracking_codes": [
-                track_code.code
-                for tracker in incoming.tracker.all()
-                for track_code in tracker.tracking_codes.all()
-            ],
-            "tag": incoming.tag.name if incoming.tag else None,
-            "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
-        }
-        for incoming in selected_incomings
-    ]
+    incomings_data = prepare_incoming_data(incomings)
+    initial_incomings_data = prepare_incoming_data(selected_incomings)
 
     package_types = PackageType.choices
 
     return render(request, 'deliveries/outcomings/consolidation.html', {
         'form': form,
-        'incomings': incomings,  # Передаем доступные для выбора инкаминги
-        'selected_incomings': selected_incomings,  # Передаем уже выбранные инкаминги
+        'incomings': incomings,
+        'selected_incomings': selected_incomings,
         'consolidation_code': ConsolidationCode.generate_code(),
-        'incomings_data': incomings_data,  # JSON-данные для JavaScript
+        'incomings_data': incomings_data,
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
         'users': UserProfile.objects.filter(user__groups__name="Clients"),

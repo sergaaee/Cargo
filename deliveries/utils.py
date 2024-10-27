@@ -27,6 +27,30 @@ def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
             incoming.inventory_numbers.remove(inventory_number_obj)
 
 
+# Подготовка данных для JavaScript
+def prepare_incoming_data(incoming_queryset):
+    return [
+        {
+            "id": incoming.id,
+            "places_count": incoming.places_count,
+            "arrival_date": incoming.arrival_date.isoformat() if incoming.arrival_date else None,
+            "inventory_numbers": [inv.number for inv in incoming.inventory_numbers.all()],
+            "package_type": incoming.package_type,
+            "size": incoming.size,
+            "status": incoming.status,
+            "weight": incoming.weight,
+            "tracking_codes": [
+                track_code.code
+                for tracker in incoming.tracker.all()
+                for track_code in tracker.tracking_codes.all()
+            ],
+            "tag": incoming.tag.name if incoming.tag else None,
+            "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
+        }
+        for incoming in incoming_queryset
+    ]
+
+
 def paginated_query_incoming_list(request, query, incomings):
     sort_by = request.GET.get('sort_by', 'arrival_date')
     sort_order = request.GET.get('order', 'asc')

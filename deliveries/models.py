@@ -160,10 +160,10 @@ class ConsolidationIncoming(UUIDMixin):
 
 class Consolidation(UUIDMixin, TimeStampedMixin):
     incomings = models.ManyToManyField(Incoming, through='ConsolidationIncoming', blank=True)
-    track_code = models.OneToOneField(
+    track_code = models.ForeignKey(
         'ConsolidationCode',
         on_delete=models.CASCADE,
-        related_name='consolidation',
+        related_name='track_code',
         blank=True,
         null=True,
         verbose_name=_('Consolidation code')

@@ -33,12 +33,10 @@
             </div>
             <div class="card-body">
                 <h6>1. Основные детали</h6>
-                <form id="consolidation-form" method="POST" action="{% url 'deliveries:consolidation' %}">
+                <form id="consolidation-form" method="POST">
                     {% csrf_token %}
 
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
-                    <!-- Скрытое поле для хранения ID удаленных поступлений -->
-                    <input type="hidden" name="removed_incomings" id="removed-incomings">
 
                     <div class="row g-4">
                         <div class="col-md-3">
@@ -208,6 +206,7 @@
                             {{ form.instruction }}
                         </div>
                     </div>
+                {{ form.errors }}
                 </form>
             </div>
         </div>
@@ -287,6 +286,23 @@
             const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
             const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
             const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
+            const selectedIncomingsField = document.getElementById('selected-incomings');
+
+            function updateSelectedIncomingsField() {
+                const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);  // Собираем все ID выбранных инкамингов
+                selectedIncomingsField.value = selectedIncomingsIds.join(',');  // Присваиваем их скрытому полю в виде строки
+            }
+
+            // Обновляем скрытое поле при добавлении нового инкаминга
+            document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
+                updateSelectedIncomingsField();
+            });
+
+            // Обновляем поле перед отправкой формы
+            const form = document.getElementById('consolidation-form');
+            form.addEventListener('submit', function () {
+                updateSelectedIncomingsField();
+            });
 
             initialIncomingsData.forEach(incoming => {
                 selectedIncomingsData.push(incoming);

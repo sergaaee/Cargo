@@ -1,6 +1,8 @@
 from django import forms
 from django.forms.models import inlineformset_factory
-from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation
+
+from user_profile.models import UserProfile
+from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -211,17 +213,55 @@ class ConsolidationForm(forms.ModelForm):
         widgets = {
             'created_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'delivery_type': forms.Select(attrs={'class': 'form-control'}),
-            'track_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Трек-номер',}),
-            'instruction': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
+            'instruction': forms.Textarea(
+                attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
         }
 
     client = forms.CharField(required=True,
                              widget=forms.TextInput(
-                                 attrs={'list': 'clients-list', 'class': 'form-control', 'placeholder': 'Начните писать номер',}, ),
+                                 attrs={'list': 'clients-list', 'class': 'form-control',
+                                        'placeholder': 'Начните писать номер', }, ),
                              error_messages={
                                  'required': 'Пожалуйста, выберите клиента.',
                                  'invalid': 'Некорректный клиент.',
                              }, )
+    track_code = forms.CharField(required=True,
+                             widget=forms.TextInput(
+                                 attrs={'list': 'clients-list', 'class': 'form-control',
+                                        'placeholder': 'Начните писать код ST', }, ),
+                             error_messages={
+                                 'required': 'Пожалуйста, введите трек-код.',
+                                 'invalid': 'Некорректный трек-код.',
+                             }, )
+
+    def clean_client(self):
+        client_phone_number = self.cleaned_data.get('client')
+        if not client_phone_number:
+            raise forms.ValidationError(
+                "Please provide a client phone number."
+            )
+
+        try:
+            user_profile = UserProfile.objects.get(phone_number=client_phone_number)
+            user = user_profile.user
+        except UserProfile.DoesNotExist:
+            raise forms.ValidationError(
+                f"No client found with phone number {client_phone_number}."
+            )
+
+        return user
+
+    def clean_track_code(self):
+        track_code = self.cleaned_data.get('track_code')
+        if track_code:
+            try:
+                consolidation_code = ConsolidationCode.objects.get(code=track_code)
+            except ConsolidationCode.DoesNotExist:
+                consolidation_code = ConsolidationCode.objects.create(code=track_code)
+
+            return consolidation_code
+        else:
+            raise forms.ValidationError("Пожалуйста, введите трек-код.")
 
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)
