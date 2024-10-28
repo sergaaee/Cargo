@@ -11,7 +11,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
-    paginated_query_incoming_list, prepare_incoming_data
+    paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
@@ -567,3 +567,20 @@ def incoming_delete(request, pk):
         incoming.delete()
         return redirect('deliveries:list-incoming')  # Перенаправляем на список после удаления
     return render(request, 'deliveries/incomings/incoming-delete.html', )
+
+
+@staff_and_login_required
+def consolidation_list(request):
+    query = request.GET.get('q')
+    consolidations = Consolidation.objects.exclude(is_completed=True)
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, query, consolidations)
+
+    columns = consolidation_columns()
+
+    return render(request, 'deliveries/outcomings/consolidation-list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })

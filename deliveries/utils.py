@@ -76,6 +76,31 @@ def paginated_query_incoming_list(request, query, incomings):
     return page_obj, sort_by, sort_order
 
 
+def paginated_query_consolidation_list(request, query, consolidations):
+    sort_by = request.GET.get('sort_by', 'created_at')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    if query:
+        consolidations = consolidations.annotate(
+            codes_str=Cast('track_code__code', CharField())  # Преобразуем массив codes в строку
+        ).filter(
+            Q(codes_str__icontains=query) | Q(user_userprofile__phone_number__icontains=query)
+        )
+
+    consolidations = consolidations.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(consolidations, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return page_obj, sort_by, sort_order
+
+
 def incoming_columns():
     return [
         ('tracker', 'Трек-номер'),
@@ -85,4 +110,13 @@ def incoming_columns():
         ('places_count', 'Количество мест'),
         ('client', 'Клиент'),
         ('status', 'Статус'),
+    ]
+
+
+def consolidation_columns():
+    return [
+        ('track_code__code', 'Трек-код'),
+        ('created_at', 'Дата'),
+        ('client', 'Клиент'),
+        ('delivery_type', 'Доставка'),
     ]
