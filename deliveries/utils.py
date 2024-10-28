@@ -89,7 +89,7 @@ def paginated_query_consolidation_list(request, query, consolidations):
         consolidations = consolidations.annotate(
             codes_str=Cast('track_code__code', CharField())  # Преобразуем массив codes в строку
         ).filter(
-            Q(codes_str__icontains=query) | Q(user_userprofile__phone_number__icontains=query)
+            Q(codes_str__icontains=query) | Q(client__profile__phone_number__icontains=query)
         )
 
     consolidations = consolidations.order_by(f'{order_prefix}{sort_by}')

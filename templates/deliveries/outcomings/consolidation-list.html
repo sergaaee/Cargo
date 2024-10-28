@@ -17,7 +17,7 @@
         </form>
 
         <!-- Форма выбора отправлений для консолидации -->
-        <form id="incoming-selection-form" method="POST" action="{% url 'deliveries:consolidation' %}">
+        <form id="incoming-selection-form" method="POST" action="{% url 'deliveries:new-package' %}">
             {% csrf_token %}
             <div class="card-datatable table-responsive">
                 <table class="table table-bordered">

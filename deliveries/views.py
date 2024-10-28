@@ -431,6 +431,7 @@ def tracker_new(request):
 
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
+
 @login_required
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
@@ -565,7 +566,7 @@ def incoming_delete(request, pk):
 
     if request.method == 'POST':
         incoming.delete()
-        return redirect('deliveries:list-incoming')  # Перенаправляем на список после удаления
+        return redirect('deliveries:list-incoming')
     return render(request, 'deliveries/incomings/incoming-delete.html', )
 
 
@@ -584,3 +585,8 @@ def consolidation_list(request):
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон
     })
+
+
+@staff_and_login_required
+def package_new(request):
+    return render(request, 'deliveries/outcomings/package.html')
