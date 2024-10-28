@@ -7,6 +7,7 @@ class StateType(models.Choices):
     BROKEN_ITEM = 'Broken item'
     LOST = 'Lost'
 
+
 class PackageType(models.Choices):
     CARTOON_BOX = 'Cartoon Box'
     ENVELOPE = 'Envelope'
@@ -27,7 +28,6 @@ class PackageStatus(models.Choices):
     TO_DELIVER = 'To Deliver'
     STORED = 'Stored'
     UNDECIDED = 'Undecided'
-
 
 
 class CodeStatus(models.Choices):
