@@ -59,17 +59,60 @@
                                 <td><span
                                         class="badge rounded-pill bg-label-danger">{{ consolidation.delivery_type }}</span>
                                 </td>
-                                {% elif consolidation.delivery_type == "Auto" %}
+                            {% elif consolidation.delivery_type == "Auto" %}
                                 <td><span
                                         class="badge rounded-pill bg-label-primary">{{ consolidation.delivery_type }}</span>
                                 </td>
-                                {% elif consolidation.delivery_type == "Express Train" %}
+                            {% elif consolidation.delivery_type == "Express Train" %}
                                 <td><span
                                         class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
                                 </td>
                             {% endif %}
                             <td>
-                                <p>Actions</p>
+                                <button type="button" class="btn btn-info" data-bs-toggle="modal"
+                                        data-bs-target="#consolidationModal{{ consolidation.id }}">
+                                    <span class="bi bi-zoom-in me-2"></span>
+                                </button>
+
+                                <!-- Модальное окно -->
+                                <div class="modal fade" id="consolidationModal{{ consolidation.id }}" tabindex="-1"
+                                     aria-labelledby="consolidationModalLabel{{ consolidation.id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title"
+                                                    id="consolidationModalLabel{{ consolidation.id }}">Подробная
+                                                    информация</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>Трек-код:</strong> {{ consolidation.track_code.code }}</p>
+                                                <p><strong>Дата
+                                                    создания:</strong> {{ consolidation.created_at|date:"d.m.Y H:i" }}
+                                                </p>
+                                                <p>
+                                                    <strong>Клиент:</strong> {{ consolidation.client.profile.phone_number|default_if_none:"-" }}
+                                                </p>
+                                                <p><strong>Тип доставки:</strong> {{ consolidation.delivery_type }}</p>
+                                                <p>
+                                                    <strong>Инструкция:</strong> {{ consolidation.instruction|default_if_none:"Нет инструкции" }}
+                                                </p>
+                                                <p><strong>Инвентарные номера:</strong></p>
+                                                <ul>
+                                                    {% for incoming in consolidation.incomings.all %}
+                                                        <li>{{ incoming.inventory_numbers.all|join:", " }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                    Закрыть
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     {% empty %}
