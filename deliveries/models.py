@@ -245,19 +245,3 @@ class PhotoIncoming(UUIDMixin):
         ]
 
 
-class Package(UUIDMixin, TimeStampedMixin):
-    client = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        blank=True,
-        related_name='consolidation_client',
-        verbose_name=_('Client')
-    )
-    manager = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        blank=True,
-        related_name='consolidation_manager',
-        verbose_name=_('Manager')
-    )
-
