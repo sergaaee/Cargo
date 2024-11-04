@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function() {
-        var dateInput = document.querySelector('input[name="arrival_date"]');
+        var dateInput = document.querySelector('input[name="consolidation_date"]');
         if (dateInput) {
             var now = new Date();
             var year = now.getFullYear();

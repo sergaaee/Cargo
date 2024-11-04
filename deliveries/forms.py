@@ -209,9 +209,9 @@ class PhotoForm(forms.ModelForm):
 class ConsolidationForm(forms.ModelForm):
     class Meta:
         model = Consolidation
-        fields = ['client', 'delivery_type', 'track_code', 'instruction']
+        fields = ['client', 'delivery_type', 'track_code', 'instruction', 'consolidation_date']
         widgets = {
-            'created_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'consolidation_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'delivery_type': forms.Select(attrs={'class': 'form-control'}),
             'instruction': forms.Textarea(
                 attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),

@@ -57,6 +57,10 @@
                             <label for="track_code">Трек-код</label>
                             <input type="text" name="track_code" class="form-control" value="{{ consolidation_code }}">
                         </div>
+                        <div class="col-md-3">
+                            {{ form.consolidation_date.label }}
+                            {{ form.consolidation_date }}
+                        </div>
                     </div>
                     <hr class="my-4 mx-n4">
                     <h6>2. Детали отправления</h6>
@@ -85,7 +89,7 @@
                                             <!-- Поле для количества мест -->
                                             <div class="col-md-3">
                                                 <label for="places_count_{{ selected_incoming.id }}">Количество
-                                                    мест</label>
+                                                    мест (макс {{ selected_incoming.places_count }})</label>
                                                 <input type="number"
                                                        name="places_consolidated"
                                                        class="form-control"
@@ -206,7 +210,7 @@
                             {{ form.instruction }}
                         </div>
                     </div>
-                {{ form.errors }}
+                    {{ form.errors }}
                 </form>
             </div>
         </div>
@@ -274,7 +278,7 @@
             </div>
         </div>
     </div>
-
+    <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <!-- Логика для работы с удаленными поступлениями -->
     <script>
         // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
@@ -319,7 +323,7 @@
                 <input type="text" name="incoming_inv" class="form-control" value="${incomingData.inventory_numbers[0] || '-'}">
             </div>
             <div class="col-md-3">
-                <label for="places_count_${incomingData.id}">Количество мест</label>
+                <label for="places_count_${incomingData.id}">Количество мест (макс. ${incomingData.places_count})</label>
                 <input type="number" name="places_consolidated" class="form-control" min="1" max="${incomingData.places_count}" value="${incomingData.places_count}" step="1">
             </div>
             <div class="col-md-3">
