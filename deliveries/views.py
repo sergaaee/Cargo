@@ -435,7 +435,7 @@ def tracker_new(request):
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",")
+        selected_incomings_ids = request.POST.getlist('selected_incomings')
         selected_incomings = []
         if selected_incomings_ids:
             for incoming_id in selected_incomings_ids:
