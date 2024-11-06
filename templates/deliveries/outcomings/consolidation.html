@@ -183,6 +183,21 @@
                                                             <li class="list-group-item">
                                                                 <strong>Статус:</strong> {{ selected_incoming.get_status_display }}
                                                             </li>
+                                                            <li class="list-group-item"><strong>Фото:</strong>
+                                                                <div class="row">
+                                                                    {% if selected_incoming.images_set.all %}
+                                                                        {% for photo in selected_incoming.images_set.all %}
+                                                                            <div class="col-md-4">
+                                                                                <img src="{{ photo.photo.url }}"
+                                                                                     class="img-fluid"
+                                                                                     alt="Фото поступления">
+                                                                            </div>
+                                                                        {% endfor %}
+                                                                    {% else %}
+                                                                        <p>Нет изображений</p>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </li>
                                                         </ul>
                                                     </div>
                                                     <div class="modal-footer">

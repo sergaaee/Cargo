@@ -172,12 +172,14 @@
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.state.label_tag }} {{ form.state }}
+                                        <input type="hidden" name="state" value="{{ form.state.value }}">
                                     </div>
                                 </div>
 
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.package_type.label_tag }} {{ form.package_type }}
+                                        <input type="hidden" name="package_type" value="{{ form.package_type.value }}">
                                     </div>
                                 </div>
 
@@ -199,6 +201,13 @@
         </form>
     </div>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelector('input[name="state"]').value = document.querySelector('[name="state"]:disabled').value;
+            document.querySelector('input[name="package_type"]').value = document.querySelector('[name="package_type"]:disabled').value;
+        });
+
+    </script>
     <script>
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками
@@ -223,7 +232,6 @@
                 initialInventoryInput.value = selectedInventoryNumbers.join(',');
             });
         });
-
     </script>
     <!-- TODO: add check for tag-owner + track-number-owner !-->
 {% endblock %}
