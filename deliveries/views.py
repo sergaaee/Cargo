@@ -103,8 +103,7 @@ def incoming_new(request):
         form = IncomingForm()
         formset = PhotoFormSet()
 
-    # Получаем доступные трекеры и инвентарные номера
-    trackers = Tracker.objects.all()
+    trackers = Tracker.objects.exclude(status="Completed")
     tags = Tag.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
