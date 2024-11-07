@@ -188,7 +188,7 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         verbose_name=_('Manager')
     )
 
-    is_completed = models.BooleanField(default=0)
+    status = models.CharField(blank=True, null=True, max_length=100, default="Template")
 
     def __str__(self):
         return f'{self.incomings} ({self.track_code})'

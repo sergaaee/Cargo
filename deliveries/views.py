@@ -448,6 +448,12 @@ def new_consolidation(request):
                 consolidation.manager = request.user
                 consolidation.client = form.cleaned_data['client']
                 consolidation.track_code = form.cleaned_data['track_code']
+
+                if 'save_draft' in request.POST:
+                    consolidation.status = 'Template'
+                elif 'in_work' in request.POST:
+                    consolidation.status = 'Packaging'
+
                 consolidation.save()
 
                 form.save_m2m()  # Сохраняем ManyToMany отношения
@@ -572,7 +578,7 @@ def incoming_delete(request, pk):
 @staff_and_login_required
 def consolidation_list(request):
     query = request.GET.get('q')
-    consolidations = Consolidation.objects.exclude(is_completed=True)
+    consolidations = Consolidation.objects.all()
     page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, query, consolidations)
 
     columns = consolidation_columns()

@@ -50,8 +50,13 @@
                     <tbody>
                     {% for consolidation in page_obj %}
                         <tr>
+                            {% if consolidation.status == "Packaging" %}
                             <td><input type="checkbox" class="form-check-input" name="selected_consolidations"
                                        value="{{ consolidation.id }}"></td>
+                                {% else %}
+                                <td> Еще не готово к упаковке
+                                </td>
+                            {% endif %}
                             <td>{{ consolidation.track_code.code|default_if_none:"-" }}</td>
                             <td>{{ consolidation.created_at|date:"d.m.Y" }}</td>
                             <td>{{ consolidation.client.profile.phone_number|default_if_none:"-" }}</td>
