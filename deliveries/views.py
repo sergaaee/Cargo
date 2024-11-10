@@ -203,7 +203,7 @@ def goods_list(request):
     else:
         order_prefix = ''
 
-    incomings = Incoming.objects.filter(client=request.user)
+    incomings = Incoming.objects.filter(client=request.user).exclude(status="Template")
 
     if request.user.groups.filter(name='Clients').exists():
         # Пытаемся получить связь, где текущий пользователь является клиентом
