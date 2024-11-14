@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incoming_detail, incoming_edit, incoming_delete, \
-    incoming_list, package_new, consolidation_list, new_consolidation, goods_list, goods_detail, incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list
+    incoming_list, consolidation_edit, package_new, consolidation_list, new_consolidation, goods_list, goods_detail, incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list
 
 app_name = "deliveries"
 
@@ -24,6 +24,7 @@ urlpatterns = [
     path('list-goods/', goods_list, name='list-goods'),
     path('list-goods/<uuid:pk>/', goods_detail, name='detail-goods'),
     path('consolidation/', new_consolidation, name='consolidation'),
+    path('consolidation/edit/<uuid:pk>/', consolidation_edit, name='consolidation-edit'),
     path('list-consolidation/', consolidation_list, name='list-consolidation'),
-    path('new-package', package_new, name='new-package'),
+    path('new-package/<uuid:pk>/', package_new, name='new-package'),
 ]

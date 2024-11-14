@@ -452,7 +452,7 @@ def tracker_new(request):
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        selected_incomings_ids = request.POST.getlist('selected_incomings')
+        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",")
         selected_incomings = []
         if selected_incomings_ids:
             for incoming_id in selected_incomings_ids:
@@ -525,7 +525,7 @@ def new_consolidation(request):
 
     package_types = PackageType.choices
 
-    return render(request, 'deliveries/outcomings/consolidation.html', {
+    return render(request, 'deliveries/outcomings/consolidation-new.html', {
         'form': form,
         'incomings': incomings,
         'selected_incomings': selected_incomings,
@@ -610,5 +610,41 @@ def consolidation_list(request):
 
 
 @staff_and_login_required
-def package_new(request):
-    return render(request, 'deliveries/outcomings/package.html')
+def package_new(request, pk):
+    consolidation = get_object_or_404(Consolidation, pk=pk)
+
+    if request.method == 'POST':
+        form = ConsolidationForm(request.POST, instance=consolidation)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Консолидация успешно отредактирована!')
+            return redirect('deliveries:consolidation_list')
+    else:
+        form = ConsolidationForm(instance=consolidation)
+
+    return render(request, 'deliveries/outcomings/package.html', {
+        'form': form,
+        'consolidation': consolidation,
+    })
+
+@staff_and_login_required
+def consolidation_edit(request, pk):
+    consolidation = get_object_or_404(Consolidation, pk=pk)
+
+    if request.method == 'POST':
+        form = ConsolidationForm(request.POST, instance=consolidation)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Консолидация успешно отредактирована!')
+            return redirect('deliveries:consolidation_list')
+    else:
+        form = ConsolidationForm(instance=consolidation)
+
+    package_types = PackageType.choices
+
+    return render(request, 'deliveries/outcomings/consolidation-edit.html', {
+        'form': form,
+        'consolidation': consolidation,
+        'package_types': package_types,
+    })
+

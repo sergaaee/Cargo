@@ -112,6 +112,8 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     status = models.CharField(_('Status'), choices=PackageStatus.choices, default=PackageStatus.UNDECIDED,
                               max_length=100)
 
+    volume = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(1)])
+
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

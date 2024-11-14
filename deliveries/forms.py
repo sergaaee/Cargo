@@ -269,4 +269,17 @@ class ConsolidationForm(forms.ModelForm):
             raise forms.ValidationError("Пожалуйста, введите трек-код.")
 
 
+class PackageForm(forms.ModelForm):
+    class Meta:
+        model = Consolidation
+        fields = ['client', 'track_code', 'instruction', 'consolidation_date']
+        widgets = {
+            'consolidation_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'delivery_type': forms.Select(attrs={'class': 'form-control'}),
+            'instruction': forms.Textarea(
+                attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
+        }
+
+
+
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)
