@@ -13,7 +13,7 @@ from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm, PackageForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
 from django.http import JsonResponse
@@ -492,17 +492,17 @@ def new_consolidation(request):
                         )
                     except Incoming.DoesNotExist:
                         messages.error(request, f'Incoming with inventory number {incoming_inv} not found.')
-                        return redirect('deliveries:list-incoming')
+                        return redirect('deliveries:list-consolidation')
 
                 # Устанавливаем связанные инкаминги
                 consolidation.incomings.set(selected_incomings)
                 consolidation.save()
 
-                return redirect('deliveries:list-incoming')
+                return redirect('deliveries:list-consolidation')
 
         else:
             messages.error(request, 'Вы не выбрали ни одного постуления.')
-            return redirect('deliveries:list-incoming')
+            return redirect('deliveries:list-consolidation')
 
     else:
         form = ConsolidationForm()
@@ -614,18 +614,42 @@ def package_new(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
 
     if request.method == 'POST':
-        form = ConsolidationForm(request.POST, instance=consolidation)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Консолидация успешно отредактирована!')
-            return redirect('deliveries:consolidation_list')
-    else:
-        form = ConsolidationForm(instance=consolidation)
+        incomings_data = {incoming.id: incoming for incoming in consolidation.incomings.all()}
+        form = PackageForm(request.POST, instance=consolidation, incomings_data=incomings_data)
 
+        if form.is_valid():
+            consolidation = form.save()
+
+            incoming_ids = request.POST.getlist('incoming_id')
+            weights = request.POST.getlist('weight_consolidated')
+            volumes = request.POST.getlist('volume_consolidated')
+
+            for incoming_id, weight, volume in zip(incoming_ids, weights, volumes):
+                incoming = Incoming.objects.get(pk=incoming_id)
+                consolidation_incoming = ConsolidationIncoming.objects.get(
+                    consolidation=consolidation,
+                    incoming=incoming,
+                )
+                consolidation_incoming.weight_consolidated = weight
+                consolidation_incoming.volume_consolidated = volume
+
+                consolidation_incoming.save()
+
+            consolidation.status = "Packaged"
+            consolidation.save()
+
+            messages.success(request, 'Данные упаковки успешно обновлены!')
+            return redirect('deliveries:list-consolidation')
+    else:
+        form = PackageForm(instance=consolidation)
+
+    incomings = consolidation.incomings.all()
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
+        'incomings': incomings,
     })
+
 
 @staff_and_login_required
 def consolidation_edit(request, pk):
@@ -634,9 +658,14 @@ def consolidation_edit(request, pk):
     if request.method == 'POST':
         form = ConsolidationForm(request.POST, instance=consolidation)
         if form.is_valid():
+            if 'save_draft' in request.POST:
+                consolidation.status = 'Template'
+            elif 'in_work' in request.POST:
+                consolidation.status = 'Packaging'
+
             form.save()
             messages.success(request, 'Консолидация успешно отредактирована!')
-            return redirect('deliveries:consolidation_list')
+            return redirect('deliveries:list-consolidation')
     else:
         form = ConsolidationForm(instance=consolidation)
 
@@ -647,4 +676,3 @@ def consolidation_edit(request, pk):
         'consolidation': consolidation,
         'package_types': package_types,
     })
-

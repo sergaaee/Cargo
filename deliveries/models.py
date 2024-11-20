@@ -152,6 +152,8 @@ class ConsolidationIncoming(UUIDMixin):
     consolidation = models.ForeignKey('Consolidation', on_delete=models.CASCADE)
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     places_consolidated = models.IntegerField(_('Places to consolidate'), validators=[MinValueValidator(1)])
+    volume_consolidated = models.IntegerField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
+    weight_consolidated = models.IntegerField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
 
     class Meta:
         unique_together = ('consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз

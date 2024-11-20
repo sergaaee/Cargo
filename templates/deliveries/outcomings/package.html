@@ -34,22 +34,18 @@
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
 
                     <div class="row g-4">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label for="client_id">Номер клиента</label>
                             <input type="text" name="client" class="form-control" list="clients-list"
                                    placeholder="Введите номер телефона"
                                    value="{{ consolidation.client.profile.phone_number }}" disabled>
                         </div>
-                        <div class="col-md-3">
-                            {{ form.delivery_type.label }}
-                            {{ form.delivery_type }}
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label for="track_code">Трек-код</label>
                             <input type="text" name="track_code" class="form-control"
                                    value="{{ consolidation.track_code }}" disabled>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             {{ form.consolidation_date.label }}
                             {{ form.consolidation_date }}
                         </div>
@@ -63,41 +59,50 @@
                                 {% for selected_incoming in consolidation.incomings.all %}
                                     <li class="list-group-item">
                                         <div class="row">
-                                            <!-- Поле для поступления (ID) -->
+                                            <input type="hidden" name="incoming_id" value="{{ selected_incoming.id }}">
                                             <div class="col-md-3">
-                                                <label for="selected_incoming_{{ selected_incoming.id }}">Инвентарные
-                                                    номера
-                                                    (нужно {{ selected_incoming.inventory_numbers.count }})</label>
-                                                <input type="text"
-                                                       name="incoming_inv"
-                                                       class="form-control"
-                                                       placeholder="Отсканируйте {{ selected_incoming.inventory_numbers.count }} номера (-ов)">
+                                                <label for="inventory-input-{{ selected_incoming.id }}">
+                                                    Инвентарные номера (нужно {{ selected_incoming.places_count }})
+                                                </label>
+                                                <input id="inventory-input-{{ selected_incoming.id }}"
+                                                       class="form-control inventory-input"
+                                                       data-incoming-id="{{ selected_incoming.id }}"
+                                                       placeholder="Введите номер и нажмите Enter">
+
+                                                <!-- Скрытое поле для передачи номеров на сервер -->
+                                                <input type="hidden" name="inventory_numbers_{{ selected_incoming.id }}"
+                                                       id="hidden-inventory-numbers-{{ selected_incoming.id }}"
+                                                       value="">
+
+                                                <!-- Динамически отображаемые номера -->
+                                                <div id="inventory-numbers-list-{{ selected_incoming.id }}"
+                                                     class="mt-2">
+                                                    <!-- Здесь будут отображаться введённые номера -->
+                                                </div>
                                             </div>
 
-                                            <!-- Поле для количества мест -->
+                                            <!-- Поле для веса -->
                                             <div class="col-md-3">
-                                                <label for="places_count_{{ selected_incoming.id }}">Количество мест
-                                                    (макс {{ selected_incoming.places_count }})</label>
+                                                <label for="weight_{{ selected_incoming.id }}">Вес</label>
                                                 <input type="number"
-                                                       name="places_consolidated"
+                                                       name="weight_consolidated"
                                                        class="form-control"
                                                        min="1"
-                                                       max="{{ selected_incoming.places_count }}"
-                                                       value="{{ selected_incoming.consolidationincoming_set.all.0.places_consolidated|default:selected_incoming.places_count }}"
-                                                       step="1"
+                                                       value="1"
                                                        data-bs-toggle="tooltip"
-                                                       disabled>
+                                                >
                                             </div>
 
-                                            <!-- Поле для выбора упаковки -->
+                                            <!-- Поле для объема-->
                                             <div class="col-md-3">
-                                                <label for="package_type_{{ selected_incoming.id }}">Упаковка</label>
-                                                <select name="package_type_{{ selected_incoming.id }}"
-                                                        class="form-select">
-                                                    <option value="{{ selected_incoming.package_type }}"
-                                                            {{ selected_incoming.package_type }}>
-                                                    </option>
-                                                </select>
+                                                <label for="volume_{{ selected_incoming.id }}">Объем (м^3)</label>
+                                                <input type="number"
+                                                       name="volume_consolidated"
+                                                       class="form-control"
+                                                       min="1"
+                                                       value="1"
+                                                       data-bs-toggle="tooltip"
+                                                >
                                             </div>
 
                                             <!-- Кнопки действий -->
@@ -267,4 +272,66 @@
         </div>
     </div>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const inventoryInputs = document.querySelectorAll(".inventory-input");
+            const form = document.getElementById("consolidation-form");
+
+            inventoryInputs.forEach(input => {
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+
+                        const incomingId = input.dataset.incomingId;
+                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}`);
+                        const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}`);
+
+                        const number = input.value.trim();
+                        if (number) {
+                            // Обновляем скрытое поле
+                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            if (!currentNumbers.includes(number)) {
+                                currentNumbers.push(number);
+                                hiddenInput.value = currentNumbers.join(",");
+                            }
+
+                            // Добавляем номер в UI
+                            const numberBadge = document.createElement("span");
+                            numberBadge.className = "badge bg-primary me-1";
+                            numberBadge.textContent = number;
+
+                            const removeBtn = document.createElement("span");
+                            removeBtn.className = "ms-2 text-white cursor-pointer";
+                            removeBtn.innerHTML = "&times;";
+                            removeBtn.addEventListener("click", function () {
+                                currentNumbers = currentNumbers.filter(n => n !== number);
+                                hiddenInput.value = currentNumbers.join(",");
+                                numberBadge.remove();
+                            });
+
+                            numberBadge.appendChild(removeBtn);
+                            listContainer.appendChild(numberBadge);
+
+                            input.value = ""; // Очищаем поле ввода
+                        }
+                    }
+                });
+            });
+
+            // Перед отправкой формы обновляем все скрытые поля
+            form.addEventListener("submit", function () {
+                inventoryInputs.forEach(input => {
+                    const incomingId = input.dataset.incomingId;
+                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}`);
+                    const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}`);
+
+                    const badges = listContainer.querySelectorAll(".badge");
+                    const numbers = Array.from(badges).map(badge => badge.textContent.trim());
+                    hiddenInput.value = numbers.join(",");
+                });
+            });
+        });
+
+    </script>
+
 {% endblock %}

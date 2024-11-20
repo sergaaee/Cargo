@@ -1,5 +1,6 @@
 from django import forms
 from django.forms.models import inlineformset_factory
+from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode
@@ -231,13 +232,13 @@ class ConsolidationForm(forms.ModelForm):
                                  'invalid': 'Некорректный клиент.',
                              }, )
     track_code = forms.CharField(required=True,
-                             widget=forms.TextInput(
-                                 attrs={'list': 'clients-list', 'class': 'form-control',
-                                        'placeholder': 'Начните писать код ST', }, ),
-                             error_messages={
-                                 'required': 'Пожалуйста, введите трек-код.',
-                                 'invalid': 'Некорректный трек-код.',
-                             }, )
+                                 widget=forms.TextInput(
+                                     attrs={'list': 'clients-list', 'class': 'form-control',
+                                            'placeholder': 'Начните писать код ST', }, ),
+                                 error_messages={
+                                     'required': 'Пожалуйста, введите трек-код.',
+                                     'invalid': 'Некорректный трек-код.',
+                                 }, )
 
     def clean_client(self):
         client_phone_number = self.cleaned_data.get('client')
@@ -272,14 +273,50 @@ class ConsolidationForm(forms.ModelForm):
 class PackageForm(forms.ModelForm):
     class Meta:
         model = Consolidation
-        fields = ['client', 'track_code', 'instruction', 'consolidation_date']
+        fields = ['consolidation_date', 'instruction']
         widgets = {
             'consolidation_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'delivery_type': forms.Select(attrs={'class': 'form-control'}),
             'instruction': forms.Textarea(
                 attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        self.incomings_data = kwargs.pop('incomings_data', {})
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # Проверяем инвентарные номера для каждого поступления
+        errors = []
+        index = 0
+        for incoming_id, incoming in self.incomings_data.items():
+            index += 1
+            field_name = f'inventory_numbers_{incoming_id}'
+            inventory_numbers_raw = self.data.get(field_name, '')
+
+            # Разделяем номера
+            inventory_numbers = [num.strip() for num in inventory_numbers_raw.split(',') if num.strip()]
+
+            # Проверяем количество номеров
+            if len(inventory_numbers) != incoming.places_count:
+                errors.append(
+                    f'Для {index}-го поступления необходимо указать {incoming.places_count} номера(-ов), '
+                    f'но введено {len(inventory_numbers)}.'
+                )
+
+            # Проверяем валидность номеров
+            valid_numbers = list(incoming.inventory_numbers.values_list('number', flat=True))
+            invalid_numbers = [num for num in inventory_numbers if num not in valid_numbers]
+            if invalid_numbers:
+                errors.append(
+                    f'Следующие номера не принадлежат {index}(-ому/-ему) поступлению: {", ".join(invalid_numbers)}.'
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
+        return cleaned_data
 
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)
