@@ -119,4 +119,5 @@ def consolidation_columns():
         ('created_at', 'Дата'),
         ('client', 'Клиент'),
         ('delivery_type', 'Доставка'),
+        ('status', 'Статус')
     ]
