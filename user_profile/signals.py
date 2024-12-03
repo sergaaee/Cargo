@@ -3,8 +3,13 @@ from django.dispatch import receiver
 
 from django.contrib.auth.models import User
 
+from user_profile.models import UserProfile
+
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if not created:
-        instance.profile.save()
+    if created:  # Если пользователь только что создан
+        UserProfile.objects.create(user=instance)
+    else:  # Если пользователь обновляется
+        if hasattr(instance, 'profile'):
+            instance.profile.save()
