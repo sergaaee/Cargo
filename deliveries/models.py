@@ -169,8 +169,6 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         'ConsolidationCode',
         on_delete=models.CASCADE,
         related_name='track_code',
-        blank=True,
-        null=True,
         verbose_name=_('Consolidation code'),
         unique=True
     )
