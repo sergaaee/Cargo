@@ -79,8 +79,15 @@
                     <tbody>
                     {% for incoming in page_obj %}
                         <tr>
-                            <td><input type="checkbox" class="form-check-input" name="selected_incomings"
-                                       value="{{ incoming.id }}"></td>
+                            {% if incoming.status == "Consolidated" %}
+                                <td>
+                                </td>
+                            {% else %}
+                                <td>
+                                    <input type="checkbox" class="form-check-input" name="selected_incomings"
+                                           value="{{ incoming.id }}">
+                                </td>
+                            {% endif %}
                             <td>
                                 <ul>
                                     {% for tracker in incoming.tracker.all %}

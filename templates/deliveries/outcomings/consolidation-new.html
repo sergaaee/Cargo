@@ -250,6 +250,8 @@
                             </thead>
                             <tbody>
                             {% for incoming in incomings %}
+                                {% if incoming.status == "Consolidated" %}
+                                {% else %}
                                 <tr>
                                     <td><input type="checkbox" class="form-check-input" name="selected_incoming"
                                                value="{{ incoming.id }}"></td>
@@ -275,6 +277,7 @@
                                     <td>{{ incoming.tag.name }}</td>
                                     <td>{{ incoming.client.profile.phone_number }}</td>
                                 </tr>
+                                {% endif %}
                             {% endfor %}
                             </tbody>
                         </table>

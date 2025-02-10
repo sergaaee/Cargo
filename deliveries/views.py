@@ -427,7 +427,10 @@ def new_consolidation(request):
         selected_incomings = []
         if selected_incomings_ids:
             for incoming_id in selected_incomings_ids:
+                incoming = Incoming.objects.get(pk=incoming_id)
                 selected_incomings.append(Incoming.objects.get(pk=incoming_id))
+                incoming.status = "Consolidated"
+                incoming.save()
 
             form = ConsolidationForm(request.POST)
             if form.is_valid():
