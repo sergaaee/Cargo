@@ -65,6 +65,10 @@
                             <td><span
                                     class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
                             </td>
+                        {% else %}
+                            <td><span
+                                    class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
+                            </td>
                         {% endif %}
                         <td>{{ consolidation.status }}</td>
                         <td>
@@ -77,11 +81,11 @@
                                href="{% url 'deliveries:consolidation-edit' consolidation.id %}">
                                 <span class="bi bi-pencil-square"></span>
                             </a>
-                        
+
                             {% if consolidation.status == "Packaging" %}
-                            <a href="{% url 'deliveries:new-package' consolidation.id %}" class="btn btn-success">
-                                <span class="bi bi-box-seam-fill"></span>
-                            </a>
+                                <a href="{% url 'deliveries:new-package' consolidation.id %}" class="btn btn-success">
+                                    <span class="bi bi-box-seam-fill"></span>
+                                </a>
                             {% endif %}
 
 
