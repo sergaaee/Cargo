@@ -59,17 +59,13 @@ def incoming_new(request):
             # Получаем трекер и трек-коды
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-            if tracker.created_by is None:
-                if incoming.tag:
-                    if incoming.tag.created_by is None:
-                        incoming.status = 'Unidentified'
-                    else:
-                        incoming.client = incoming.tag.created_by
-                else:
-                    incoming.status = 'Unidentified'
-                    incoming.client = None
-            else:
+            if tracker.created_by:
                 incoming.client = tracker.created_by
+            elif incoming.tag and incoming.tag.created_by:
+                incoming.client = incoming.tag.created_by
+            else:
+                incoming.status = 'Unidentified'
+                incoming.client = None
             incoming.save()
 
             # Привязываем трек-коды к трекеру и обновляем их статус
