@@ -171,7 +171,8 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         related_name='track_code',
         blank=True,
         null=True,
-        verbose_name=_('Consolidation code')
+        verbose_name=_('Consolidation code'),
+        unique=True
     )
     instruction = models.TextField(_('Instruction'), blank=True, null=True)
     delivery_type = models.CharField(
