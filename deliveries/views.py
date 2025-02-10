@@ -7,6 +7,8 @@ from django.db.models import Q
 
 from .choices import PackageType  # Импортируем PackageType
 
+from django.contrib.auth.models import User
+
 from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
@@ -648,3 +650,24 @@ def consolidation_edit(request, pk):
         'consolidation': consolidation,
         'package_types': package_types,
     })
+
+
+def search_users(request):
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse([], safe=False)
+
+    users = User.objects.filter(
+        username__icontains=query
+    ).select_related('profile')
+
+    results = [
+        {
+            'full_name': f"{user.first_name} {user.last_name}",
+            'email': user.email,
+            'phone_number': user.profile.phone_number if hasattr(user, 'profile') else None
+        }
+        for user in users
+    ]
+
+    return JsonResponse(results, safe=False)

@@ -35,14 +35,13 @@
 
                     <div class="row g-4">
                         <div class="col-md-3">
-                            {{ form.client.label }}
-                            <input type="text" name="client" class="form-control" list="clients-list"
-                                   placeholder="Введите номер телефона">
-                            <datalist id="clients-list">
-                                {% for user in users %}
-                                    <option value="{{ user.phone_number }}"></option>
-                                {% endfor %}
-                            </datalist>
+                            <div class="form-group">
+                                <label for="client-input">Client</label>
+                                <input type="text" id="client-input" class="form-control"
+                                       placeholder="Введите имя клиента...">
+                                <div id="suggestions" class="suggestion-box"></div>
+                            </div>
+
                         </div>
                         <div class="col-md-3">
                             {{ form.delivery_type.label }}
@@ -252,31 +251,31 @@
                             {% for incoming in incomings %}
                                 {% if incoming.status == "Consolidated" %}
                                 {% else %}
-                                <tr>
-                                    <td><input type="checkbox" class="form-check-input" name="selected_incoming"
-                                               value="{{ incoming.id }}"></td>
-                                    <td>
-                                        <!-- Выводим трек-коды через трекеры -->
-                                        <ul>
-                                            {% for tracker in incoming.tracker.all %}
-                                                {% for code in tracker.tracking_codes.all %}
-                                                    <li>{{ code.code }}</li>
+                                    <tr>
+                                        <td><input type="checkbox" class="form-check-input" name="selected_incoming"
+                                                   value="{{ incoming.id }}"></td>
+                                        <td>
+                                            <!-- Выводим трек-коды через трекеры -->
+                                            <ul>
+                                                {% for tracker in incoming.tracker.all %}
+                                                    {% for code in tracker.tracking_codes.all %}
+                                                        <li>{{ code.code }}</li>
+                                                    {% endfor %}
                                                 {% endfor %}
-                                            {% endfor %}
-                                        </ul>
-                                    </td>
-                                    <td>
-                                        <!-- Выводим инвентарные номера -->
-                                        <ul>
-                                            {% for inventory_number in incoming.inventory_numbers.all %}
-                                                <li>{{ inventory_number.number }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </td>
-                                    <td>{{ incoming.arrival_date }}</td>
-                                    <td>{{ incoming.tag.name }}</td>
-                                    <td>{{ incoming.client.profile.phone_number }}</td>
-                                </tr>
+                                            </ul>
+                                        </td>
+                                        <td>
+                                            <!-- Выводим инвентарные номера -->
+                                            <ul>
+                                                {% for inventory_number in incoming.inventory_numbers.all %}
+                                                    <li>{{ inventory_number.number }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </td>
+                                        <td>{{ incoming.arrival_date }}</td>
+                                        <td>{{ incoming.tag.name }}</td>
+                                        <td>{{ incoming.client.profile.phone_number }}</td>
+                                    </tr>
                                 {% endif %}
                             {% endfor %}
                             </tbody>
@@ -291,6 +290,43 @@
             </div>
         </div>
     </div>
+    <script>
+        const clientInput = document.getElementById("client-input");
+        const suggestionBox = document.getElementById("suggestions");
+
+        clientInput.addEventListener("input", async function () {
+            const query = clientInput.value.trim();
+
+            if (query.length >= 2) { // Минимум 2 символа для поиска
+                const response = await fetch(`http://127.0.0.1/incomings/search-users/?q=${query}`);
+                const results = await response.json();
+
+                suggestionBox.innerHTML = ""; // Очищаем предыдущие результаты
+
+                results.forEach(user => {
+                    const option = document.createElement("div");
+                    option.classList.add("suggestion-item");
+                    option.innerHTML = `
+                <div>
+                    <strong>${user.full_name}</strong>
+                    <br>
+                    <small>${user.email}</small>
+                    <br>
+                    <small>${user.phone_number || "Не указан"}</small>
+                </div>
+            `;
+                    option.addEventListener("click", () => {
+                        clientInput.value = user.full_name; // Проставляем выбранное значение
+                        suggestionBox.innerHTML = ""; // Закрываем подсказки
+                    });
+                    suggestionBox.appendChild(option);
+                });
+            } else {
+                suggestionBox.innerHTML = ""; // Если ввели меньше 2 символов, очищаем
+            }
+        });
+
+    </script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <!-- Логика для работы с удаленными поступлениями -->
     <script>
