@@ -22,83 +22,84 @@
             <div class="card-datatable table-responsive">
                 <table class="table table-bordered">
                     <thead>
-                        <tr>
-                            <th><input class="form-check-input" type="checkbox" id="select-all"></th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tracker&order={% if sort_by == 'tracker' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Трек-номер
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tag__name&order={% if sort_by == 'tag__name' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Тег
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=arrival_date&order={% if sort_by == 'arrival_date' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Дата прибытия
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=inventory_numbers&order={% if sort_by == 'inventory_numbers' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Инвентарные номера
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=places_count&order={% if sort_by == 'places_count' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Количество мест
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=manager&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Номер клиента
-                                </a>
-                            </th>
-                            <th>
-                                <a href="?q={{ query|default_if_none:''|escape }}&sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                    Статус
-                                </a>
-                            </th>
-                            <th>Действие</th>
-                        </tr>
+                    <tr>
+                        <th><input class="form-check-input" type="checkbox" id="select-all"></th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tracker&order={% if sort_by == 'tracker' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Трек-номер
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tag__name&order={% if sort_by == 'tag__name' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Тег
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=arrival_date&order={% if sort_by == 'arrival_date' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Дата прибытия
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=inventory_numbers&order={% if sort_by == 'inventory_numbers' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Инвентарные номера
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=places_count&order={% if sort_by == 'places_count' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Количество мест
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=manager&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Номер клиента
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                Статус
+                            </a>
+                        </th>
+                        <th>Действие</th>
+                    </tr>
                     </thead>
                     <tbody>
-                        {% for incoming in page_obj %}
-                            <tr>
-                                <td><input type="checkbox" class="form-check-input" name="selected_incomings" value="{{ incoming.id }}"></td>
-                                <td>
-                                    <ul>
-                                        {% for tracker in incoming.tracker.all %}
-                                            {% for code in tracker.tracking_codes.all %}
-                                                {% if code.status == 'Active' %}
-                                                    <li>{{ code.code }}</li>
-                                                {% endif %}
-                                            {% endfor %}
+                    {% for incoming in page_obj %}
+                        <tr>
+                            <td><input type="checkbox" class="form-check-input" name="selected_incomings"
+                                       value="{{ incoming.id }}"></td>
+                            <td>
+                                <ul>
+                                    {% for tracker in incoming.tracker.all %}
+                                        {% for code in tracker.tracking_codes.all %}
+                                            {% if code.status == 'Active' %}
+                                                <li>{{ code.code }}</li>
+                                            {% endif %}
                                         {% endfor %}
-                                    </ul>
-                                </td>
-                                <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
-                                <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                                <td>
-                                    <ul>
-                                        {% for inventory_number in incoming.inventory_numbers.all %}
-                                            <li>{{ inventory_number.number }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </td>
-                                <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                                <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
-                                <td>{{ incoming.status|default_if_none:"-" }}</td>
-                                <td>
-                                    <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                                    <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="9">Нет данных для отображения.</td>
-                            </tr>
-                        {% endfor %}
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
+                            <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
+                            <td>
+                                <ul>
+                                    {% for inventory_number in incoming.inventory_numbers.all %}
+                                        <li>{{ inventory_number.number }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td>{{ incoming.places_count|default_if_none:"-" }}</td>
+                            <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
+                            <td>{{ incoming.status|default_if_none:"-" }}</td>
+                            <td>
+                                <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
+                                <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9">Нет данных для отображения.</td>
+                        </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -109,10 +110,20 @@
 
         <!-- Скрипт для выбора всех чекбоксов -->
         <script>
-            document.getElementById('select-all').addEventListener('click', function() {
+            document.getElementById('select-all').addEventListener('click', function () {
                 var checkboxes = document.querySelectorAll('input[name="selected_incomings"]');
                 for (var checkbox of checkboxes) {
                     checkbox.checked = this.checked;
+                }
+            });
+        </script>
+
+        <script>
+            document.getElementById('incoming-selection-form').addEventListener('submit', function (event) {
+                var checkboxes = document.querySelectorAll('input[name="selected_incomings"]:checked');
+                if (checkboxes.length === 0) {
+                    event.preventDefault();
+                    alert("Не выбрано ни одно поступление!");
                 }
             });
         </script>

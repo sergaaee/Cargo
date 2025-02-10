@@ -15,8 +15,13 @@ class CustomUserCreationForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.save()
-        UserProfile.objects.create(user=user, phone_number=self.cleaned_data['phone_number'])
+        user.save()  # Сохранение пользователя
+
+        # Сохраняем номер телефона только если профиль уже создан
+        if hasattr(user, 'profile'):
+            user.profile.phone_number = self.cleaned_data['phone_number']
+            user.profile.save()
+
         return user
 
 class CustomUserChangeForm(UserChangeForm):
