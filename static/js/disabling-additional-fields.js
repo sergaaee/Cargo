@@ -18,6 +18,6 @@ places_count_el.onchange = function () {
     weight_el.value = is_multiple_places ? 1 : weight_el.value;
     weight_el.disabled = is_multiple_places;
     size_el.disabled = is_multiple_places;
-    package_type_el.disabled = is_multiple_places;
-    state_el.disabled = is_multiple_places;
+    state_el.readOnly = is_multiple_places;
+    package_type_el.readOnly = is_multiple_places;
 };
