@@ -37,10 +37,14 @@
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
                     <div class="row g-4">
                         <div class="col-md-3">
-                            {{ form.client.label }}
-                            <input type="text" name="client" class="form-control" list="clients-list"
-                                   placeholder="Введите номер телефона"
-                                   value="{{ consolidation.client.profile.phone_number }}">
+                            <div class="form-group">
+                                <label for="client">Клиент</label>
+                                <input type="text" id="client" name="client" class="form-control" list="client-list"
+                                       placeholder="Начните вводить имя, email или телефон" value={{ consolidation.client.profile.phone_number }}>
+                                <datalist id="client-list"></datalist>
+
+
+                            </div>
                         </div>
                         <div class="col-md-3">
                             {{ form.delivery_type.label }}
@@ -283,6 +287,47 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const clientInput = document.getElementById("client");
+            const clientList = document.getElementById("client-list");
+
+            clientInput.addEventListener("input", async function () {
+                const query = clientInput.value.trim();
+                if (query.length < 2) return;  // Начинаем поиск с 2 символов
+
+                try {
+                    const response = await fetch(`http://127.0.0.1/incomings/search-users/?q=${query}`);
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        clientList.innerHTML = ""; // Очистка списка перед добавлением новых результатов
+
+                        data.forEach(user => {
+                            const option = document.createElement("option");
+                            option.value = user.phone_number;  // Вставляем номер телефона
+                            option.textContent = `${user.full_name} (${user.email}, ${user.phone_number || "Нет телефона"})`;
+                            clientList.appendChild(option);
+                        });
+                    } else {
+                        console.error("Ошибка загрузки данных:", response.statusText);
+                    }
+                } catch (error) {
+                    console.error("Ошибка запроса:", error);
+                }
+            });
+
+            // При выборе клиента вставляем номер телефона в input
+            clientInput.addEventListener("change", function () {
+                const selectedOption = [...clientList.options].find(option => option.value === clientInput.value);
+                if (selectedOption) {
+                    clientInput.value = selectedOption.value; // Устанавливаем номер телефона
+                }
+            });
+        });
+
+
+    </script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <script>
         // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
