@@ -7,8 +7,18 @@
     <script src="{% static 'js/auto-local-datetime-arrival-date.js' %}"></script>
     <script src="{% static 'js/input-size-mask.js' %}"></script>
     <div class="container-xxl flex-grow-1 container-p-y">
+        <!-- Блок для отображения сообщений -->
+        {% if messages %}
+            <div id="alert-box" class="mb-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Поступление</h4>
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" action="{% url 'deliveries:new-incoming' %}">
             {% csrf_token %}
             <div class="accordion" id="collapsibleSection">
                 <!-- первая строка -->
@@ -154,6 +164,33 @@
                         </div>
                     </div>
                 </div>
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingPersonIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePersonIncoming" aria-expanded="true"
+                                aria-controls="collapsePersonIncoming">
+                            4. Персоналии
+                        </button>
+                    </h2>
+                    <div id="collapsePersonIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingPersonIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <!-- Прочие поля формы -->
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="client">Клиент</label>
+                                        <input type="text" id="client" name="client" class="form-control"
+                                               list="client-list"
+                                               placeholder="Начните вводить имя, email или телефон">
+                                        <datalist id="client-list"></datalist>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
                 <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
                 <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
@@ -200,8 +237,50 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const clientInput = document.getElementById("client");
+            const clientList = document.getElementById("client-list");
+
+            clientInput.addEventListener("input", async function () {
+                const query = clientInput.value.trim();
+                if (query.length < 2) return;  // Начинаем поиск с 2 символов
+
+                try {
+                    const response = await fetch(`http://127.0.0.1/incomings/search-users/?q=${query}`);
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        clientList.innerHTML = ""; // Очистка списка перед добавлением новых результатов
+
+                        data.forEach(user => {
+                            const option = document.createElement("option");
+                            option.value = user.phone_number;  // Вставляем номер телефона
+                            option.textContent = `${user.full_name} (${user.email}, ${user.phone_number || "Нет телефона"})`;
+                            clientList.appendChild(option);
+                        });
+                    } else {
+                        console.error("Ошибка загрузки данных:", response.statusText);
+                    }
+                } catch (error) {
+                    console.error("Ошибка запроса:", error);
+                }
+            });
+
+            // При выборе клиента вставляем номер телефона в input
+            clientInput.addEventListener("change", function () {
+                const selectedOption = [...clientList.options].find(option => option.value === clientInput.value);
+                if (selectedOption) {
+                    clientInput.value = selectedOption.value; // Устанавливаем номер телефона
+                }
+            });
+        });
+
+
+    </script>
     <script src="{% static 'js/submit-logic.js' %}"></script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
+
     <script>
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками

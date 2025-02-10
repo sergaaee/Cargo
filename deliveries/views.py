@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.urls import reverse
 
 from .choices import PackageType  # Импортируем PackageType
 
@@ -36,45 +37,59 @@ def incoming_new(request):
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
 
-        if 'save_draft' in request.POST:
-            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None
-            incoming = Incoming(
-                manager=request.user,
-                status='Template',
-                # Получаем значения напрямую из request.POST
-                tag=tag,
-                arrival_date=request.POST.get('arrival_date'),
-                places_count=request.POST.get('places_count', 1),
-                size=request.POST.get('size'),
-                weight=request.POST.get('weight', 1),
-                state=request.POST.get('state', 'PERFECT'),
-                package_type=request.POST.get('package_type', 'CARTOON_BOX'),
-            )
-            incoming.save()
-            return redirect('deliveries:list-incoming')
+        errors = []
+
+        # Получаем введенный номер телефона
+        client_phone = request.POST.get("client", "").strip()
 
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
 
-            # Получаем трекер и трек-коды
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-            if tracker.created_by:
-                incoming.client = tracker.created_by
-            elif incoming.tag and incoming.tag.created_by:
-                incoming.client = incoming.tag.created_by
+            # 🔹 Если клиент введён вручную, проверяем его
+            if client_phone:
+                try:
+                    client_profile = UserProfile.objects.get(phone_number=client_phone)
+                    incoming.client = client_profile.user
+                except UserProfile.DoesNotExist:
+                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
+
+
             else:
-                incoming.status = 'Unidentified'
-                incoming.client = None
+                # 🔹 Используем стандартную логику
+                if tracker.created_by:
+                    incoming.client = tracker.created_by
+                elif incoming.tag and incoming.tag.created_by:
+                    incoming.client = incoming.tag.created_by
+                else:
+                    incoming.status = 'Unidentified'
+                    incoming.client = None
+
+            # 🔹 Проверка трек-кодов и тегов на владельца
+            conflicting_items = []
+
+            # Проверяем, не принадлежат ли трек-коды другому клиенту
+            for tracker_code in tracker_codes:
+                tracker_code_obj = TrackerCode.objects.filter(code=tracker_code).first()
+                if tracker_code_obj and tracker_code_obj.created_by and tracker_code_obj.created_by != incoming.client:
+                    conflicting_items.append(f'❌ Трек-код {tracker_code} принадлежит другому клиенту!')
+
+            # Проверяем, не принадлежит ли метка другому клиенту
+            if incoming.tag and incoming.tag.created_by and incoming.tag.created_by != incoming.client:
+                conflicting_items.append(f'❌ Метка "{incoming.tag.name}" принадлежит другому клиенту!')
+
+            # Если есть конфликты, не сохраняем и показываем ошибку
+            if conflicting_items:
+                return JsonResponse({'success': False, 'errors': conflicting_items})
+
             incoming.save()
 
-            # Привязываем трек-коды к трекеру и обновляем их статус
             tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
             for tracker_code, inventory_numbers in tracker_inventory_map.items():
                 tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
-
                 for inventory_number in inventory_numbers:
                     inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
                     InventoryNumberTrackerCode.objects.create(
@@ -86,17 +101,14 @@ def incoming_new(request):
                         inventory_number=inventory_number_obj
                     )
 
+            # Активируем трек-коды
             for tracker_code in tracker_codes:
-                try:
-                    tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
-                    tracker_code_obj.status = 'Active'
-                    tracker_code_obj.save()
-                except TrackerCode.DoesNotExist:
-                    tracker_code_obj = TrackerCode.objects.create(code=tracker_code, created_by=request.user,
-                                                                  status="Active")
-                    tracker_code_obj.save()
+                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
+                                                                              defaults={'status': 'Active'})
+                tracker_code_obj.status = 'Active'
+                tracker_code_obj.save()
 
-            # Привязываем трекер к поступлению
+            # Привязываем трекер
             incoming.tracker.add(tracker)
 
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
@@ -110,8 +122,13 @@ def incoming_new(request):
                 tracker.status = 'Completed'
                 tracker.save()
 
-            return redirect('deliveries:list-incoming')
-
+            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+        else:
+            errors = []
+            for field, error_list in form.errors.items():
+                for error in error_list:
+                    errors.append(f'{field}: {error}')
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = IncomingForm()
         formset = PhotoFormSet()

@@ -150,20 +150,37 @@ class BaseIncomingForm(forms.ModelForm):
 
         return None
 
+    def clean_client(self):
+        client_phone_number = self.cleaned_data.get('client')
+        if client_phone_number:
+            try:
+                user_profile = UserProfile.objects.get(phone_number=client_phone_number)
+                return user_profile.user
+            except UserProfile.DoesNotExist:
+                raise forms.ValidationError(f"❌ Клиент с номером {client_phone_number} не найден!")
+
+        return None
+
     def clean(self):
         cleaned_data = super().clean()
-        inventory_numbers = cleaned_data.get('inventory_numbers')
-        places_count = cleaned_data.get('places_count')
-        weight = cleaned_data.get('weight')
+        client = cleaned_data.get("client")
+        tracker_codes = cleaned_data.get("tracker")
+        tag = cleaned_data.get("tag")
 
-        if weight is None:
-            cleaned_data['weight'] = 1
+        # Проверка трек-кодов на владельца
+        conflicting_items = []
+        if client:
+            for tracker_code in tracker_codes:
+                tracker_code_obj = TrackerCode.objects.filter(code=tracker_code).first()
+                if tracker_code_obj and tracker_code_obj.created_by and tracker_code_obj.created_by != client:
+                    conflicting_items.append(f'❌ Трек-код {tracker_code} принадлежит другому клиенту!')
 
-        if inventory_numbers and places_count:
-            if len(inventory_numbers) != places_count:
-                raise forms.ValidationError(
-                    f"The number of inventory numbers ({len(inventory_numbers)}) does not match the number of places ({places_count})."
-                )
+            if tag and tag.created_by and tag.created_by != client:
+                conflicting_items.append(f'❌ Метка "{tag.name}" принадлежит другому клиенту!')
+
+        if conflicting_items:
+            raise forms.ValidationError(conflicting_items)
+
         return cleaned_data
 
 
