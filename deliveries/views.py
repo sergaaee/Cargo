@@ -209,8 +209,19 @@ def incoming_edit(request, pk):
 
 @staff_and_login_required
 def incoming_list(request):
-    query = request.GET.get('q')
+    query = request.GET.get('q', '').strip()
     incomings = Incoming.objects.exclude(status="Unidentified")
+
+    if query:
+        incomings = incomings.filter(
+            Q(tracker__tracking_codes__code__icontains=query) |  # поиск по трек-коду
+            Q(tag__name__icontains=query) |  # поиск по тегу
+            Q(arrival_date__icontains=query) |  # поиск по дате прибытия
+            Q(inventory_numbers__number__icontains=query) |  # поиск по инвентарным номерам
+            Q(client__profile__phone_number__icontains=query) |  # поиск по номеру клиента
+            Q(status__icontains=query)  # поиск по статусу
+        ).distinct()
+
     page_obj, sort_by, sort_order = paginated_query_incoming_list(request, incomings)
 
     columns = incoming_columns()
@@ -220,8 +231,9 @@ def incoming_list(request):
         'query': query,
         'sort_by': sort_by,
         'order': sort_order,
-        'columns': columns  # Передаем колонки в шаблон
+        'columns': columns
     })
+
 
 
 @login_required

@@ -27,8 +27,10 @@
                        aria-label="Поиск по любому из полей"
                        placeholder="Поиск по любому из полей"
                        value="{{ query|default_if_none:''|escape }}">
+                <button type="submit" class="btn btn-primary">🔍</button>
             </div>
         </form>
+
 
         <!-- Форма выбора отправлений для консолидации -->
         <form id="incoming-selection-form" method="POST" action="{% url 'deliveries:consolidation' %}">
