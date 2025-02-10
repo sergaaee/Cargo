@@ -22,8 +22,18 @@
         }
     </script>
     <div class="container-xxl flex-grow-1 container-p-y">
+        <!-- Блок для отображения сообщений -->
+        {% if messages %}
+            <div id="alert-box" class="mb-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Редактировать поступление</h4>
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" action="{% url 'deliveries:edit-incoming' pk=incoming.pk %}">
             {% csrf_token %}
             <div class="accordion" id="collapsibleSection">
                 <!-- первая строка -->
@@ -192,6 +202,28 @@
                         </div>
                     </div>
                 </div>
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingPersonalia">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePersonalia" aria-expanded="false"
+                                aria-controls="collapsePersonalia">
+                            4. Персоналии
+                        </button>
+                    </h2>
+                    <div id="collapsePersonalia" class="accordion-collapse collapse"
+                         aria-labelledby="headingPersonalia" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <div class="form-group">
+                                <label for="client-input">Клиент</label>
+                                <input type="text" id="client-input" name="client" class="form-control"
+                                       list="client-list" placeholder="Введите имя, email или телефон"
+                                       value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
+                                <datalist id="client-list"></datalist>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <input id="initial-inventory-numbers" type="hidden" name="inventory_numbers">
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
@@ -201,6 +233,87 @@
             {{ form.errors }}
         </form>
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const cancelButton = document.querySelector(".btn-secondary");
+
+            const alertBox = document.createElement("div");
+            alertBox.classList.add("alert", "alert-danger", "d-none");
+            form.prepend(alertBox);
+
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+
+                // Получаем существующие инвентарные номера из скрытого поля
+                const initialInventoryInput = document.getElementById("initial-inventory-numbers");
+                const inventoryNumbers = initialInventoryInput.value.split(',');
+
+                // Обновляем скрытые поля, если они есть
+                const trackerCodesInput = document.getElementById("selected-trackers-input");
+                if (trackerCodesInput) {
+                    trackerCodesInput.value = Array.from(new Set(inventoryNumbers)).join(",");
+                }
+
+                // 📌 Отправляем AJAX-запрос
+                const formData = new FormData(form);
+
+                fetch(form.action, {
+                    method: "POST",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest", // Для обработки JSON на сервере
+                    },
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            alertBox.innerHTML = data.errors.join("<br>");
+                            alertBox.classList.remove("d-none");
+                            window.scrollTo({top: 0, behavior: "smooth"});
+                        }
+                    })
+                    .catch(error => {
+                        alertBox.innerHTML = "Ошибка соединения с сервером.";
+                        alertBox.classList.remove("d-none");
+                        console.error("Ошибка отправки формы:", error);
+                    });
+            });
+        });
+
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const clientInput = document.getElementById("client-input");
+            const clientList = document.getElementById("client-list");
+
+            clientInput.addEventListener("input", async function () {
+                const query = clientInput.value.trim();
+                if (query.length < 2) return;
+
+                try {
+                    const response = await fetch(`http://127.0.0.1/incomings/search-users/?q=${query}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        clientList.innerHTML = "";
+
+                        data.forEach(user => {
+                            const option = document.createElement("option");
+                            option.value = user.phone_number;
+                            option.textContent = `${user.full_name} (${user.email}, ${user.phone_number || "Нет телефона"})`;
+                            clientList.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Ошибка поиска клиентов:", error);
+                }
+            });
+        });
+
+    </script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -208,12 +321,6 @@
             document.querySelector('input[name="package_type"]').value = document.querySelector('[name="package_type"]:disabled').value;
         });
 
-    </script>
-    <script>
-        window.addEventListener("beforeunload", function () {
-            // Удаляем только данные, связанные с трекерами и инвентарниками
-            localStorage.removeItem('trackerInventoryMap');
-        });
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -234,5 +341,4 @@
             });
         });
     </script>
-    <!-- TODO: add check for tag-owner + track-number-owner !-->
 {% endblock %}

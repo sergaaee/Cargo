@@ -30,32 +30,32 @@ document.addEventListener("DOMContentLoaded", function () {
         const formData = new FormData(form);
 
         fetch(form.action, {
-    method: "POST",
-    body: formData
-})
-    .then(response => response.text())  // Ожидаем текст (может быть HTML или JSON)
-    .then(text => {
-        try {
-            const data = JSON.parse(text);  // Пытаемся разобрать как JSON
-            if (data.success) {
-                localStorage.removeItem("trackerInventoryMap");  // Удаляем localStorage после сабмита
-                window.location.href = data.redirect_url;
-            } else {
-                alertBox.innerHTML = data.errors.join("<br>");
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.text())  // Ожидаем текст (может быть HTML или JSON)
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);  // Пытаемся разобрать как JSON
+                    if (data.success) {
+                        localStorage.removeItem("trackerInventoryMap");  // Удаляем localStorage после сабмита
+                        window.location.href = data.redirect_url;
+                    } else {
+                        alertBox.innerHTML = data.errors.join("<br>");
+                        alertBox.classList.remove("d-none");
+                        window.scrollTo({top: 0, behavior: "smooth"});
+                    }
+                } catch (error) {
+                    console.error("Ошибка обработки JSON:", text);
+                    alertBox.innerHTML = "Произошла ошибка сервера. Проверьте консоль.";
+                    alertBox.classList.remove("d-none");
+                }
+            })
+            .catch(error => {
+                alertBox.innerHTML = "Ошибка соединения с сервером.";
                 alertBox.classList.remove("d-none");
-                window.scrollTo({ top: 0, behavior: "smooth" });
-            }
-        } catch (error) {
-            console.error("Ошибка обработки JSON:", text);
-            alertBox.innerHTML = "Произошла ошибка сервера. Проверьте консоль.";
-            alertBox.classList.remove("d-none");
-        }
-    })
-    .catch(error => {
-        alertBox.innerHTML = "Ошибка соединения с сервером.";
-        alertBox.classList.remove("d-none");
-        console.error("Ошибка отправки формы:", error);
-    });
+                console.error("Ошибка отправки формы:", error);
+            });
 
 
     });

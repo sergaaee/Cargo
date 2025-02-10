@@ -157,6 +157,19 @@ def incoming_edit(request, pk):
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
+            new_client_phone = request.POST.get("client", "").strip()
+            old_client = incoming.client
+
+            errors = []
+
+            # 🔹 Проверяем клиента, если он изменился
+            if new_client_phone and (not old_client or old_client.profile.phone_number != new_client_phone):
+                try:
+                    new_client_profile = UserProfile.objects.get(phone_number=new_client_phone)
+                    incoming.client = new_client_profile.user
+                    incoming.status = 'Received'
+                except UserProfile.DoesNotExist:
+                    errors.append(f'❌ Клиент с номером {new_client_phone} не найден!')
 
             incoming.save()
 
@@ -173,7 +186,13 @@ def incoming_edit(request, pk):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            return redirect('deliveries:list-incoming')
+            if errors:
+                return JsonResponse({'success': False, 'errors': errors})
+
+            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+        else:
+            errors = [f'{field}: {error}' for field, error_list in form.errors.items() for error in error_list]
+            return JsonResponse({'success': False, 'errors': errors}, status=400)
     else:
         form = IncomingFormEdit(instance=incoming)
 
