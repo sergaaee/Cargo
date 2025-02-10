@@ -658,12 +658,16 @@ def search_users(request):
         return JsonResponse([], safe=False)
 
     users = User.objects.filter(
-        username__icontains=query
-    ).select_related('profile')
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(email__icontains=query) |
+        Q(profile__phone_number__icontains=query)  # Поиск по номеру телефона в UserProfile
+    ).select_related('profile').distinct()
 
     results = [
         {
-            'full_name': f"{user.first_name} {user.last_name}",
+            'id': user.id,
+            'full_name': f"{user.first_name} {user.last_name}".strip(),
             'email': user.email,
             'phone_number': user.profile.phone_number if hasattr(user, 'profile') else None
         }
