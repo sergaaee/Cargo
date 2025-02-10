@@ -1,9 +1,9 @@
 import json
 
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 
 from .choices import PackageType  # Импортируем PackageType
 
@@ -17,8 +17,6 @@ from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFor
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
 from django.http import JsonResponse
-from django.db.models import CharField
-from django.db.models.functions import Cast
 
 
 @staff_and_login_required
@@ -179,7 +177,7 @@ def incoming_edit(request, pk):
 def incoming_list(request):
     query = request.GET.get('q')
     incomings = Incoming.objects.exclude(status="Unidentified")
-    page_obj, sort_by, sort_order = paginated_query_incoming_list(request, query, incomings)
+    page_obj, sort_by, sort_order = paginated_query_incoming_list(request, incomings)
 
     columns = incoming_columns()
 
@@ -194,7 +192,6 @@ def incoming_list(request):
 
 @login_required
 def goods_list(request):
-    query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'arrival_date')
     sort_order = request.GET.get('order', 'asc')
 
@@ -215,13 +212,6 @@ def goods_list(request):
     else:
         manager = None
 
-    if query:
-        incomings = incomings.annotate(
-            codes_str=Cast('tracker__tracking_codes', CharField())
-        ).filter(
-            Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
-        )
-
     incomings = incomings.order_by(f'{order_prefix}{sort_by}')
 
     paginator = Paginator(incomings, 10)
@@ -241,7 +231,6 @@ def goods_list(request):
 
     return render(request, 'deliveries/client-side/goods/goods-list.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns,
@@ -251,7 +240,6 @@ def goods_list(request):
 
 @login_required
 def tag_list(request):
-    query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
     sort_order = request.GET.get('order', 'asc')
 
@@ -261,11 +249,6 @@ def tag_list(request):
         order_prefix = ''
 
     tags = Tag.objects.all().filter(created_by=request.user)
-
-    if query:
-        tags = tags.filter(
-            Q(name__icontains=query)
-        )
 
     tags = tags.order_by(f'{order_prefix}{sort_by}')
 
@@ -280,7 +263,6 @@ def tag_list(request):
 
     return render(request, 'deliveries/client-side/tag/tag-list.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон
@@ -332,7 +314,7 @@ def tag_delete(request, pk):
 def incoming_unidentified(request):
     query = request.GET.get('q')
     incomings = Incoming.objects.filter(status="Unidentified")
-    page_obj, sort_by, sort_order = paginated_query_incoming_list(request, query, incomings)
+    page_obj, sort_by, sort_order = paginated_query_incoming_list(request, incomings)
 
     columns = incoming_columns()
 
@@ -376,7 +358,6 @@ def goods_detail(request, pk):
 
 @login_required
 def tracker_list(request):
-    query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
     sort_order = request.GET.get('order', 'asc')
     hide_completed = request.GET.get('hide_completed', '')
@@ -387,11 +368,6 @@ def tracker_list(request):
         order_prefix = ''
 
     trackers = Tracker.objects.filter(created_by=request.user)
-
-    if query:
-        trackers = trackers.filter(
-            Q(name__icontains=query) | Q(tracking_codes__code__icontains=query)
-        ).distinct()
 
     trackers = trackers.order_by(f'{order_prefix}{sort_by}')
 
@@ -412,7 +388,6 @@ def tracker_list(request):
 
     return render(request, 'deliveries/client-side/tracker/tracker-list.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns,
@@ -594,15 +569,13 @@ def incoming_delete(request, pk):
 
 @staff_and_login_required
 def consolidation_list(request):
-    query = request.GET.get('q')
     consolidations = Consolidation.objects.all()
-    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, query, consolidations)
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
 
     columns = consolidation_columns()
 
     return render(request, 'deliveries/outcomings/consolidation-list.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон

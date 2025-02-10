@@ -2,6 +2,21 @@
 {% load static %}
 {% block title %}Все метки{% endblock %}
 {% block content %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.querySelector('input[name="q"]'); // Поле поиска
+            const tableRows = document.querySelectorAll("tbody tr"); // Все строки таблицы
+
+            searchInput.addEventListener("input", function () {
+                const query = this.value.toLowerCase().trim();
+
+                tableRows.forEach(row => {
+                    const rowText = row.innerText.toLowerCase();
+                    row.style.display = rowText.includes(query) ? "" : "none";
+                });
+            });
+        });
+    </script>
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Метки/</span>Все</h4>
         <!-- Форма поиска -->
@@ -11,7 +26,6 @@
                        aria-label="Поиск по имени"
                        placeholder="Поиск по имени"
                        value="{{ query|default_if_none:''|escape }}">
-                <button class="btn btn-primary" type="submit">Поиск</button>
             </div>
         </form>
         <div class="card-datatable table-responsive">

@@ -3,7 +3,6 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-from django.db.models import Q
 from orders.forms import OrderForm, PhotoOrderFormSet, OrderManagerForm
 from orders.models import PhotoForOrder, Order
 
@@ -106,7 +105,6 @@ def order_new_buying(request):
 
 @login_required
 def order_list(request):
-    query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
     sort_order = request.GET.get('order', 'asc')
 
@@ -116,11 +114,6 @@ def order_list(request):
         order_prefix = ''
 
     orders = Order.objects.all().filter(created_by=request.user)
-
-    if query:
-        orders = orders.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
 
     orders = orders.order_by(f'{order_prefix}{sort_by}')
 
@@ -138,7 +131,6 @@ def order_list(request):
 
     return render(request, 'orders/client-side/order-list.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон
@@ -195,7 +187,6 @@ def order_delete(request, pk):
 @user_passes_test(lambda u: u.is_staff)
 @login_required
 def order_list_manager(request):
-    query = request.GET.get('q')
     sort_by = request.GET.get('sort_by', 'name')
     sort_order = request.GET.get('order', 'asc')
 
@@ -206,10 +197,6 @@ def order_list_manager(request):
 
     orders = Order.objects.all()
 
-    if query:
-        orders = orders.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
 
     orders = orders.order_by(f'{order_prefix}{sort_by}')
 
@@ -228,7 +215,6 @@ def order_list_manager(request):
 
     return render(request, 'orders/manager-side/order-list-manager.html', {
         'page_obj': page_obj,
-        'query': query,
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон

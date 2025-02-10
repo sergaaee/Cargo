@@ -2,8 +2,6 @@ from functools import wraps
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
-from django.db.models.functions import Cast
-from django.db.models import CharField, Q
 
 from deliveries.models import InventoryNumber, Incoming
 
@@ -51,7 +49,7 @@ def prepare_incoming_data(incoming_queryset):
     ]
 
 
-def paginated_query_incoming_list(request, query, incomings):
+def paginated_query_incoming_list(request, incomings):
     sort_by = request.GET.get('sort_by', 'arrival_date')
     sort_order = request.GET.get('order', 'asc')
 
@@ -59,13 +57,6 @@ def paginated_query_incoming_list(request, query, incomings):
         order_prefix = '-'
     else:
         order_prefix = ''
-
-    if query:
-        incomings = incomings.annotate(
-            codes_str=Cast('tracker__tracking_codes', CharField())  # Преобразуем массив codes в строку
-        ).filter(
-            Q(codes_str__icontains=query) | Q(inventory_numbers__number__icontains=query)
-        )
 
     incomings = incomings.order_by(f'{order_prefix}{sort_by}')
 
@@ -76,7 +67,7 @@ def paginated_query_incoming_list(request, query, incomings):
     return page_obj, sort_by, sort_order
 
 
-def paginated_query_consolidation_list(request, query, consolidations):
+def paginated_query_consolidation_list(request, consolidations):
     sort_by = request.GET.get('sort_by', 'created_at')
     sort_order = request.GET.get('order', 'asc')
 
@@ -84,13 +75,6 @@ def paginated_query_consolidation_list(request, query, consolidations):
         order_prefix = '-'
     else:
         order_prefix = ''
-
-    if query:
-        consolidations = consolidations.annotate(
-            codes_str=Cast('track_code__code', CharField())  # Преобразуем массив codes в строку
-        ).filter(
-            Q(codes_str__icontains=query) | Q(client__profile__phone_number__icontains=query)
-        )
 
     consolidations = consolidations.order_by(f'{order_prefix}{sort_by}')
 
