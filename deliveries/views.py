@@ -38,7 +38,8 @@ def incoming_new(request):
         formset = PhotoFormSet(request.POST, request.FILES)
 
         if 'save_draft' in request.POST:
-            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None
+            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None, None
+
             incoming = Incoming(
                 manager=request.user,
                 status='Template',
@@ -52,9 +53,8 @@ def incoming_new(request):
                 package_type=request.POST.get('package_type', 'CARTOON_BOX'),
             )
             incoming.save()
-            return redirect('deliveries:list-incoming')
+            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
 
-        errors = []
 
         # Получаем введенный номер телефона
         client_phone = request.POST.get("client", "").strip()
@@ -103,7 +103,6 @@ def incoming_new(request):
                 return JsonResponse({'success': False, 'errors': conflicting_items})
 
             incoming.save()
-
             tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
             for tracker_code, inventory_numbers in tracker_inventory_map.items():
                 tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
@@ -520,6 +519,8 @@ def new_consolidation(request):
 
             # 🔹 Если это не черновик, связываем инкаминги
             if consolidation.status != 'Template':
+                instruction_text = ""
+                count = 1
                 for incoming in selected_incomings:
                     ConsolidationIncoming.objects.create(
                         consolidation=consolidation,
@@ -527,8 +528,13 @@ def new_consolidation(request):
                         places_consolidated=incoming.places_count
                     )
                     incoming.status = "Consolidated"
+                    inventory_numbers_str = ", ".join(incoming.inventory_numbers.values_list("number", flat=True))
+                    instruction_text += f"Инвентарные номера для {count}: {inventory_numbers_str}\n"
+                    count += 1
                     incoming.save()
 
+                consolidation.instruction = instruction_text + consolidation.instruction
+                consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
             return redirect('deliveries:list-consolidation')
