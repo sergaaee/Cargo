@@ -206,7 +206,7 @@ class ConsolidationCode(UUIDMixin, TimeStampedMixin):
 
     @staticmethod
     def generate_code():
-        last_code = ConsolidationCode.objects.order_by('-code').first()
+        last_code = ConsolidationCode.objects.order_by('-updated_at').first()
         if last_code and last_code.code.startswith('ST'):
             last_number = int(last_code.code[2:])  # Получаем число из кода
             new_number = last_number + 1
