@@ -36,7 +36,7 @@ def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
-        print(request.POST)
+
         if 'save_draft' in request.POST:
             tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None
             incoming = Incoming(
@@ -490,60 +490,51 @@ def tracker_new(request):
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",")
+        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",") if request.POST.getlist(
+            'selected_incomings') else []
         selected_incomings = []
-        if selected_incomings_ids:
+
+        # 🔹 Проверяем, выбраны ли поступления
+        if selected_incomings_ids and selected_incomings_ids[0] != '':
             for incoming_id in selected_incomings_ids:
-                incoming = Incoming.objects.get(pk=incoming_id)
-                selected_incomings.append(Incoming.objects.get(pk=incoming_id))
-                incoming.status = "Consolidated"
-                incoming.save()
+                incoming = get_object_or_404(Incoming, pk=incoming_id)
+                selected_incomings.append(incoming)
 
-            form = ConsolidationForm(request.POST)
-            if form.is_valid():
-                # Создаем объект консолидации без сохранения в базу
-                consolidation = form.save(commit=False)
-                consolidation.manager = request.user
-                consolidation.client = form.cleaned_data['client']
-                consolidation.track_code = form.cleaned_data['track_code']
+        form = ConsolidationForm(request.POST)
+        if form.is_valid():
+            consolidation = form.save(commit=False)
+            consolidation.manager = request.user
+            consolidation.client = form.cleaned_data['client']
+            consolidation.track_code = form.cleaned_data['track_code']
 
-                if 'save_draft' in request.POST:
-                    consolidation.status = 'Template'
-                elif 'in_work' in request.POST:
-                    consolidation.status = 'Packaging'
+            # 🔹 Устанавливаем статус
+            if request.POST.get("save_draft") == "1":
+                consolidation.status = 'Template'
+            elif 'in_work' in request.POST:
+                consolidation.status = 'Packaging'
+            else:
+                consolidation.status = 'Error'
 
-                consolidation.save()
+            consolidation.save()
+            form.save_m2m()  # Сохраняем ManyToMany отношения
 
-                form.save_m2m()  # Сохраняем ManyToMany отношения
+            # 🔹 Если это не черновик, связываем инкаминги
+            if consolidation.status != 'Template':
+                for incoming in selected_incomings:
+                    ConsolidationIncoming.objects.create(
+                        consolidation=consolidation,
+                        incoming=incoming,
+                        places_consolidated=incoming.places_count
+                    )
+                    incoming.status = "Consolidated"
+                    incoming.save()
 
-                # Обрабатываем выбранные поступления и количество мест
-                incoming_data = request.POST.getlist('incoming_inv')
-                places_data = request.POST.getlist('places_consolidated')
-
-                # Загружаем все инкаминги одним запросом, чтобы избежать N+1 проблемы
-                incoming_objects = Incoming.objects.filter(inventory_numbers__number__in=incoming_data).distinct()
-
-                for incoming_inv, places in zip(incoming_data, places_data):
-                    try:
-                        incoming = incoming_objects.get(inventory_numbers__number=incoming_inv)
-                        ConsolidationIncoming.objects.create(
-                            consolidation=consolidation,
-                            incoming=incoming,
-                            places_consolidated=places
-                        )
-                    except Incoming.DoesNotExist:
-                        messages.error(request, f'Incoming with inventory number {incoming_inv} not found.')
-                        return redirect('deliveries:list-consolidation')
-
-                # Устанавливаем связанные инкаминги
                 consolidation.incomings.set(selected_incomings)
-                consolidation.save()
 
-                return redirect('deliveries:list-consolidation')
+            return redirect('deliveries:list-consolidation')
 
         else:
-            messages.error(request, 'Вы не выбрали ни одного постуления.')
-            return redirect('deliveries:list-consolidation')
+            messages.error(request, "Ошибка при создании консолидации. Проверьте данные.")
 
     else:
         form = ConsolidationForm()
