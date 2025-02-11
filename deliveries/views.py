@@ -36,6 +36,23 @@ def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
+        print(request.POST)
+        if 'save_draft' in request.POST:
+            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None
+            incoming = Incoming(
+                manager=request.user,
+                status='Template',
+                # Получаем значения напрямую из request.POST
+                tag=tag,
+                arrival_date=request.POST.get('arrival_date'),
+                places_count=request.POST.get('places_count', 1),
+                size=request.POST.get('size'),
+                weight=request.POST.get('weight', 1),
+                state=request.POST.get('state', 'PERFECT'),
+                package_type=request.POST.get('package_type', 'CARTOON_BOX'),
+            )
+            incoming.save()
+            return redirect('deliveries:list-incoming')
 
         errors = []
 

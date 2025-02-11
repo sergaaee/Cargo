@@ -9,6 +9,11 @@ document.addEventListener("DOMContentLoaded", function () {
     form.addEventListener("submit", function (event) {
         event.preventDefault();  // ❌ Останавливаем стандартную отправку формы
 
+        const submitter = event.submitter;
+        if (submitter && submitter.name) {
+            form.insertAdjacentElement("beforeend", <input type={hidden} name="${submitter.name}" value="${submitter.value}"/>)
+        }
+
         var trackerInventoryMap = JSON.parse(localStorage.getItem("trackerInventoryMap")) || {};
         var trackerCodes = Object.keys(trackerInventoryMap);
         var inventoryNumbers = Object.values(trackerInventoryMap);
