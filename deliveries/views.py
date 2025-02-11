@@ -490,8 +490,10 @@ def tracker_new(request):
 @transaction.atomic  # Используем транзакцию для обеспечения целостности данных
 def new_consolidation(request):
     if request.method == 'POST':
-        selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",") if request.POST.getlist(
-            'selected_incomings') else []
+        if 'in_work' in request.POST:
+            selected_incomings_ids = request.POST.getlist('selected_incomings')[0].split(",")
+        else:
+            selected_incomings_ids = request.POST.getlist('selected_incomings')
         selected_incomings = []
 
         # 🔹 Проверяем, выбраны ли поступления
@@ -501,16 +503,14 @@ def new_consolidation(request):
                 selected_incomings.append(incoming)
 
         form = ConsolidationForm(request.POST)
+
         if form.is_valid():
             consolidation = form.save(commit=False)
             consolidation.manager = request.user
             consolidation.client = form.cleaned_data['client']
             consolidation.track_code = form.cleaned_data['track_code']
 
-            # 🔹 Устанавливаем статус
-            if request.POST.get("save_draft") == "1":
-                consolidation.status = 'Template'
-            elif 'in_work' in request.POST:
+            if 'in_work' in request.POST:
                 consolidation.status = 'Packaging'
             else:
                 consolidation.status = 'Error'
