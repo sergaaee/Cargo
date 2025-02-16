@@ -564,10 +564,17 @@ def new_consolidation(request):
     # Получаем все инкаминги, которые не были выбраны
     try:
         incomings = Incoming.objects.exclude(
-            Q(id__in=selected_incomings_ids) | Q(status='Unidentified')
+            Q(id__in=selected_incomings_ids) |
+            Q(status='Unidentified') |
+            Q(status='Template') |
+            Q(status='Consolidated')
         )
     except UnboundLocalError:
-        incomings = Incoming.objects.all()
+        incomings = Incoming.objects.exclude(
+            Q(status='Unidentified') |
+            Q(status='Template') |
+            Q(status='Consolidated')
+        )
 
     try:
         selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
@@ -587,7 +594,6 @@ def new_consolidation(request):
         'incomings_data': incomings_data,
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
-        'users': UserProfile.objects.filter(user__groups__name="Clients"),
     })
 
 

@@ -411,6 +411,27 @@
         });
 
 
+        document.addEventListener("DOMContentLoaded", function () {
+            const clientInput = document.getElementById("client");
+            const selectionTableRows = document.querySelectorAll("#selection-table tbody tr");
+
+            clientInput.addEventListener("input", function () {
+                const clientValue = clientInput.value.trim();
+
+                selectionTableRows.forEach(row => {
+                    const clientCell = row.querySelector("td:last-child");
+                    if (clientCell) {
+                        const clientText = clientCell.textContent.trim();
+                        if (clientText.includes(clientValue) || clientValue === "") {
+                            row.style.display = "";
+                        } else {
+                            row.style.display = "none";
+                        }
+                    }
+                });
+            });
+        });
+
     </script>
     <script>
         // Глобальные функции, доступные для вызова из onclick
