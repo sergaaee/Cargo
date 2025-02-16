@@ -226,7 +226,7 @@ def incoming_edit(request, pk):
 @staff_and_login_required
 def incoming_list(request):
     query = request.GET.get('q', '').strip()
-    incomings = Incoming.objects.exclude(Q(status="Unidentified") | Q(status="Template"))
+    incomings = Incoming.objects.exclude(Q(status="Unidentified") | Q(status="Template") | Q(status="Consolidated")).order_by('-arrival_date')
 
     if query:
         incomings = incomings.filter(
@@ -380,6 +380,23 @@ def incoming_unidentified(request):
     columns = incoming_columns()
 
     return render(request, 'deliveries/incomings/incoming-unidentified.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def incoming_templates(request):
+    query = request.GET.get('q')
+    incomings = Incoming.objects.filter(status="Template")
+    page_obj, sort_by, sort_order = paginated_query_incoming_list(request, incomings)
+
+    columns = incoming_columns()
+
+    return render(request, 'deliveries/incomings/incoming-templates.html', {
         'page_obj': page_obj,
         'query': query,
         'sort_by': sort_by,

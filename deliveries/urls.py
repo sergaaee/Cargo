@@ -2,7 +2,8 @@ from django.urls import path
 from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incoming_detail, incoming_edit, \
     incoming_delete, search_users, \
     incoming_list, consolidation_edit, package_new, consolidation_list, new_consolidation, goods_list, goods_detail, \
-    incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list
+    incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list, \
+    incoming_templates
 
 app_name = "deliveries"
 
@@ -13,6 +14,7 @@ urlpatterns = [
     path('list-incoming/<uuid:pk>/edit', incoming_edit, name='edit-incoming'),
     path('list-incoming/<uuid:pk>/delete', incoming_delete, name='delete-incoming'),
     path('unidentified/', incoming_unidentified, name='unidentified-incoming'),
+    path('templates/', incoming_templates, name='templates-incoming'),
     path('delete-photo/<uuid:pk>/', delete_photo, name='delete-photo'),
     path('new-tag/', tag_new, name='new-tag'),
     path('list-tag/', tag_list, name='list-tag'),
