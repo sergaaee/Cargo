@@ -81,7 +81,7 @@
                     <tbody>
                     {% for incoming in page_obj %}
                         <tr>
-                            {% if incoming.status == "Consolidated" %}
+                            {% if incoming.status == "Consolidated" or incoming.status == "Template" %}
                                 <td>
                                 </td>
                             {% else %}
