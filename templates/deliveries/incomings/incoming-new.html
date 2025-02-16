@@ -350,6 +350,14 @@
                 if (event.keyCode === 13) {  // проверяем нажатие Enter
                     event.preventDefault();
                     const selectedNumber = inventoryInput.value.trim();
+                    for (const tracker in trackerInventoryMap) {
+                        if (trackerInventoryMap[tracker].includes(selectedNumber)) {
+                            alert(`Инвентарный номер ${selectedNumber} уже привязан к трек-коду ${tracker}`);
+                            inventoryInput.value = '';
+                            return;
+                        }
+                    }
+
                     const currentTracker = selectedTrackers[selectedTrackers.length - 1]; // последний добавленный трек-код
 
                     if (selectedNumber && currentTracker) {

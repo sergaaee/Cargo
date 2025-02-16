@@ -166,6 +166,8 @@ class BaseIncomingForm(forms.ModelForm):
         client = cleaned_data.get("client")
         tracker_codes = cleaned_data.get("tracker")
         tag = cleaned_data.get("tag")
+        inventory_numbers = cleaned_data.get('inventory_numbers')
+        places_count = cleaned_data.get('places_count')
 
         # Проверка трек-кодов на владельца
         conflicting_items = []
@@ -177,6 +179,11 @@ class BaseIncomingForm(forms.ModelForm):
 
             if tag and tag.created_by and tag.created_by != client:
                 conflicting_items.append(f'❌ Метка "{tag.name}" принадлежит другому клиенту!')
+
+        if inventory_numbers and places_count:
+            if len(inventory_numbers) != places_count:
+                conflicting_items.append(
+                    f"❌ Кол-во инвентарных номеров ({len(inventory_numbers)}) не соответствует кол-ву мест ({places_count}).")
 
         if conflicting_items:
             raise forms.ValidationError(conflicting_items)

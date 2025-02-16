@@ -38,7 +38,8 @@ def incoming_new(request):
         formset = PhotoFormSet(request.POST, request.FILES)
 
         if 'save_draft' in request.POST:
-            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get('tag') else None, None
+            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get(
+                'tag') else None, None
 
             incoming = Incoming(
                 manager=request.user,
@@ -54,7 +55,6 @@ def incoming_new(request):
             )
             incoming.save()
             return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
-
 
         # Получаем введенный номер телефона
         client_phone = request.POST.get("client", "").strip()
@@ -249,7 +249,6 @@ def incoming_list(request):
         'order': sort_order,
         'columns': columns
     })
-
 
 
 @login_required
@@ -714,6 +713,7 @@ def consolidation_edit(request, pk):
     })
 
 
+@staff_and_login_required
 def search_users(request):
     query = request.GET.get('q', '').strip()
     if not query:
