@@ -226,7 +226,7 @@ def incoming_edit(request, pk):
 @staff_and_login_required
 def incoming_list(request):
     query = request.GET.get('q', '').strip()
-    incomings = Incoming.objects.exclude(status="Unidentified")
+    incomings = Incoming.objects.exclude(Q(status="Unidentified") | Q(status="Template"))
 
     if query:
         incomings = incomings.filter(
