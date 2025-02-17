@@ -204,9 +204,17 @@ def incoming_edit(request, pk):
                 photo.save()
 
         else:
-            print("ZDES", form.errors.as_data())
-            errors = [f'❌ {form.fields[field].label}: {error}' for field, error_list in form.errors.items() for error in
-                      error_list]
+            errors = []
+            for field, error_list in form.errors.items():
+                if field == "__all__":  # 🔥 Обрабатываем ошибки формы отдельно
+                    for error in error_list:
+                        errors.append(f"❌ Ошибка формы: {error}")
+                else:
+                    field_label = form.fields.get(field, field)  # 🔥 Предотвращаем KeyError
+                    field_label = field_label.label if hasattr(field_label, "label") else field
+                    for error in error_list:
+                        errors.append(f"❌ {field_label}: {error}")
+
             return JsonResponse({'success': False, 'errors': errors})
 
     else:
