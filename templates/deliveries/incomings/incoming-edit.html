@@ -34,7 +34,7 @@
                         <div class="form-group">
                             <label for="inventory-input">Инвентарные номера</label>
                             <input id="inventory-input" list="inventory-list" class="form-control"
-                                   placeholder="Введите инвентарный номер" name="inventory_numbers">
+                                   placeholder="Введите инвентарный номер">
                             <datalist id="inventory-list">
                                 <!-- Список доступных инвентарных номеров -->
                             </datalist>
@@ -44,11 +44,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button name="button-close-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Закрыть
-                    </button>
                 </div>
             </div>
         </div>
@@ -255,16 +250,14 @@
                                 <label for="client-input">Клиент</label>
                                 <input type="text" id="client-input" name="client" class="form-control"
                                        list="client-list" placeholder="Введите имя, email или телефон"
-                                       value="
-
-                                               {% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
+                                       value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
                                 <datalist id="client-list"></datalist>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <input id="initial-inventory-numbers" type="hidden" name="inventory_numbers">
+
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
             <a href="{% url 'deliveries:delete-incoming' incoming.id %}" class="btn btn-label-danger waves-effect mt-4">Удалить</a>
@@ -281,7 +274,7 @@
     <script src="{% static 'js/client-searching-edit.js' %}"></script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
     <script src="{% static 'js/auto-fields-filling.js' %}"></script>
-    <script src="{% static 'js/submit-logic.js' %}"></script>
+    <script src="{% static 'js/submit-logic-edit.js' %}"></script>
     <script>
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками

@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectedInventoryContainer = document.getElementById('selected-inventory-numbers');
     const selectedInventoryInput = document.getElementById('selected-inventory-input');
     const closeButtonX = document.querySelector('.modal .btn-close');
-    const closeButton = document.querySelector('button[name="button-close-close"]');
 
     let selectedTrackers = [];
     let trackerInventoryMap = JSON.parse(localStorage.getItem('trackerInventoryMap')) || {};
@@ -176,9 +175,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Привязываем инвентарный номер при нажатии на кнопку "Закрыть"
     closeButtonX.addEventListener('click', function () {
-        addInventoryNumber();
-    });
-    closeButton.addEventListener('click', function () {
         addInventoryNumber();
     });
 

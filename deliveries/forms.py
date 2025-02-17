@@ -249,7 +249,6 @@ class IncomingEditForm(BaseIncomingForm):
 
     def clean_inventory_numbers(self):
         inventory_numbers = self.cleaned_data.get('inventory_numbers')
-        print("nums", inventory_numbers)  # Логирование
 
         if inventory_numbers:
             # ✅ Разбиваем строку по запятым и удаляем пробелы

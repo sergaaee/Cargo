@@ -186,13 +186,15 @@ def incoming_edit(request, pk):
                     print("ZDES 123")
                     response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
-                        else render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
+                        else render(request, 'deliveries/incomings/incoming-edit.html',
+                                    {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
             incoming.save()
 
             # Обновляем трек-коды
             for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code, defaults={'status': 'Active'})
+                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
+                                                                              defaults={'status': 'Active'})
                 tracker_code_obj.status = 'Active'
                 tracker_code_obj.save()
 
@@ -203,11 +205,9 @@ def incoming_edit(request, pk):
 
         else:
             print("ZDES", form.errors.as_data())
-            errors = [f'❌ {form.fields[field].label}: {error}' for field, error_list in form.errors.items() for error in error_list]
-
-            # ✅ Если AJAX-запрос, возвращаем JSON
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'errors': errors})
+            errors = [f'❌ {form.fields[field].label}: {error}' for field, error_list in form.errors.items() for error in
+                      error_list]
+            return JsonResponse({'success': False, 'errors': errors})
 
     else:
         form = IncomingEditForm(instance=incoming)
@@ -230,7 +230,6 @@ def incoming_edit(request, pk):
         'available_inventory_numbers': available_inventory_numbers,
         'codes_nums_map': json.dumps(codes_nums_map),
     })
-
 
 
 @staff_and_login_required
