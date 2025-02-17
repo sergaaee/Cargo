@@ -256,6 +256,7 @@
                                 <input type="text" id="client-input" name="client" class="form-control"
                                        list="client-list" placeholder="Введите имя, email или телефон"
                                        value="
+
                                                {% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
                                 <datalist id="client-list"></datalist>
                             </div>
@@ -273,91 +274,14 @@
             <!-- Кнопка для отмены -->
         </form>
     </div>
+    <script>
+            let codesNumsMap = JSON.parse('{{ codes_nums_map|escapejs }}');
+    </script>
     <script src="{% static 'js/input-size-mask.js' %}"></script>
     <script src="{% static 'js/client-searching-edit.js' %}"></script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
-    <script src="{% static 'js/incoming-form-logic.js' %}"></script>
+    <script src="{% static 'js/auto-fields-filling.js' %}"></script>
     <script src="{% static 'js/submit-logic.js' %}"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const selectedTrackersContainer = document.getElementById("selected-trackers-input");
-            const modal = new bootstrap.Modal(document.getElementById("additionalInputModal"));
-            const selectedInventoryContainer = document.getElementById("selected-inventory-numbers");
-            let codesNumsMap = JSON.parse('{{ codes_nums_map|escapejs }}');
-
-            let trackerInventoryMap = JSON.parse(localStorage.getItem('trackerInventoryMap')) || {};
-
-            for (let trackerCode in codesNumsMap) {
-                let inventoryNumbers = codesNumsMap[trackerCode];
-
-                if (!trackerInventoryMap[trackerCode]) {
-                    trackerInventoryMap[trackerCode] = [];
-                }
-
-                trackerInventoryMap[trackerCode] = inventoryNumbers;
-            }
-
-            localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
-
-            let selectedTrackers = Object.keys(trackerInventoryMap);
-
-            function updateSelectedTrackers() {
-                selectedTrackersContainer.innerHTML = '';
-
-                selectedTrackers.forEach((code) => {
-                    const trackerDiv = document.createElement("div");
-                    trackerDiv.classList.add("badge", "bg-primary", "me-1", "mb-1", "selected-tracker");
-                    trackerDiv.textContent = code;
-                    trackerDiv.style.cursor = "pointer";
-
-                    trackerDiv.addEventListener("click", () => {
-                        loadInventoryNumbersForTracker(code);
-                        modal.show();
-                    });
-
-                    const removeBtn = document.createElement("span");
-                    removeBtn.classList.add("ms-2", "text-white", "cursor-pointer");
-                    removeBtn.innerHTML = "&times;";
-                    removeBtn.addEventListener("click", (event) => {
-                        event.stopPropagation();
-                        selectedTrackers = selectedTrackers.filter(t => t !== code);
-                        delete trackerInventoryMap[code];
-                        localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
-                        updateSelectedTrackers();
-                    });
-
-                    trackerDiv.appendChild(removeBtn);
-                    selectedTrackersContainer.appendChild(trackerDiv);
-                });
-            }
-
-            function loadInventoryNumbersForTracker(trackerCode) {
-                document.getElementById("additionalInputModalLabel").textContent = `Инвентарные номера для трек-кода: ${trackerCode}`;
-                selectedInventoryContainer.innerHTML = "";
-                const inventoryNumbers = trackerInventoryMap[trackerCode] || [];
-
-                inventoryNumbers.forEach((number) => {
-                    const inventoryDiv = document.createElement("div");
-                    inventoryDiv.classList.add("badge", "bg-secondary", "me-1", "mb-1", "selected-inventory");
-                    inventoryDiv.textContent = number;
-
-                    const removeBtn = document.createElement("span");
-                    removeBtn.classList.add("ms-2", "text-white", "cursor-pointer");
-                    removeBtn.innerHTML = "&times;";
-                    removeBtn.addEventListener("click", () => {
-                        trackerInventoryMap[trackerCode] = trackerInventoryMap[trackerCode].filter(n => n !== number);
-                        localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
-                        loadInventoryNumbersForTracker(trackerCode);
-                    });
-
-                    inventoryDiv.appendChild(removeBtn);
-                    selectedInventoryContainer.appendChild(inventoryDiv);
-                });
-            }
-
-            updateSelectedTrackers();
-        });
-    </script>
     <script>
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками
