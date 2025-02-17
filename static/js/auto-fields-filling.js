@@ -21,9 +21,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         trackerInventoryMap[trackerCode] = inventoryNumbers;
+
+        // Добавляем трек-коды в UI
+        if (!selectedTrackers.includes(trackerCode)) {
+            selectedTrackers.push(trackerCode);
+        }
     }
 
     localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+
+    updateSelectedTrackers();
 
     // Функция для обновления выбранных трек-кодов
     function updateSelectedTrackers() {
