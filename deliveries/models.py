@@ -23,7 +23,8 @@ class Photo(UUIDMixin, TimeStampedMixin):
 class InventoryNumber(UUIDMixin, TimeStampedMixin):
     number = models.CharField(max_length=100, unique=True)
     is_occupied = models.BooleanField(default=False)
-    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True, related_name='inventory_numbers_tracker_code')
+    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='inventory_numbers_tracker_code')
 
     def __str__(self):
         return self.number
@@ -32,8 +33,10 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
 class TrackerCode(UUIDMixin, TimeStampedMixin):
     code = models.CharField(_('Code'), max_length=1000, unique=True)
     status = models.CharField(_('Status'), choices=CodeStatus.choices, default="Inactive")
-    inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberTrackerCode', related_name='tracker_code_inventory_numbers', blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), blank=True, null=True)
+    inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberTrackerCode',
+                                               related_name='tracker_code_inventory_numbers', blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   blank=True, null=True)
 
     def __str__(self):
         return self.code
@@ -49,7 +52,6 @@ class InventoryNumberTrackerCode(UUIDMixin, TimeStampedMixin):
         ]
 
 
-
 class Tracker(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100)
     status = models.CharField(_('Status'), choices=TrackerStatus.choices, default="Incomplete",
@@ -57,8 +59,8 @@ class Tracker(UUIDMixin, TimeStampedMixin):
     tracking_codes = models.ManyToManyField(TrackerCode, through='TrackerCodeTracker',
                                             blank=True)
     source = models.CharField(_('Source'), max_length=100, blank=True, null=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'), null=True)
-
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   null=True)
 
     def __str__(self):
         return self.name
@@ -153,10 +155,12 @@ class ConsolidationIncoming(UUIDMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     places_consolidated = models.IntegerField(_('Places to consolidate'), validators=[MinValueValidator(1)])
     volume_consolidated = models.IntegerField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
-    weight_consolidated = models.IntegerField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
+    weight_consolidated = models.IntegerField(_('Weight (kg)'), blank=True, null=True,
+                                              validators=[MinValueValidator(0)])
 
     class Meta:
-        unique_together = ('consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
+        unique_together = (
+        'consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
         indexes = [
             models.Index(fields=['consolidation', 'incoming'], name='consolidation_incoming_idx'),
         ]
@@ -215,7 +219,6 @@ class ConsolidationCode(UUIDMixin, TimeStampedMixin):
         return f'ST{new_number}'
 
 
-
 class InventoryNumberIncoming(UUIDMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     inventory_number = models.ForeignKey('InventoryNumber', on_delete=models.CASCADE)
@@ -247,5 +250,3 @@ class PhotoIncoming(UUIDMixin):
         indexes = [
             models.Index(fields=['incoming_id', 'photo_id'], name='photo_incoming_idx'),
         ]
-
-

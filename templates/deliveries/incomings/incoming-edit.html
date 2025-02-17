@@ -4,7 +4,6 @@
 {% block title %}Редактировать поступление{% endblock %}
 
 {% block content %}
-    <script src="{% static 'js/input-size-mask.js' %}"></script>
     <script>
         function removePhotoEdit(photoId) {
             // Отправка AJAX-запроса для удаления фото
@@ -21,6 +20,40 @@
             });
         }
     </script>
+    <!-- Модальное окно -->
+    <div class="modal fade" id="additionalInputModal" tabindex="-1" aria-labelledby="additionalInputModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="additionalInputModalLabel">Инвентарные номера</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="inventory-input">Инвентарные номера</label>
+                            <input id="inventory-input" list="inventory-list" class="form-control"
+                                   placeholder="Введите инвентарный номер" name="inventory_numbers">
+                            <datalist id="inventory-list">
+                                <!-- Список доступных инвентарных номеров -->
+                            </datalist>
+                            <!-- Блок для отображения выбранных инвентарных номеров -->
+                            <div id="selected-inventory-numbers" class="mt-2">
+                                <!-- Здесь будут динамически добавляться выбранные инвентарные номера -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button name="button-close-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Закрыть
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-xxl flex-grow-1 container-p-y">
         <!-- Блок для отображения сообщений -->
         {% if messages %}
@@ -36,6 +69,9 @@
         <form method="post" enctype="multipart/form-data" action="{% url 'deliveries:edit-incoming' pk=incoming.pk %}">
             {% csrf_token %}
             <div class="accordion" id="collapsibleSection">
+                <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
+                <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
+
                 <!-- первая строка -->
                 <div class="card accordion-item active">
                     <h2 class="accordion-header" id="headingBaseIncoming">
@@ -50,26 +86,28 @@
                         <div class="accordion-body">
                             <!-- Поля формы Incoming -->
                             <div class="row g-3">
-
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <h5>Активные трек-коды:</h5>
-                                        <ul>
-                                            {% for code in active_tracker_codes %}
-                                                <li>{{ code.code }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="tracker">Трек-коды:</label>
+                                                <input type="text" name="tracker" id="tracker-input"
+                                                       class="form-control">
+                                                <div class="form-check mt-2">
+                                                    <input type="checkbox" class="form-check-input"
+                                                           id="no-tracker-checkbox">
+                                                    <label class="form-check-label" for="no-tracker-checkbox">Нет
+                                                        трек-кода</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Скрытое поле для передачи выбранных трекеров -->
+                                        <input type="hidden" id="selected-trackers-input" name="tracker">
 
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <h5>Инвентарные номера:</h5>
-                                        <ul>
-                                            {% for inventory_number in incoming.inventory_numbers.all %}
-                                                <li>{{ inventory_number.number }}</li>
-                                            {% endfor %}
-                                        </ul>
+                                        <!-- Блок для отображения выбранных трекеров -->
+                                        <div id="selected-trackers" class="mt-2">
+                                            <!-- Здесь будут динамически добавляться выбранные коды -->
+                                        </div>
                                     </div>
                                 </div>
 
@@ -217,7 +255,8 @@
                                 <label for="client-input">Клиент</label>
                                 <input type="text" id="client-input" name="client" class="form-control"
                                        list="client-list" placeholder="Введите имя, email или телефон"
-                                       value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
+                                       value="
+                                               {% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
                                 <datalist id="client-list"></datalist>
                             </div>
                         </div>
@@ -229,88 +268,102 @@
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
             <a href="{% url 'deliveries:delete-incoming' incoming.id %}" class="btn btn-label-danger waves-effect mt-4">Удалить</a>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
+            <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
+            <input type="hidden" id="inventory_numbers_input" name="inventory_numbers">
             <!-- Кнопка для отмены -->
-            {{ form.errors }}
         </form>
     </div>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const form = document.querySelector("form");
-            const cancelButton = document.querySelector(".btn-secondary");
-
-            const alertBox = document.createElement("div");
-            alertBox.classList.add("alert", "alert-danger", "d-none");
-            form.prepend(alertBox);
-
-            form.addEventListener("submit", function (event) {
-                event.preventDefault();
-
-                // Получаем существующие инвентарные номера из скрытого поля
-                const initialInventoryInput = document.getElementById("initial-inventory-numbers");
-                const inventoryNumbers = initialInventoryInput.value.split(',');
-
-                // Обновляем скрытые поля, если они есть
-                const trackerCodesInput = document.getElementById("selected-trackers-input");
-                if (trackerCodesInput) {
-                    trackerCodesInput.value = Array.from(new Set(inventoryNumbers)).join(",");
-                }
-
-                // 📌 Отправляем AJAX-запрос
-                const formData = new FormData(form);
-
-                fetch(form.action, {
-                    method: "POST",
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest", // Для обработки JSON на сервере
-                    },
-                    body: formData
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            window.location.href = data.redirect_url;
-                        } else {
-                            alertBox.innerHTML = data.errors.join("<br>");
-                            alertBox.classList.remove("d-none");
-                            window.scrollTo({top: 0, behavior: "smooth"});
-                        }
-                    })
-                    .catch(error => {
-                        alertBox.innerHTML = "Ошибка соединения с сервером.";
-                        alertBox.classList.remove("d-none");
-                        console.error("Ошибка отправки формы:", error);
-                    });
-            });
-        });
-
-    </script>
+    <script src="{% static 'js/input-size-mask.js' %}"></script>
     <script src="{% static 'js/client-searching-edit.js' %}"></script>
     <script src="{% static 'js/disabling-additional-fields.js' %}"></script>
+    <script src="{% static 'js/incoming-form-logic.js' %}"></script>
+    <script src="{% static 'js/submit-logic.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            document.querySelector('input[name="state"]').value = document.querySelector('[name="state"]:disabled').value;
-            document.querySelector('input[name="package_type"]').value = document.querySelector('[name="package_type"]:disabled').value;
-        });
+            const selectedTrackersContainer = document.getElementById("selected-trackers-input");
+            const modal = new bootstrap.Modal(document.getElementById("additionalInputModal"));
+            const selectedInventoryContainer = document.getElementById("selected-inventory-numbers");
+            let codesNumsMap = JSON.parse('{{ codes_nums_map|escapejs }}');
 
+            let trackerInventoryMap = JSON.parse(localStorage.getItem('trackerInventoryMap')) || {};
+
+            for (let trackerCode in codesNumsMap) {
+                let inventoryNumbers = codesNumsMap[trackerCode];
+
+                if (!trackerInventoryMap[trackerCode]) {
+                    trackerInventoryMap[trackerCode] = [];
+                }
+
+                trackerInventoryMap[trackerCode] = inventoryNumbers;
+            }
+
+            localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+
+            let selectedTrackers = Object.keys(trackerInventoryMap);
+
+            function updateSelectedTrackers() {
+                selectedTrackersContainer.innerHTML = '';
+
+                selectedTrackers.forEach((code) => {
+                    const trackerDiv = document.createElement("div");
+                    trackerDiv.classList.add("badge", "bg-primary", "me-1", "mb-1", "selected-tracker");
+                    trackerDiv.textContent = code;
+                    trackerDiv.style.cursor = "pointer";
+
+                    trackerDiv.addEventListener("click", () => {
+                        loadInventoryNumbersForTracker(code);
+                        modal.show();
+                    });
+
+                    const removeBtn = document.createElement("span");
+                    removeBtn.classList.add("ms-2", "text-white", "cursor-pointer");
+                    removeBtn.innerHTML = "&times;";
+                    removeBtn.addEventListener("click", (event) => {
+                        event.stopPropagation();
+                        selectedTrackers = selectedTrackers.filter(t => t !== code);
+                        delete trackerInventoryMap[code];
+                        localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+                        updateSelectedTrackers();
+                    });
+
+                    trackerDiv.appendChild(removeBtn);
+                    selectedTrackersContainer.appendChild(trackerDiv);
+                });
+            }
+
+            function loadInventoryNumbersForTracker(trackerCode) {
+                document.getElementById("additionalInputModalLabel").textContent = `Инвентарные номера для трек-кода: ${trackerCode}`;
+                selectedInventoryContainer.innerHTML = "";
+                const inventoryNumbers = trackerInventoryMap[trackerCode] || [];
+
+                inventoryNumbers.forEach((number) => {
+                    const inventoryDiv = document.createElement("div");
+                    inventoryDiv.classList.add("badge", "bg-secondary", "me-1", "mb-1", "selected-inventory");
+                    inventoryDiv.textContent = number;
+
+                    const removeBtn = document.createElement("span");
+                    removeBtn.classList.add("ms-2", "text-white", "cursor-pointer");
+                    removeBtn.innerHTML = "&times;";
+                    removeBtn.addEventListener("click", () => {
+                        trackerInventoryMap[trackerCode] = trackerInventoryMap[trackerCode].filter(n => n !== number);
+                        localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+                        loadInventoryNumbersForTracker(trackerCode);
+                    });
+
+                    inventoryDiv.appendChild(removeBtn);
+                    selectedInventoryContainer.appendChild(inventoryDiv);
+                });
+            }
+
+            updateSelectedTrackers();
+        });
     </script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const initialInventoryInput = document.getElementById('initial-inventory-numbers');
-
-            let selectedInventoryNumbers = [];
-
-            // Инициализируем массив выбранных инвентарных номеров уже существующими значениями
-            {% for inventory_number in incoming.inventory_numbers.all %}
-                selectedInventoryNumbers.push("{{ inventory_number.number }}");
-            {% endfor %}
-            console.log(selectedInventoryNumbers)
-            initialInventoryInput.value = selectedInventoryNumbers.join(',');
-
-            // Обновляем скрытое поле перед отправкой формы
-            document.querySelector('form').addEventListener('submit', function () {
-                initialInventoryInput.value = selectedInventoryNumbers.join(',');
-            });
+        window.addEventListener("beforeunload", function () {
+            // Удаляем только данные, связанные с трекерами и инвентарниками
+            localStorage.removeItem('trackerInventoryMap');
         });
     </script>
+
+
 {% endblock %}

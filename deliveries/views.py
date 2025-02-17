@@ -16,7 +16,7 @@ from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, IncomingFormEdit, ConsolidationForm, PackageForm
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
 from django.http import JsonResponse
@@ -167,66 +167,77 @@ def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
     if request.method == 'POST':
-        form = IncomingFormEdit(request.POST, instance=incoming)
+        form = IncomingEditForm(request.POST, instance=incoming)
 
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
+            tracker, tracker_codes = form.cleaned_data['tracker']
+            incoming.tracker.add(tracker)
+
             new_client_phone = request.POST.get("client", "").strip()
-            old_client = incoming.client
-
-            errors = []
-
-            # 🔹 Проверяем клиента, если он изменился
-            if new_client_phone and (not old_client or old_client.profile.phone_number != new_client_phone):
+            if new_client_phone:
                 try:
                     new_client_profile = UserProfile.objects.get(phone_number=new_client_phone)
                     incoming.client = new_client_profile.user
                     incoming.status = 'Received'
                 except UserProfile.DoesNotExist:
-                    errors.append(f'❌ Клиент с номером {new_client_phone} не найден!')
+                    print("ZDES 123")
+                    response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
+                    return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
+                        else render(request, 'deliveries/incomings/incoming-edit.html', {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
             incoming.save()
 
-            # Получаем старые и новые инвентарные номера
-            new_inventory_numbers = set(form.cleaned_data['inventory_numbers'])
-            initial_inventory_numbers = set(request.POST.get('initial_inventory_numbers', '').split(','))
-
-            removed_inventory_numbers = initial_inventory_numbers - new_inventory_numbers
-            # update_inventory_numbers(removed_inventory_numbers, incoming, occupied=False)
-            # update_inventory_numbers(new_inventory_numbers, incoming, occupied=True)
+            # Обновляем трек-коды
+            for tracker_code in tracker_codes:
+                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code, defaults={'status': 'Active'})
+                tracker_code_obj.status = 'Active'
+                tracker_code_obj.save()
 
             # Сохраняем фото
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            if errors:
+        else:
+            print("ZDES", form.errors.as_data())
+            errors = [f'❌ {form.fields[field].label}: {error}' for field, error_list in form.errors.items() for error in error_list]
+
+            # ✅ Если AJAX-запрос, возвращаем JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'errors': errors})
 
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
-        else:
-            errors = [f'{field}: {error}' for field, error_list in form.errors.items() for error in error_list]
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
     else:
-        form = IncomingFormEdit(instance=incoming)
+        form = IncomingEditForm(instance=incoming)
 
-    active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
-    tags = Tag.objects.all()
-    trackers = Tracker.objects.all()
+    # Обрабатываем инвентарные номера и трек-коды
+    codes_nums_map = {}
+    for code in incoming.tracker.values_list('tracking_codes__code', flat=True):
+        inventory_numbers = list(incoming.tracker.get(tracking_codes__code=code)
+                                 .tracking_codes.get(code=code)
+                                 .inventory_numbers.values_list('number', flat=True))
+
+        codes_nums_map[code] = inventory_numbers
+
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
 
-    return render(request, 'deliveries/incomings/incoming-edit.html',
-                  {'form': form, 'incoming': incoming, 'tags': tags, 'trackers': trackers,
-                   'available_inventory_numbers': available_inventory_numbers,
-                   'active_tracker_codes': active_tracker_codes})
+    # ✅ Если НЕ AJAX, рендерим HTML
+    return render(request, 'deliveries/incomings/incoming-edit.html', {
+        'form': form,
+        'incoming': incoming,
+        'available_inventory_numbers': available_inventory_numbers,
+        'codes_nums_map': json.dumps(codes_nums_map),
+    })
+
 
 
 @staff_and_login_required
 def incoming_list(request):
     query = request.GET.get('q', '').strip()
-    incomings = Incoming.objects.exclude(Q(status="Unidentified") | Q(status="Template") | Q(status="Consolidated")).order_by('-arrival_date')
+    incomings = Incoming.objects.exclude(
+        Q(status="Unidentified") | Q(status="Template") | Q(status="Consolidated")).order_by('-arrival_date')
 
     if query:
         incomings = incomings.filter(

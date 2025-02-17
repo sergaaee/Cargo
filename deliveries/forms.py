@@ -1,6 +1,7 @@
 from django import forms
 from django.forms.models import inlineformset_factory
 from django.core.exceptions import ValidationError
+import json
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode
@@ -223,8 +224,45 @@ class IncomingForm(BaseIncomingForm):
         return tracker_obj, code_list
 
 
-class IncomingFormEdit(BaseIncomingForm):
-    pass
+class IncomingEditForm(BaseIncomingForm):
+
+    def clean_tracker(self):
+        tracker_codes = self.cleaned_data.get('tracker', '').strip()
+
+        if not tracker_codes:
+            raise forms.ValidationError("❌ Введите хотя бы один трек-код.")
+
+        code_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
+        tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
+
+        if not tracker_obj:
+            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list))
+
+            for code in code_list:
+                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active'})
+                tracker_code.tracker = tracker_obj
+                tracker_obj.tracking_codes.add(tracker_code)
+                tracker_code.save()
+            tracker_obj.save()
+
+        return tracker_obj, code_list
+
+    def clean_inventory_numbers(self):
+        inventory_numbers = self.cleaned_data.get('inventory_numbers')
+        print("nums", inventory_numbers)  # Логирование
+
+        if inventory_numbers:
+            # ✅ Разбиваем строку по запятым и удаляем пробелы
+            inventory_numbers = [num.strip() for num in inventory_numbers.split(',')]
+
+            inventory_number_objects = []
+            for inventory_number in inventory_numbers:
+                inventory_number_obj, created = InventoryNumber.objects.get_or_create(number=inventory_number)
+                inventory_number_objects.append(inventory_number_obj)
+
+            return inventory_number_objects
+
+        return None
 
 
 class PhotoForm(forms.ModelForm):
