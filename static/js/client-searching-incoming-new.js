@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (query.length < 2) return;  // Начинаем поиск с 2 символов
 
         try {
-            const response = await fetch(`http://127.0.0.1/incomings/search-users/?q=${query}`);
+            const response = await fetch(`/incomings/search-users/?q=${query}`);
             if (response.ok) {
                 const data = await response.json();
 
