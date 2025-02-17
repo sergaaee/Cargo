@@ -3,7 +3,8 @@ from functools import wraps
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 
-from deliveries.models import InventoryNumber, Incoming
+from deliveries.models import InventoryNumber, Incoming, InventoryNumberIncoming, TrackerCode, \
+    InventoryNumberTrackerCode
 
 
 def staff_and_login_required(view_func):
@@ -12,6 +13,61 @@ def staff_and_login_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return login_required(user_passes_test(lambda u: u.is_staff)(_wrapped_view))
+
+
+def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
+    """Обновляет инвентарные номера и трек-коды у поступления с правильной привязкой"""
+    new_inventory_numbers = set(num.number for num in form.cleaned_data["inventory_numbers"])
+    tracker, tracker_codes = form.cleaned_data["tracker"]
+
+    # 📌 Получаем текущие связанные объекты
+    existing_trackers = set(incoming.tracker.all())  # Все связанные трекеры
+    existing_tracker_codes = set(
+        TrackerCode.objects.filter(tracker__in=existing_trackers).values_list("code", flat=True)
+    )
+    existing_inventory_numbers = set(incoming.inventory_numbers.values_list("number", flat=True))
+
+    # 🔥 1. Удаляем старые инвентарные номера и связи
+    for inv_num in existing_inventory_numbers - new_inventory_numbers:
+        inv_obj = InventoryNumber.objects.get(number=inv_num)
+        InventoryNumberIncoming.objects.filter(incoming=incoming, inventory_number=inv_obj).delete()
+        InventoryNumberTrackerCode.objects.filter(inventory_number=inv_obj).delete()
+        inv_obj.is_occupied = False
+        inv_obj.save()
+
+    # 🔥 2. Добавляем новые инвентарные номера и связываем их правильно
+    for tracker_code, inventory_numbers in tracker_inventory_map.items():
+        tracker_code_obj, _ = TrackerCode.objects.get_or_create(code=tracker_code, defaults={"status": "Active"})
+
+        for inv_num in inventory_numbers:
+            inv_obj, created = InventoryNumber.objects.get_or_create(number=inv_num)
+            InventoryNumberIncoming.objects.get_or_create(incoming=incoming, inventory_number=inv_obj)
+            inv_obj.is_occupied = True
+            inv_obj.save()
+
+            # 🔥 Привязываем **только** к нужному tracker_code
+            InventoryNumberTrackerCode.objects.get_or_create(
+                inventory_number=inv_obj,
+                tracker_code=tracker_code_obj
+            )
+
+    # 🔥 3. Удаляем старые трек-коды
+    for old_code in existing_tracker_codes - set(tracker_codes):
+        TrackerCode.objects.filter(code=old_code, tracker__in=existing_trackers).delete()
+
+    # 🔥 4. Добавляем новые трек-коды
+    for new_code in set(tracker_codes) - existing_tracker_codes:
+        tracker_code, created = TrackerCode.objects.get_or_create(code=new_code, defaults={"status": "Active"})
+        tracker.tracking_codes.add(tracker_code)
+
+    # ✅ Обновляем связь incoming ↔ tracker
+    incoming.tracker.set([tracker])  # Полностью заменяем все трекеры
+
+    # ✅ Сохраняем изменения
+    incoming.save()
+    form.save_m2m()
+
+
 
 
 def update_inventory_numbers(inventory_numbers, incoming, occupied=True):

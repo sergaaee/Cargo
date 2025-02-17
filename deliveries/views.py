@@ -14,7 +14,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
-    paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list
+    paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
+    update_inventory_and_trackers
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
@@ -168,13 +169,15 @@ def incoming_edit(request, pk):
 
     if request.method == 'POST':
         form = IncomingEditForm(request.POST, instance=incoming)
+        tracker_inventory_map_raw = request.POST.getlist('tracker_inventory_map')
+        tracker_inventory_map = next((json.loads(x) for x in tracker_inventory_map_raw if x.strip()), {})
 
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
-            tracker, tracker_codes = form.cleaned_data['tracker']
-            incoming.tracker.add(tracker)
+
+            update_inventory_and_trackers(incoming, form, tracker_inventory_map)
 
             new_client_phone = request.POST.get("client", "").strip()
             if new_client_phone:
@@ -183,25 +186,20 @@ def incoming_edit(request, pk):
                     incoming.client = new_client_profile.user
                     incoming.status = 'Received'
                 except UserProfile.DoesNotExist:
-                    print("ZDES 123")
                     response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
             incoming.save()
-
-            # Обновляем трек-коды
-            for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
-                                                                              defaults={'status': 'Active'})
-                tracker_code_obj.status = 'Active'
-                tracker_code_obj.save()
+            form.save_m2m()
 
             # Сохраняем фото
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
+
+            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
 
         else:
             errors = []
