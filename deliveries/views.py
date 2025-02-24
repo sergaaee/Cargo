@@ -46,7 +46,7 @@ def incoming_new(request):
                 manager=request.user,
                 status='Template',
                 # Получаем значения напрямую из request.POST
-                tag=tag,
+                tag=tag[0],
                 arrival_date=request.POST.get('arrival_date'),
                 places_count=request.POST.get('places_count', 1),
                 size=request.POST.get('size'),

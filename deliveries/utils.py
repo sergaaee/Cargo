@@ -27,7 +27,7 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
     )
     existing_inventory_numbers = set(incoming.inventory_numbers.values_list("number", flat=True))
 
-    # 🔥 1. Удаляем старые инвентарные номера и связи
+    # Удаляем старые инвентарные номера и связи
     for inv_num in existing_inventory_numbers - new_inventory_numbers:
         inv_obj = InventoryNumber.objects.get(number=inv_num)
         InventoryNumberIncoming.objects.filter(incoming=incoming, inventory_number=inv_obj).delete()
@@ -35,7 +35,7 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
         inv_obj.is_occupied = False
         inv_obj.save()
 
-    # 🔥 2. Добавляем новые инвентарные номера и связываем их правильно
+    # Добавляем новые инвентарные номера и связываем их правильно
     for tracker_code, inventory_numbers in tracker_inventory_map.items():
         tracker_code_obj, _ = TrackerCode.objects.get_or_create(code=tracker_code, defaults={"status": "Active"})
 
@@ -45,17 +45,17 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
             inv_obj.is_occupied = True
             inv_obj.save()
 
-            # 🔥 Привязываем **только** к нужному tracker_code
+            # Привязываем только к нужному tracker_code
             InventoryNumberTrackerCode.objects.get_or_create(
                 inventory_number=inv_obj,
                 tracker_code=tracker_code_obj
             )
 
-    # 🔥 3. Удаляем старые трек-коды
+    # Удаляем старые трек-коды
     for old_code in existing_tracker_codes - set(tracker_codes):
         TrackerCode.objects.filter(code=old_code, tracker__in=existing_trackers).delete()
 
-    # 🔥 4. Добавляем новые трек-коды
+    # Добавляем новые трек-коды
     for new_code in set(tracker_codes) - existing_tracker_codes:
         tracker_code, created = TrackerCode.objects.get_or_create(code=new_code, defaults={"status": "Active"})
         tracker.tracking_codes.add(tracker_code)
