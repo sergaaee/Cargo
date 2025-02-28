@@ -24,9 +24,9 @@ class DeliveryType(models.Choices):
 
 class PackageStatus(models.Choices):
     RECEIVED = 'Received'
+    TEMPLATE = 'Template'
+    UNIDENTIFIED = 'Unidentified'
     DECLINED = 'Declined'
-    TO_DELIVER = 'To Deliver'
-    STORED = 'Stored'
     UNDECIDED = 'Undecided'
 
 

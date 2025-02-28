@@ -39,7 +39,7 @@
                 <table class="table table-bordered">
                     <thead>
                     <tr>
-                        <th><input class="form-check-input" type="checkbox" id="select-all"></th>
+                        <th><input class="form-check-input" type="hidden" id="select-all"></th>
                         <th>
                             <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tracker&order={% if sort_by == 'tracker' and order == 'asc' %}desc{% else %}asc{% endif %}">
                                 Трек-номер
@@ -81,7 +81,7 @@
                     <tbody>
                     {% for incoming in page_obj %}
                         <tr>
-                            {% if incoming.status == "Consolidated"%}
+                            {% if incoming.status == "Consolidated" %}
                                 <td>
                                 </td>
                             {% else %}
@@ -131,13 +131,33 @@
             <button type="submit" class="btn btn-primary mt-3">Консолидация</button>
         </form>
 
-        <!-- Скрипт для выбора всех чекбоксов -->
         <script>
-            document.getElementById('select-all').addEventListener('click', function () {
-                var checkboxes = document.querySelectorAll('input[name="selected_incomings"]');
-                for (var checkbox of checkboxes) {
-                    checkbox.checked = this.checked;
-                }
+            document.addEventListener("DOMContentLoaded", function () {
+                const checkboxes = document.querySelectorAll('input[name="selected_incomings"]');
+                let selectedClient = null; // Запоминаем выбранного клиента
+
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener("change", function () {
+                        const row = this.closest("tr");
+                        const clientNumber = row.querySelector("td:nth-child(7)").textContent.trim(); // Получаем номер клиента из 7-го столбца
+
+                        if (this.checked) {
+                            if (!selectedClient) {
+                                selectedClient = clientNumber; // Запоминаем первого выбранного клиента
+                            } else if (selectedClient !== clientNumber) {
+                                alert("Нельзя выбрать поступления от разных клиентов!");
+                                this.checked = false; // Отменяем выбор
+                                return;
+                            }
+                        }
+
+                        // Проверяем, если все чекбоксы сняты, сбрасываем ограничение
+                        const anyChecked = [...checkboxes].some(cb => cb.checked);
+                        if (!anyChecked) {
+                            selectedClient = null;
+                        }
+                    });
+                });
             });
         </script>
 
