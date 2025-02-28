@@ -191,7 +191,8 @@ def incoming_edit(request, pk):
                 try:
                     new_client_profile = UserProfile.objects.get(phone_number=new_client_phone)
                     incoming.client = new_client_profile.user
-                    incoming.status = 'Received'
+                    if incoming.status == 'Unidentified':
+                        incoming.status = 'Received'
                 except UserProfile.DoesNotExist:
                     response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \

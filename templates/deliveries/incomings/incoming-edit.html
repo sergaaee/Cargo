@@ -86,11 +86,12 @@
                                         <div class="col-md-4">
                                             <div class="form-group">
                                                 <label for="tracker">Трек-коды:</label>
-                                                <input type="text" name="tracker" id="tracker-input"
-                                                       class="form-control">
+                                                <input type="text" name="tracker" id="tracker-input" class="form-control"
+       {% if incoming.status != "Template" %}disabled{% endif %}>
+
                                                 <div class="form-check mt-2">
                                                     <input type="checkbox" class="form-check-input"
-                                                           id="no-tracker-checkbox">
+                                                           id="no-tracker-checkbox" {%if incoming.status != "Template"%}disabled{% endif %}>
                                                     <label class="form-check-label" for="no-tracker-checkbox">Нет
                                                         трек-кода</label>
                                                 </div>
@@ -100,7 +101,7 @@
                                         <input type="hidden" id="selected-trackers-input" name="tracker">
 
                                         <!-- Блок для отображения выбранных трекеров -->
-                                        <div id="selected-trackers" class="mt-2">
+                                        <div id="selected-trackers" class="mt-2" {% if incoming.status != "Template" %} hidden {% endif %}>
                                             <!-- Здесь будут динамически добавляться выбранные коды -->
                                         </div>
                                     </div>
