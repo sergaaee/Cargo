@@ -38,6 +38,8 @@ def incoming_new(request):
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
 
+        client_phone = request.POST.get("client", "").strip()
+
         if 'save_draft' in request.POST:
             tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get(
                 'tag') else None, None
@@ -45,8 +47,7 @@ def incoming_new(request):
             incoming = Incoming(
                 manager=request.user,
                 status='Template',
-                # Получаем значения напрямую из request.POST
-                tag=tag[0],
+                tag=tag[0] if tag else None,
                 arrival_date=request.POST.get('arrival_date'),
                 places_count=request.POST.get('places_count', 1),
                 size=request.POST.get('size'),
@@ -54,11 +55,17 @@ def incoming_new(request):
                 state=request.POST.get('state', 'PERFECT'),
                 package_type=request.POST.get('package_type', 'CARTOON_BOX'),
             )
-            incoming.save()
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
 
-        # Получаем введенный номер телефона
-        client_phone = request.POST.get("client", "").strip()
+            if client_phone:
+                try:
+                    client_profile = UserProfile.objects.get(phone_number=client_phone)
+                    incoming.client = client_profile.user
+                except UserProfile.DoesNotExist:
+                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
+
+
+            incoming.save()
+            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
 
         if form.is_valid():
             incoming = form.save(commit=False)

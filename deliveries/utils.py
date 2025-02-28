@@ -68,8 +68,6 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
     form.save_m2m()
 
 
-
-
 def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
     for number in inventory_numbers:
         inventory_number_obj = InventoryNumber.objects.get(number=number)
