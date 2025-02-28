@@ -43,7 +43,7 @@
                             <div class="form-group">
                                 <label for="client">Клиент</label>
                                 <input type="text" id="client" name="client" class="form-control" list="client-list"
-                                       placeholder="Начните вводить имя, email или телефон">
+                                       placeholder="Начните вводить имя, email или телефон" value={{ selected_incomings.first.client.profile.phone_number }}>
                                 <datalist id="client-list"></datalist>
 
 
@@ -422,25 +422,30 @@
         });
 
         document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => {
             const clientInput = document.getElementById("client");
             const selectionTableRows = document.querySelectorAll("#selection-table tbody tr");
 
-            clientInput.addEventListener("input", function () {
-                const clientValue = clientInput.value.trim();
+            if (!clientInput) return;
 
+            function filterRows() {
+                const clientValue = clientInput.value.trim();
                 selectionTableRows.forEach(row => {
                     const clientCell = row.querySelector("td:last-child");
                     if (clientCell) {
                         const clientText = clientCell.textContent.trim();
-                        if (clientText.includes(clientValue) || clientValue === "") {
-                            row.style.display = "";
-                        } else {
-                            row.style.display = "none";
-                        }
+                        row.style.display = clientText.includes(clientValue) || clientValue === "" ? "" : "none";
                     }
                 });
-            });
-        });
+            }
+
+            // Фильтрация при изменении значения в поле
+            clientInput.addEventListener("input", filterRows);
+
+            // Фильтрация после загрузки (когда Django уже вставил значение)
+            filterRows();
+        }, 100); // Ждем 100мс перед выполнением
+    });
     </script>
     <script>
         // Глобальные функции, доступные для вызова из onclick

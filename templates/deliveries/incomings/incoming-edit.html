@@ -114,7 +114,8 @@
 
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.arrival_date.label_tag }} {{ form.arrival_date }}
+                                        {{ form.arrival_date.label_tag }} <input type="datetime-local" name="arrival_date" class="form-control"
+       value="{{ incoming.arrival_date|date:'Y-m-d\TH:i' }}">
                                     </div>
                                 </div>
 
