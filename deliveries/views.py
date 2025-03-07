@@ -40,32 +40,6 @@ def incoming_new(request):
 
         client_phone = request.POST.get("client", "").strip()
 
-        if 'save_draft' in request.POST:
-            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get(
-                'tag') else None, None
-
-            incoming = Incoming(
-                manager=request.user,
-                status='Template',
-                tag=tag[0] if tag else None,
-                arrival_date=request.POST.get('arrival_date'),
-                places_count=request.POST.get('places_count', 1),
-                size=request.POST.get('size'),
-                weight=request.POST.get('weight', 1),
-                state=request.POST.get('state', 'PERFECT'),
-                package_type=request.POST.get('package_type', 'CARTOON_BOX'),
-            )
-
-            if client_phone:
-                try:
-                    client_profile = UserProfile.objects.get(phone_number=client_phone)
-                    incoming.client = client_profile.user
-                except UserProfile.DoesNotExist:
-                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-
-            incoming.save()
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
-
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
@@ -108,6 +82,9 @@ def incoming_new(request):
             # Если есть конфликты, не сохраняем и показываем ошибку
             if conflicting_items:
                 return JsonResponse({'success': False, 'errors': conflicting_items})
+
+            if 'save_draft' in request.POST:
+                incoming.status = 'Template'
 
             incoming.save()
             tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
@@ -197,6 +174,9 @@ def incoming_edit(request, pk):
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
+
+            if 'save_draft' in request.POST:
+                incoming.status = 'Template'
 
             incoming.save()
             form.save_m2m()

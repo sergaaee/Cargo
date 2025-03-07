@@ -262,6 +262,10 @@
 
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
+            <button type="submit" name="save_draft"
+                    class="btn btn-label-success mt-4 waves-effect">
+                Сохранить как черновик
+            </button>
             <a href="{% url 'deliveries:delete-incoming' incoming.id %}" class="btn btn-label-danger waves-effect mt-4">Удалить</a>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
             <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
