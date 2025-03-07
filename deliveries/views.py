@@ -175,8 +175,6 @@ def incoming_edit(request, pk):
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
-            if 'save_draft' in request.POST:
-                incoming.status = 'Template'
 
             incoming.save()
             form.save_m2m()
