@@ -63,7 +63,6 @@ def incoming_new(request):
                 except UserProfile.DoesNotExist:
                     return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
 
-
             incoming.save()
             return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
 
@@ -207,7 +206,12 @@ def incoming_edit(request, pk):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+            if incoming.status == 'Template':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
+            elif incoming.status == 'Unidentified':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
+            else:
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
 
         else:
             errors = []
