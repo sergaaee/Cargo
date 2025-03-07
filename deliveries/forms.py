@@ -207,8 +207,10 @@ class IncomingForm(BaseIncomingForm):
 
         if tracker_obj:
             existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
+            existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+
             if existing_incoming:
-                raise forms.ValidationError("Этот трекер уже привязан к другому поступлению.")
+                raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         # Если трекер не найден, создаем новый
         if not tracker_obj:
@@ -234,6 +236,13 @@ class IncomingEditForm(BaseIncomingForm):
 
         code_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
         tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
+
+        if tracker_obj:
+            existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
+            existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+
+            if existing_incoming:
+                raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         if not tracker_obj:
             tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list))

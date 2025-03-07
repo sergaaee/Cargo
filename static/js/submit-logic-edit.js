@@ -20,10 +20,26 @@ document.addEventListener("DOMContentLoaded", function () {
         var trackerCodes = Object.keys(trackerInventoryMap);
         var inventoryNumbers = Object.values(trackerInventoryMap);
 
+        let uiTrackers = Array.from(document.querySelectorAll("#selected-trackers .selected-tracker"))
+            .map(el => el.textContent.replace("×", "").trim()); // Убираем символ удаления
+
+        // 📌 Находим трек-коды, у которых нет инвентарных номеров
+        let emptyTrackers = uiTrackers.filter(tracker =>
+            !trackerCodes.includes(tracker) || !trackerInventoryMap[tracker] || trackerInventoryMap[tracker].length === 0
+        );
+
+        if (emptyTrackers.length > 0) {
+            alert(`❌ Внимание: Трек-код(ы) ${emptyTrackers.join(", ")} не содержат ни одного инвентарного номера!`);
+            return false;
+        }
+
+
         const trackerCodesInput = document.getElementById("selected-trackers-input");
         if (trackerCodesInput) {
             trackerCodesInput.value = trackerCodes.join(",");
         }
+
+
 
         const selectedInventoryInput = document.getElementById("inventory_numbers_input");
         if (selectedInventoryInput) {
