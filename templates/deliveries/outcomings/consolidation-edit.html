@@ -41,7 +41,7 @@
                                 <label for="client">Клиент</label>
                                 <input type="text" id="client" name="client" class="form-control" list="client-list"
                                        placeholder="Начните вводить имя, email или телефон"
-                                       value={{ consolidation.client.profile.phone_number }}>
+                                       value={{ consolidation.client.profile.phone_number }} disabled>
                                 <datalist id="client-list"></datalist>
                             </div>
                         </div>
@@ -297,9 +297,7 @@
         function updateSelectedIncomingsField() {
             const selectedIncomingsField = document.getElementById('selected-incomings');
             const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
-            const clientInput = document.getElementById('client');
             selectedIncomingsField.value = selectedIncomingsIds.join(',');
-            clientInput.disabled = selectedIncomingsIds.length > 0;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -479,6 +477,7 @@
         }
 
     </script>
+
     <script>
         // Глобальные функции, доступные для вызова из onclick
         function openIncomingModal(incomingId) {
