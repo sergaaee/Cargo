@@ -298,6 +298,7 @@
             const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
             const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
             const selectedIncomingsField = document.getElementById('selected-incomings');
+            const clientInput = document.getElementById('client');
 
             function updateSelectedIncomingsField() {
                 const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);  // Собираем все ID выбранных инкамингов

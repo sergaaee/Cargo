@@ -43,7 +43,8 @@
                             <div class="form-group">
                                 <label for="client">Клиент</label>
                                 <input type="text" id="client" name="client" class="form-control" list="client-list"
-                                       placeholder="Начните вводить имя, email или телефон" value={{ selected_incomings.first.client.profile.phone_number }}>
+                                       placeholder="Начните вводить имя, email или телефон"
+                                       value={{ selected_incomings.first.client.profile.phone_number }}>
                                 <datalist id="client-list"></datalist>
 
 
@@ -311,6 +312,7 @@
             const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
             const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
             const selectedIncomingsField = document.getElementById('selected-incomings');
+            const clientInput = document.getElementById('client');
 
             function updateSelectedIncomingsField() {
                 const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);  // Собираем все ID выбранных инкамингов
@@ -422,7 +424,6 @@
         });
 
         document.addEventListener("DOMContentLoaded", function () {
-        setTimeout(() => {
             const clientInput = document.getElementById("client");
             const selectionTableRows = document.querySelectorAll("#selection-table tbody tr");
 
@@ -430,13 +431,44 @@
 
             function filterRows() {
                 const clientValue = clientInput.value.trim();
+                let visibleRows = 0;
+
+                // Проверка на наличие хотя бы одного числа в clientValue
+                const containsNumber = /\d/.test(clientValue);
+
+                // Флаг для отслеживания, если нет идеального совпадения
+                let noMatchFound = true;
+
                 selectionTableRows.forEach(row => {
                     const clientCell = row.querySelector("td:last-child");
                     if (clientCell) {
                         const clientText = clientCell.textContent.trim();
-                        row.style.display = clientText.includes(clientValue) || clientValue === "" ? "" : "none";
+                        // Точное совпадение или поле не содержит чисел
+                        const matches = (containsNumber ? clientText === clientValue : clientText === "");
+
+                        row.style.display = matches ? "" : "none";
+                        if (matches) {
+                            visibleRows++; // Подсчёт видимых строк
+                            noMatchFound = false; // Есть хотя бы одно совпадение
+                        }
                     }
                 });
+
+                // Показываем / скрываем сообщение "не найдено поступлений"
+                let noResultsMessage = document.getElementById("no-results-message");
+                if (!noResultsMessage) {
+                    noResultsMessage = document.createElement("tr");
+                    noResultsMessage.id = "no-results-message";
+                    noResultsMessage.innerHTML = `<td colspan="100%" style="text-align: center; font-weight: bold;">Не найдено поступлений для этого клиента</td>`;
+                    selectionTableRows[0].parentNode.appendChild(noResultsMessage);
+                }
+
+                // Если поле не содержит чисел или нет идеального совпадения, показываем сообщение
+                if (!containsNumber || noMatchFound) {
+                    noResultsMessage.style.display = visibleRows === 0 ? "" : "none";
+                } else {
+                    noResultsMessage.style.display = visibleRows === 0 ? "" : "none";
+                }
             }
 
             // Фильтрация при изменении значения в поле
@@ -444,8 +476,8 @@
 
             // Фильтрация после загрузки (когда Django уже вставил значение)
             filterRows();
-        }, 100); // Ждем 100мс перед выполнением
-    });
+        });
+
     </script>
     <script>
         // Глобальные функции, доступные для вызова из onclick
