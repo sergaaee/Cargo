@@ -136,6 +136,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (event.keyCode === 13) {  // проверяем нажатие Enter
             event.preventDefault();
             const selectedNumber = inventoryInput.value.trim();
+
             for (const tracker in trackerInventoryMap) {
                 if (trackerInventoryMap[tracker].includes(selectedNumber)) {
                     alert(`Инвентарный номер ${selectedNumber} уже привязан к трек-коду ${tracker}`);
@@ -144,7 +145,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
 
-            const currentTracker = selectedTrackers[selectedTrackers.length - 1]; // последний добавленный трек-код
+            // Получаем текущий трек-код из заголовка модального окна
+            const modalTitle = document.getElementById("additionalInputModalLabel").textContent;
+            const currentTracker = modalTitle.replace("Инвентарные номера для трек кода: ", "").trim();
 
             if (selectedNumber && currentTracker) {
                 trackerInventoryMap[currentTracker] = trackerInventoryMap[currentTracker] || [];
@@ -158,20 +161,24 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+
     function addInventoryNumber() {
         const selectedNumber = inventoryInput.value.trim();
-        const currentTracker = selectedTrackers[selectedTrackers.length - 1]; // последний добавленный трек-код
+        const trackerSelect = document.getElementById("tracker-input"); // Поле для выбора трекера
+        const currentTracker = trackerSelect.value.trim(); // Получаем конкретно выбранный трек-код
 
         if (selectedNumber && currentTracker) {
             trackerInventoryMap[currentTracker] = trackerInventoryMap[currentTracker] || [];
+
             if (!trackerInventoryMap[currentTracker].includes(selectedNumber)) {
                 trackerInventoryMap[currentTracker].push(selectedNumber);
                 localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
                 loadInventoryNumbersForTracker(currentTracker);
             }
         }
-        inventoryInput.value = ''; // очищаем поле ввода
+        inventoryInput.value = ''; // Очищаем поле ввода
     }
+
 
     // Привязываем инвентарный номер при нажатии на кнопку "Закрыть"
     closeButtonX.addEventListener('click', function () {
