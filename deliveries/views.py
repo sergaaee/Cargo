@@ -740,7 +740,6 @@ def package_new(request, pk):
 @staff_and_login_required
 def consolidation_edit(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
-
     if request.method == 'POST':
         form = ConsolidationForm(request.POST, instance=consolidation)
         if form.is_valid():
@@ -748,18 +747,21 @@ def consolidation_edit(request, pk):
                 consolidation.status = 'Template'
             elif 'in_work' in request.POST:
                 consolidation.status = 'Packaging'
-
             form.save()
             messages.success(request, 'Консолидация успешно отредактирована!')
             return redirect('deliveries:list-consolidation')
     else:
         form = ConsolidationForm(instance=consolidation)
 
+    # Подготавливаем данные для JavaScript
+    selected_incomings = consolidation.incomings.all()
+    initial_incomings_data = prepare_incoming_data(selected_incomings)  # Используем ту же функцию
     package_types = PackageType.choices
 
     return render(request, 'deliveries/outcomings/consolidation-edit.html', {
         'form': form,
         'consolidation': consolidation,
+        'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
     })
 
