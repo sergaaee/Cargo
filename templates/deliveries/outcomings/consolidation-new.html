@@ -429,7 +429,9 @@
 
         document.addEventListener("DOMContentLoaded", function () {
             const clientInput = document.getElementById("client");
-            const selectionTableRows = document.querySelectorAll("#selection-table tbody tr");
+            const selectionTableRows = document.querySelectorAll("#selection-table tbody");
+            const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
+            clientInput.disabled = selectedIncomingsIds.length > 0;
 
             if (!clientInput) return;
 
@@ -464,6 +466,7 @@
                     noResultsMessage = document.createElement("tr");
                     noResultsMessage.id = "no-results-message";
                     noResultsMessage.innerHTML = `<td colspan="100%" style="text-align: center; font-weight: bold;">Не найдено поступлений для этого клиента</td>`;
+                    console.log("da", selectionTableRows[0])
                     selectionTableRows[0].parentNode.appendChild(noResultsMessage);
                 }
 
@@ -479,7 +482,7 @@
             clientInput.addEventListener("input", filterRows);
 
             // Фильтрация после загрузки (когда Django уже вставил значение)
-            filterRows();
+            setTimeout(filterRows, 1000);
         });
 
         // Обновленная функция удаления
