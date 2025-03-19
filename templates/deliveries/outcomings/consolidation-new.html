@@ -607,7 +607,9 @@
             // Обновляем поле перед отправкой формы
 
             initialIncomingsData.forEach(incoming => {
+                console.log(incoming)
                 selectedIncomingsData.push(incoming);
+                updateSelectedIncomingsField();
             });
 
             // Функция для добавления инкаминга в интерфейс и создания его модального окна
