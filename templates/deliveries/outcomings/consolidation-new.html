@@ -82,10 +82,59 @@
                                             <!-- Поле для поступления (ID) -->
                                             <div class="col-md-3">
                                                 <label for="selected_incoming_{{ selected_incoming.id }}">Поступление</label>
-                                                <input type="text"
-                                                       name="incoming_inv"
-                                                       class="form-control"
-                                                       value="{{ selected_incoming.inventory_numbers.first }}">
+                                                <button type="button" class="btn btn-outline-primary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#incomingModal{{ selected_incoming.id }}">
+                                                    Показать трек-коды
+                                                </button>
+
+                                                <!-- Модальное окно -->
+                                                <div class="modal fade" id="incomingModal{{ selected_incoming.id }}"
+                                                     tabindex="-1"
+                                                     aria-labelledby="incomingModalLabel{{ selected_incoming.id }}"
+                                                     aria-hidden="true">
+                                                    <div class="modal-dialog modal-lg">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title"
+                                                                    id="incomingModalLabel{{ selected_incoming.id }}">
+                                                                    Детали поступления #{{ selected_incoming.id }}</h5>
+                                                                <button type="button" class="btn-close"
+                                                                        data-bs-dismiss="modal"
+                                                                        aria-label="Закрыть"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <h6>Трек-коды и их инвентарные номера:</h6>
+                                                                <ul>
+                                                                    {% for tracker in selected_incoming.tracker.all %}
+                                                                        {% for code in tracker.tracking_codes.all %}
+                                                                            <li><strong>{{ code.code }}</strong>
+                                                                                <ul>
+                                                                                    {% for inventory_number in code.inventory_numbers.all %}
+                                                                                        <li>{{ inventory_number.number }}</li>
+                                                                                    {% empty %}
+                                                                                        <li>Нет связанных инвентарных
+                                                                                            номеров
+                                                                                        </li>
+                                                                                    {% endfor %}
+                                                                                </ul>
+                                                                            </li>
+                                                                        {% endfor %}
+                                                                    {% empty %}
+                                                                        <li>Нет трек-кодов</li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-dismiss="modal">Закрыть
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
                                             </div>
 
                                             <!-- Поле для количества мест -->
