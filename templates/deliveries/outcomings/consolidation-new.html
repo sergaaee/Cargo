@@ -427,6 +427,7 @@
                     showAlert("Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!");
                 } else {
                     clientInput.disabled = false;
+                    localStorage.clear()
                 }
             });
 
@@ -436,7 +437,6 @@
 
                 form.addEventListener("submit", function (event) {
                     if (event.submitter && event.submitter.name === "in_work") {
-                        console.log("unlocked")
                         clientInput.disabled = false;  // Разблокируем перед отправкой
                     }
                 });
@@ -607,7 +607,6 @@
             // Обновляем поле перед отправкой формы
 
             initialIncomingsData.forEach(incoming => {
-                console.log(incoming)
                 selectedIncomingsData.push(incoming);
                 updateSelectedIncomingsField();
             });
@@ -751,7 +750,6 @@
                     noResultsMessage = document.createElement("tr");
                     noResultsMessage.id = "no-results-message";
                     noResultsMessage.innerHTML = `<td colspan="100%" style="text-align: center; font-weight: bold;">Не найдено поступлений для этого клиента</td>`;
-                    console.log("da", selectionTableRows[0])
                     selectionTableRows[0].parentNode.appendChild(noResultsMessage);
                 }
 
