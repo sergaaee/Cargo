@@ -35,7 +35,7 @@
                 <h6>1. Основные детали</h6>
                 <form id="consolidation-form" method="POST">
                     {% csrf_token %}
-
+                    <input type="hidden" id="selected_inventory" name="selected_inventory" value="{}">
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
 
                     <div class="row g-4">
@@ -355,17 +355,6 @@
     </div>
     <script src="{% static 'js/client-searching-incoming-new.js' %}"></script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const form = document.getElementById("consolidation-form");
-            const clientInput = document.getElementById("client");
-
-            form.addEventListener("submit", function () {
-                clientInput.disabled = false;  // Разблокируем перед отправкой
-            });
-        });
-
-    </script>
     <!-- Cкрипт для выбора инвентарников !-->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -557,24 +546,45 @@
         }
 
         // Обновление localStorage при выборе чекбоксов
-        document.addEventListener('change', function (event) {
-            if (event.target.classList.contains('inventory-checkbox')) {
-                const incomingId = event.target.dataset.incomingId;
-                let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
-                    ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
-                    : [];
+        document.addEventListener("DOMContentLoaded", function () {
+            const inventoryInput = document.getElementById("selected_inventory");
 
-                if (event.target.checked) {
-                    if (!selectedNumbers.includes(event.target.dataset.inventoryNumber)) {
-                        selectedNumbers.push(event.target.dataset.inventoryNumber);
+            function updateSelectedInventoryField() {
+                let inventoryData = JSON.parse(inventoryInput.value || "{}");
+
+                // Перебираем все чекбоксы инвентарных номеров
+                document.querySelectorAll('.inventory-checkbox').forEach(checkbox => {
+                    const incomingId = checkbox.dataset.incomingId;
+                    const inventoryNumber = checkbox.dataset.inventoryNumber;
+
+                    if (checkbox.checked) {
+                        if (!inventoryData[incomingId]) {
+                            inventoryData[incomingId] = [];
+                        }
+                        if (!inventoryData[incomingId].includes(inventoryNumber)) {
+                            inventoryData[incomingId].push(inventoryNumber);
+                        }
+                    } else {
+                        if (inventoryData[incomingId]) {
+                            inventoryData[incomingId] = inventoryData[incomingId].filter(num => num !== inventoryNumber);
+                            if (inventoryData[incomingId].length === 0) {
+                                delete inventoryData[incomingId]; // Удаляем, если нет номеров
+                            }
+                        }
                     }
-                } else {
-                    selectedNumbers = selectedNumbers.filter(num => num !== event.target.dataset.inventoryNumber);
-                }
+                });
 
-                localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(selectedNumbers));
+                inventoryInput.value = JSON.stringify(inventoryData);  // Обновляем скрытое поле
             }
+
+            // Обновляем скрытое поле при изменении любого чекбокса инвентарного номера
+            document.addEventListener("change", function (event) {
+                if (event.target.classList.contains("inventory-checkbox")) {
+                    updateSelectedInventoryField();
+                }
+            });
         });
+
 
         document.addEventListener("DOMContentLoaded", function () {
             document.querySelectorAll('.btn-outline-primary[data-bs-toggle="modal"]').forEach(button => {
@@ -696,6 +706,7 @@
                     } else {
                         tempSelectedIncomings = tempSelectedIncomings.filter(item => item.id !== incomingId);
                     }
+
                 });
             });
 

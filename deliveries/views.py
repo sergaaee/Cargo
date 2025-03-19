@@ -19,7 +19,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory
 from django.http import JsonResponse
 
 
@@ -174,7 +174,6 @@ def incoming_edit(request, pk):
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
-
 
             incoming.save()
             form.save_m2m()
@@ -540,22 +539,31 @@ def new_consolidation(request):
             form.save_m2m()  # Сохраняем ManyToMany отношения
 
             # 🔹 Если это не черновик, связываем инкаминги
-            print(consolidation.status)
             if consolidation.status != 'Template':
                 instruction_text = ""
                 count = 1
-                print("TAK")
-                print(selected_incomings)
                 for incoming in selected_incomings:
-                    ConsolidationIncoming.objects.create(
+                    incoming_id = str(incoming.pk)
+                    consolidation_incoming = ConsolidationIncoming.objects.create(
                         consolidation=consolidation,
                         incoming=incoming,
                         places_consolidated=incoming.places_count
                     )
-                    print("DA")
                     incoming.status = "Consolidated"
-                    inventory_numbers_str = ", ".join(incoming.inventory_numbers.values_list("number", flat=True))
-                    instruction_text += f"Инвентарные номера для {count}: {inventory_numbers_str}\n"
+
+
+                    inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))  # Загружаем JSON
+                    inventory_numbers = inventory_data.get(incoming_id, [])
+                    print(inventory_data)
+                    print(incoming.pk)
+                    print(inventory_numbers)
+                    for inventory_number in inventory_numbers:
+                        inventory_obj = InventoryNumber.objects.get(number=inventory_number)
+                        ConsolidationInventory.objects.create(
+                            consolidation_incoming=consolidation_incoming,
+                            inventory_number=inventory_obj
+                        )
+                    instruction_text += f"Инвентарные номера для {count}: {inventory_numbers}\n"
                     count += 1
                     incoming.save()
 

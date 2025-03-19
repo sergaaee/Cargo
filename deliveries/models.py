@@ -165,6 +165,17 @@ class ConsolidationIncoming(UUIDMixin):
             models.Index(fields=['consolidation', 'incoming'], name='consolidation_incoming_idx'),
         ]
 
+class ConsolidationInventory(UUIDMixin, TimeStampedMixin):
+    consolidation_incoming = models.ForeignKey(ConsolidationIncoming, on_delete=models.CASCADE)
+    inventory_number = models.ForeignKey(InventoryNumber, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('consolidation_incoming', 'inventory_number')
+        indexes = [
+            models.Index(fields=['consolidation_incoming', 'inventory_number'], name='consolidation_inventory_idx'),
+        ]
+
+
 
 class Consolidation(UUIDMixin, TimeStampedMixin):
     incomings = models.ManyToManyField(Incoming, through='ConsolidationIncoming', blank=True)
