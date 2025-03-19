@@ -111,7 +111,13 @@
                                                                             <li><strong>{{ code.code }}</strong>
                                                                                 <ul>
                                                                                     {% for inventory_number in code.inventory_numbers.all %}
-                                                                                        <li>{{ inventory_number.number }}</li>
+                                                                                        <li>
+                                                                                            <input type="checkbox"
+                                                                                                   class="inventory-checkbox"
+                                                                                                   data-incoming-id="{{ selected_incoming.id }}"
+                                                                                                   data-inventory-number="{{ inventory_number.number }}">
+                                                                                            {{ inventory_number.number }}
+                                                                                        </li>
                                                                                     {% empty %}
                                                                                         <li>Нет связанных инвентарных
                                                                                             номеров
@@ -349,6 +355,133 @@
     </div>
     <script src="{% static 'js/client-searching-incoming-new.js' %}"></script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("consolidation-form");
+            const clientInput = document.getElementById("client");
+
+            form.addEventListener("submit", function () {
+                clientInput.disabled = false;  // Разблокируем перед отправкой
+            });
+        });
+
+    </script>
+    <!-- Cкрипт для выбора инвентарников !-->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Загружаем сохраненные данные из localStorage при открытии модального окна
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('shown.bs.modal', function () {
+                    const incomingId = this.id.replace("incomingModal", "");
+                    loadCheckedInventoryNumbers(incomingId);
+                });
+            });
+
+            function saveToLocalStorage(incomingId, inventoryNumbers) {
+                localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(inventoryNumbers));
+            }
+
+            function loadCheckedInventoryNumbers(incomingId) {
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                if (storedData) {
+                    const selectedNumbers = JSON.parse(storedData);
+                    document.querySelectorAll(`.inventory-checkbox[data-incoming-id="${incomingId}"]`).forEach(checkbox => {
+                        if (selectedNumbers.includes(checkbox.dataset.inventoryNumber)) {
+                            checkbox.checked = true;
+                        }
+                    });
+                }
+            }
+
+            document.addEventListener('change', function (event) {
+                if (event.target.classList.contains('inventory-checkbox')) {
+                    const incomingId = event.target.dataset.incomingId;
+                    let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
+                        ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
+                        : [];
+
+                    if (event.target.checked) {
+                        if (!selectedNumbers.includes(event.target.dataset.inventoryNumber)) {
+                            selectedNumbers.push(event.target.dataset.inventoryNumber);
+                        }
+                    } else {
+                        selectedNumbers = selectedNumbers.filter(num => num !== event.target.dataset.inventoryNumber);
+                    }
+
+                    saveToLocalStorage(incomingId, selectedNumbers);
+                }
+            });
+        });
+    </script>
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const submitButton = document.querySelector('[name="in_work"]');
+            const clientInput = document.getElementById('client');
+
+
+            submitButton.addEventListener("click", function (event) {
+                if (!validateSelectedIncomings()) {
+                    event.preventDefault();  // Блокируем отправку формы
+                    showAlert("Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!");
+                } else {
+                    clientInput.disabled = false;
+                }
+            });
+
+            document.addEventListener("DOMContentLoaded", function () {
+                const form = document.getElementById("consolidation-form");
+                const clientInput = document.getElementById("client");
+
+                form.addEventListener("submit", function (event) {
+                    if (event.submitter && event.submitter.name === "in_work") {
+                        console.log("unlocked")
+                        clientInput.disabled = false;  // Разблокируем перед отправкой
+                    }
+                });
+            });
+
+
+            function validateSelectedIncomings() {
+                // Получаем все выбранные поступления из UI
+                const selectedIncomings = document.querySelectorAll("#consolidation-list .list-group-item");
+                for (const item of selectedIncomings) {
+                    const incomingId = item.getAttribute("data-id");
+                    const storedData = localStorage.getItem(`incoming_${incomingId}`);
+
+                    if (incomingId !== null && (!storedData || JSON.parse(storedData).length === 0)) {
+                        console.log("Проблемное incomingId:", incomingId);
+                        return false;  // Нашли поступление без инвентарных номеров
+                    }
+                }
+                return true;  // Все поступления имеют хотя бы один инвентарный номер
+            }
+
+
+            function showAlert(message) {
+                let alertBox = document.getElementById("custom-alert-box");
+                if (!alertBox) {
+                    alertBox = document.createElement("div");
+                    alertBox.id = "custom-alert-box";
+                    alertBox.className = "alert alert-danger mt-3";
+                    alertBox.style.position = "fixed";
+                    alertBox.style.top = "20px";
+                    alertBox.style.right = "20px";
+                    alertBox.style.zIndex = "1050";
+                    document.body.appendChild(alertBox);
+                }
+                alertBox.innerHTML = message;
+                alertBox.style.display = "block";
+
+                setTimeout(() => {
+                    alertBox.style.display = "none";
+                }, 5000);
+            }
+        });
+
+    </script>
+
     <!-- Логика для работы с удаленными поступлениями -->
     <script>
         // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
@@ -363,6 +496,105 @@
             clientInput.disabled = selectedIncomingsIds.length > 0;
         }
 
+        function createIncomingModal(incomingData) {
+            // Проверяем, есть ли уже модальное окно для этого поступления
+            if (document.getElementById(`incomingModal${incomingData.id}`)) return;
+
+            let modalHtml = `
+        <div class="modal fade" id="incomingModal${incomingData.id}" tabindex="-1" aria-labelledby="incomingModalLabel${incomingData.id}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="incomingModalLabel${incomingData.id}">Детали поступления #${incomingData.id}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>Трек-коды и их инвентарные номера:</h6>
+                        <ul>`;
+            if (incomingData.track_inv_map && incomingData.track_inv_map.length > 0) {
+                incomingData.track_inv_map.forEach(tracker => {
+                    modalHtml += `
+                <li><strong>${tracker.code}</strong>
+                    <ul>`;
+                    if (tracker.inventory_numbers && tracker.inventory_numbers.length > 0) {
+                        tracker.inventory_numbers.forEach(inventory => {
+                            const isChecked = isInventoryChecked(incomingData.id, inventory) ? "checked" : "";
+                            modalHtml += `
+                        <li>
+                            <input type="checkbox" class="inventory-checkbox"
+                                   data-incoming-id="${incomingData.id}"
+                                   data-inventory-number="${inventory}" ${isChecked}>
+                            ${inventory}
+                        </li>`;
+                        });
+                    } else {
+                        modalHtml += `<li>Нет связанных инвентарных номеров</li>`;
+                    }
+
+                    modalHtml += `</ul></li>`;
+                });
+            } else {
+                modalHtml += `<li>Нет трек-кодов</li>`;
+            }
+
+            modalHtml += `
+                        </ul>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+            document.body.insertAdjacentHTML("beforeend", modalHtml);
+        }
+
+        // Функция проверки, был ли отмечен инвентарный номер ранее
+        function isInventoryChecked(incomingId, inventoryNumber) {
+            const storedData = localStorage.getItem(`incoming_${incomingId}`);
+            return storedData ? JSON.parse(storedData).includes(inventoryNumber) : false;
+        }
+
+        // Обновление localStorage при выборе чекбоксов
+        document.addEventListener('change', function (event) {
+            if (event.target.classList.contains('inventory-checkbox')) {
+                const incomingId = event.target.dataset.incomingId;
+                let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
+                    ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
+                    : [];
+
+                if (event.target.checked) {
+                    if (!selectedNumbers.includes(event.target.dataset.inventoryNumber)) {
+                        selectedNumbers.push(event.target.dataset.inventoryNumber);
+                    }
+                } else {
+                    selectedNumbers = selectedNumbers.filter(num => num !== event.target.dataset.inventoryNumber);
+                }
+
+                localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(selectedNumbers));
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll('.btn-outline-primary[data-bs-toggle="modal"]').forEach(button => {
+                button.addEventListener('click', function () {
+                    const incomingId = this.getAttribute('data-bs-target').replace('#incomingModal', '');
+                    const incomingData = getIncomingDataById(incomingId);
+
+                    if (incomingData) {
+                        createIncomingModal(incomingData);
+                    }
+                });
+            });
+        });
+
+        // Функция для поиска объекта incomingData по ID
+        function getIncomingDataById(incomingId) {
+            const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
+            return allIncomingsData.find(item => item.id == incomingId);
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Получаем данные всех инкамингов и типов упаковки
             const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
@@ -373,10 +605,6 @@
 
 
             // Обновляем поле перед отправкой формы
-            const form = document.getElementById('consolidation-form');
-            form.addEventListener('submit', function () {
-                updateSelectedIncomingsField();
-            });
 
             initialIncomingsData.forEach(incoming => {
                 selectedIncomingsData.push(incoming);
@@ -394,7 +622,12 @@
         <div class="row">
             <div class="col-md-3">
                 <label for="selected_incoming_${incomingData.id}">Поступление</label>
-                <input type="text" name="incoming_inv" class="form-control" value="${incomingData.inventory_numbers[0] || '-'}">
+                <button type="button" class="btn btn-outline-primary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#incomingModal${incomingData.id}">
+                                                    Показать трек-коды
+                                                </button>
+
             </div>
             <div class="col-md-3">
                 <label for="places_count_${incomingData.id}">Количество мест (макс. ${incomingData.places_count})</label>
@@ -469,6 +702,7 @@
             document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
                 tempSelectedIncomings.forEach(incomingData => {
                     updateSelectedIncomingsField();
+                    createIncomingModal(incomingData);
                     addIncomingToList(incomingData);
                     document.querySelector(`#selection-table input[value="${incomingData.id}"]`).closest('tr').style.display = 'none';
                 });
@@ -539,6 +773,7 @@
             const listItem = document.querySelector(`#consolidation-list [data-id="${incomingId}"]`);
             if (listItem) {
                 listItem.remove();
+                localStorage.removeItem(`incoming_${incomingId}`)
             }
 
             const checkbox = document.querySelector(`#selection-table input[value="${incomingId}"]`);
@@ -586,8 +821,6 @@
                 console.error("Модальное окно не найдено для ID:", incomingId);
             }
         }
-
-
     </script>
 
 {% endblock %}

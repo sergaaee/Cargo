@@ -540,15 +540,19 @@ def new_consolidation(request):
             form.save_m2m()  # Сохраняем ManyToMany отношения
 
             # 🔹 Если это не черновик, связываем инкаминги
+            print(consolidation.status)
             if consolidation.status != 'Template':
                 instruction_text = ""
                 count = 1
+                print("TAK")
+                print(selected_incomings)
                 for incoming in selected_incomings:
                     ConsolidationIncoming.objects.create(
                         consolidation=consolidation,
                         incoming=incoming,
                         places_consolidated=incoming.places_count
                     )
+                    print("DA")
                     incoming.status = "Consolidated"
                     inventory_numbers_str = ", ".join(incoming.inventory_numbers.values_list("number", flat=True))
                     instruction_text += f"Инвентарные номера для {count}: {inventory_numbers_str}\n"
