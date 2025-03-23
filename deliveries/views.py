@@ -122,7 +122,12 @@ def incoming_new(request):
                 tracker.status = 'Completed'
                 tracker.save()
 
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+            if incoming.status == 'Template':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
+            elif incoming.status == 'Unidentified':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
+            else:
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
         else:
             errors = []
             for field, error_list in form.errors.items():
@@ -174,6 +179,9 @@ def incoming_edit(request, pk):
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
+
+            if 'save_draft' in request.POST:
+                incoming.status = 'Template'
 
             incoming.save()
             form.save_m2m()
