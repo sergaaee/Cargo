@@ -38,4 +38,8 @@ class CustomUserChangeForm(UserChangeForm):
         if hasattr(user, 'profile'):
             user.profile.phone_number = self.cleaned_data['phone_number']
             user.profile.save()
+        else:
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.phone_number = self.cleaned_data['phone_number']
+            profile.save()
         return user
