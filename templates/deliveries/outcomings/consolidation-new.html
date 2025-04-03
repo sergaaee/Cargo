@@ -742,6 +742,7 @@
 
                 selectionTableRows.forEach(row => {
                     const clientCell = row.querySelector("td:last-child");
+                    console.log(clientCell)
                     if (clientCell) {
                         const clientText = clientCell.textContent.trim();
                         // Точное совпадение или поле не содержит чисел
