@@ -698,6 +698,7 @@ def package_new(request, pk):
 
     if request.method == 'POST':
         incomings_data = {incoming.id: incoming for incoming in consolidation.incomings.all()}
+        inventory_numbers = []
         form = PackageForm(request.POST, instance=consolidation, incomings_data=incomings_data)
 
         if form.is_valid():
@@ -726,11 +727,14 @@ def package_new(request, pk):
     else:
         form = PackageForm(instance=consolidation)
 
-    incomings = consolidation.incomings.all()
+    inventory_numbers = list(ConsolidationInventory.objects.filter(
+        consolidation_incoming__consolidation=consolidation
+    ).values_list('inventory_number__number', flat=True).distinct())
+
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
-        'incomings': incomings,
+        'inventory_numbers': inventory_numbers,
     })
 
 
