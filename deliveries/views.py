@@ -180,6 +180,9 @@ def incoming_edit(request, pk):
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
+            if not incoming.client:
+                incoming.status = 'Unidentified'
+
             if 'save_draft' in request.POST:
                 incoming.status = 'Template'
 
@@ -559,12 +562,8 @@ def new_consolidation(request):
                     )
                     incoming.status = "Consolidated"
 
-
                     inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))  # Загружаем JSON
                     inventory_numbers = inventory_data.get(incoming_id, [])
-                    print(inventory_data)
-                    print(incoming.pk)
-                    print(inventory_numbers)
                     for inventory_number in inventory_numbers:
                         inventory_obj = InventoryNumber.objects.get(number=inventory_number)
                         ConsolidationInventory.objects.create(
