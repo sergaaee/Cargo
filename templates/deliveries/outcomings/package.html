@@ -244,8 +244,9 @@
             // Инициализация существующих полей
             inventoryInputs.forEach(input => setupInventoryInput(input));
 
-            // Обработка добавления новой строки
+            // Обработка добавления новой строки и удаления (с делегированием событий)
             consolidationList.addEventListener("click", function (event) {
+                // Обработка добавления новой строки
                 if (event.target.closest(".add-item-btn")) {
                     // Находим последний элемент
                     const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
@@ -288,18 +289,18 @@
                     // Обновляем кнопки действий: добавляем кнопку удаления
                     const actionsDiv = newItem.querySelector(".d-flex.align-items-center");
                     actionsDiv.innerHTML = `
-                <button type="button" class="btn btn-icon btn-outline-info me-3"
-                        data-bs-toggle="modal"
-                        data-bs-target="#incomingDetailModal${incomingId}">
-                    <span class="bi bi-zoom-in me-2"></span>
-                </button>
-                <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn"
-                        data-bs-toggle="modal"
-                        data-bs-target="#deleteConfirmationModal"
-                        data-item-index="${newIndex}">
-                    <span class="bi bi-trash me-2"></span>
-                </button>
-            `;
+                    <button type="button" class="btn btn-icon btn-outline-info me-3"
+                            data-bs-toggle="modal"
+                            data-bs-target="#incomingDetailModal${incomingId}">
+                        <span class="bi bi-zoom-in me-2"></span>
+                    </button>
+                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteConfirmationModal"
+                            data-item-index="${newIndex}">
+                        <span class="bi bi-trash me-2"></span>
+                    </button>
+                `;
 
                     // Удаляем старую кнопку "+" из последнего элемента
                     const oldAddButton = lastItem.querySelector(".add-item-btn");
@@ -314,11 +315,21 @@
                     setupInventoryInput(newInventoryInput);
                 }
 
-                // Обработка нажатия на кнопку удаления
+                // Обработка нажатия на кнопку удаления (с делегированием)
                 if (event.target.closest(".delete-item-btn")) {
                     const deleteBtn = event.target.closest(".delete-item-btn");
                     const itemIndex = deleteBtn.dataset.itemIndex;
                     itemToDelete = consolidationList.querySelector(`.consolidation-item[data-item-index="${itemIndex}"]`);
+
+                    console.log("Opening modal for item index:", itemIndex); // Логирование
+
+                    // Открываем модальное окно вручную
+                    const modalElement = document.getElementById("deleteConfirmationModal");
+                    const modal = new bootstrap.Modal(modalElement, {
+                        backdrop: true,
+                        keyboard: true
+                    });
+                    modal.show();
                 }
             });
 
@@ -326,6 +337,8 @@
             const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
             confirmDeleteBtn.addEventListener("click", function () {
                 if (itemToDelete) {
+                    console.log("Deleting item and closing modal"); // Логирование
+
                     // Удаляем элемент
                     itemToDelete.remove();
                     itemToDelete = null;
@@ -335,43 +348,57 @@
                     const modal = bootstrap.Modal.getInstance(modalElement);
                     if (modal) {
                         modal.hide();
+                        console.log("Modal hidden"); // Логирование
+                    } else {
+                        console.log("Modal instance not found"); // Логирование
                     }
 
-                    // Убедимся, что backdrop удален
-                    const backdrop = document.querySelector(".modal-backdrop");
-                    if (backdrop) {
-                        backdrop.remove();
-                    }
+                    // Ждем, пока модальное окно полностью закроется
+                    modalElement.addEventListener("hidden.bs.modal", function handler() {
+                        console.log("Modal fully closed"); // Логирование
 
-                    // Убедимся, что body не имеет классов, блокирующих взаимодействие
-                    document.body.classList.remove("modal-open");
-                    document.body.style.overflow = "auto"; // Восстанавливаем прокрутку
+                        // Удаляем все backdrop-элементы
+                        const backdrops = document.querySelectorAll(".modal-backdrop");
+                        backdrops.forEach(backdrop => {
+                            backdrop.remove();
+                            console.log("Backdrop removed"); // Логирование
+                        });
 
-                    // Обновляем значения "Код места" для оставшихся строк
-                    const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
-                    remainingItems.forEach((item, index) => {
-                        item.dataset.itemIndex = index; // Обновляем индексы
-                        setPlaceCode(item, index);
+                        // Убедимся, что body не имеет классов, блокирующих взаимодействие
+                        document.body.classList.remove("modal-open");
+                        document.body.style.overflow = "auto"; // Восстанавливаем прокрутку
+                        document.body.style.paddingRight = ""; // Сбрасываем padding, добавленный Bootstrap
+                        console.log("Body styles reset"); // Логирование
 
-                        // Обновляем data-item-index в кнопке удаления
-                        const deleteBtn = item.querySelector(".delete-item-btn");
-                        if (deleteBtn) {
-                            deleteBtn.dataset.itemIndex = index;
+                        // Обновляем значения "Код места" для оставшихся строк
+                        const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
+                        remainingItems.forEach((item, index) => {
+                            item.dataset.itemIndex = index; // Обновляем индексы
+                            setPlaceCode(item, index);
+
+                            // Обновляем data-item-index в кнопке удаления
+                            const deleteBtn = item.querySelector(".delete-item-btn");
+                            if (deleteBtn) {
+                                deleteBtn.dataset.itemIndex = index;
+                            }
+                        });
+
+                        // Проверяем, есть ли элементы, и добавляем кнопку "+" к последнему, если её нет
+                        const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                        if (lastItem && !lastItem.querySelector(".add-item-btn")) {
+                            const addButtonDiv = document.createElement("div");
+                            addButtonDiv.className = "mt-3";
+                            addButtonDiv.innerHTML = `
+                            <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                <span class="bi bi-plus-circle me-2"></span>Добавить
+                            </button>
+                        `;
+                            lastItem.appendChild(addButtonDiv);
                         }
-                    });
 
-                    // Проверяем, есть ли элементы, и добавляем кнопку "+" к последнему, если её нет
-                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                    if (lastItem && !lastItem.querySelector(".add-item-btn")) {
-                        const addButtonDiv = document.createElement("div");
-                        addButtonDiv.className = "mt-3";
-                        addButtonDiv.innerHTML = `
-                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                        <span class="bi bi-plus-circle me-2"></span>Добавить
-                    </button>
-                `;
-                        lastItem.appendChild(addButtonDiv);
-                    }
+                        // Удаляем обработчик после выполнения
+                        modalElement.removeEventListener("hidden.bs.modal", handler);
+                    }, {once: true});
                 }
             });
 
