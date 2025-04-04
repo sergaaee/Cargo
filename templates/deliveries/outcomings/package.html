@@ -56,91 +56,7 @@
                     <div class="row g-4">
                         <div class="col-12">
                             <ul id="consolidation-list" class="list-group">
-                                {% for selected_incoming in consolidation.incomings.all %}
-                                    <li class="list-group-item consolidation-item"
-                                        data-item-index="{{ forloop.counter0 }}">
-                                        <div class="row">
-                                            <input type="hidden" name="incoming_id" value="{{ selected_incoming.id }}">
-                                            <div class="col-md-2">
-                                                <label for="inventory-input-{{ selected_incoming.id }}-{{ forloop.counter0 }}">
-                                                    Инвентарные номера
-                                                </label>
-                                                <input id="inventory-input-{{ selected_incoming.id }}-{{ forloop.counter0 }}"
-                                                       class="form-control inventory-input"
-                                                       data-incoming-id="{{ selected_incoming.id }}"
-                                                       data-item-index="{{ forloop.counter0 }}"
-                                                       placeholder="Введите номер">
-
-                                                <!-- Скрытое поле для передачи номеров на сервер -->
-                                                <input type="hidden"
-                                                       name="inventory_numbers_{{ selected_incoming.id }}_{{ forloop.counter0 }}"
-                                                       id="hidden-inventory-numbers-{{ selected_incoming.id }}-{{ forloop.counter0 }}"
-                                                       value="">
-
-                                                <!-- Динамически отображаемые номера -->
-                                                <div id="inventory-numbers-list-{{ selected_incoming.id }}-{{ forloop.counter0 }}"
-                                                     class="mt-2">
-                                                    <!-- Здесь будут отображаться введённые номера -->
-                                                </div>
-                                            </div>
-
-                                            <!-- Поле для веса -->
-                                            <div class="col-md-2">
-                                                <label for="weight_{{ selected_incoming.id }}-{{ forloop.counter0 }}">Вес</label>
-                                                <input type="number"
-                                                       name="weight_consolidated_{{ selected_incoming.id }}_{{ forloop.counter0 }}"
-                                                       class="form-control"
-                                                       min="1"
-                                                       value="1"
-                                                       data-bs-toggle="tooltip">
-                                            </div>
-
-                                            <!-- Поле для объема -->
-                                            <div class="col-md-2">
-                                                <label for="volume_{{ selected_incoming.id }}-{{ forloop.counter0 }}">Объем
-                                                    (м^3)</label>
-                                                <input type="number"
-                                                       name="volume_consolidated_{{ selected_incoming.id }}_{{ forloop.counter0 }}"
-                                                       class="form-control"
-                                                       min="1"
-                                                       value="1"
-                                                       data-bs-toggle="tooltip">
-                                            </div>
-
-                                            <!-- Поле для кода места -->
-                                            <div class="col-md-2">
-                                                <label for="place_{{ selected_incoming.id }}-{{ forloop.counter0 }}">Код
-                                                    места</label>
-                                                <input type="text"
-                                                       name="place_consolidated_{{ selected_incoming.id }}_{{ forloop.counter0 }}"
-                                                       class="form-control"
-                                                       value="1"
-                                                       disabled
-                                                >
-                                            </div>
-
-                                            <!-- Кнопки действий -->
-                                            <div class="col-md-4 d-flex align-items-center">
-                                                <!-- Кнопка открытия модального окна -->
-                                                <button type="button" class="btn btn-icon btn-outline-info me-3"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#incomingDetailModal{{ selected_incoming.id }}">
-                                                    <span class="bi bi-zoom-in me-2"></span>
-                                                </button>
-
-                                            </div>
-                                        </div>
-                                        <!-- Добавляем кнопку "+" только для последнего элемента -->
-                                        {% if forloop.last %}
-                                            <div class="mt-3">
-                                                <button type="button"
-                                                        class="btn btn-sm btn-outline-primary add-item-btn">
-                                                    <span class="bi bi-plus-circle me-2"></span>Добавить
-                                                </button>
-                                            </div>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
+                                <!-- Начальная строка будет добавлена через JavaScript -->
                             </ul>
                         </div>
                     </div>
@@ -183,13 +99,15 @@
             const inventoryNumbersElement = document.getElementById("inventory-numbers");
             const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
             const inventoryPool = document.getElementById("inventory-numbers-pool");
-            const inventoryInputs = document.querySelectorAll(".inventory-input");
             const form = document.getElementById("consolidation-form");
             const consolidationList = document.getElementById("consolidation-list");
             let itemToDelete = null;
 
             const trackCodeInput = document.querySelector('input[name="track_code"]');
             const trackCode = trackCodeInput ? trackCodeInput.value : '';
+
+            // Инициализация пула номеров
+            let availableNumbers = new Set(allInventoryNumbers);
 
             // Функция установки кода места
             function setPlaceCode(item, index) {
@@ -199,13 +117,6 @@
                 }
             }
 
-            // Инициализация кодов мест для существующих строк
-            const items = consolidationList.querySelectorAll(".consolidation-item");
-            items.forEach((item, index) => setPlaceCode(item, index));
-
-            // Инициализация пула номеров
-            let availableNumbers = new Set(allInventoryNumbers);
-
             // Обновление отображения пула номеров
             function updateInventoryPool() {
                 inventoryPool.innerHTML = Array.from(availableNumbers)
@@ -213,15 +124,95 @@
                     .join('');
             }
 
+            // Функция создания новой строки
+            function createNewItem(index) {
+                const newItem = document.createElement("li");
+                newItem.className = "list-group-item consolidation-item";
+                newItem.dataset.itemIndex = index;
+
+                const deleteButtonHtml = index > 0 ? `
+                <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal" data-item-index="${index}">
+                    <span class="bi bi-trash me-2"></span>
+                </button>
+            ` : '';
+
+                newItem.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-2">
+                            <label for="inventory-input-${index}">
+                                Инвентарные номера
+                            </label>
+                            <input id="inventory-input-${index}"
+                                   class="form-control inventory-input"
+                                   data-item-index="${index}"
+                                   placeholder="Введите номер">
+
+                            <!-- Скрытое поле для передачи номеров на сервер -->
+                            <input type="hidden"
+                                   name="inventory_numbers_${index}"
+                                   id="hidden-inventory-numbers-${index}"
+                                   value="">
+
+                            <!-- Динамически отображаемые номера -->
+                            <div id="inventory-numbers-list-${index}" class="mt-2"></div>
+                        </div>
+
+                        <!-- Поле для веса -->
+                        <div class="col-md-2">
+                            <label for="weight_${index}">Вес</label>
+                            <input type="number"
+                                   name="weight_consolidated_${index}"
+                                   class="form-control"
+                                   min="1"
+                                   value="1"
+                                   data-bs-toggle="tooltip">
+                        </div>
+
+                        <!-- Поле для объема -->
+                        <div class="col-md-2">
+                            <label for="volume_${index}">Объем (м^3)</label>
+                            <input type="number"
+                                   name="volume_consolidated_${index}"
+                                   class="form-control"
+                                   min="1"
+                                   value="1"
+                                   data-bs-toggle="tooltip">
+                        </div>
+
+                        <!-- Поле для кода места -->
+                        <div class="col-md-2">
+                            <label for="place_${index}">Код места</label>
+                            <input type="text"
+                                   name="place_consolidated_${index}"
+                                   class="form-control"
+                                   value=""
+                                   disabled>
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="col-md-4 d-flex align-items-center">
+                            ${deleteButtonHtml}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                            <span class="bi bi-plus-circle me-2"></span>Добавить
+                        </button>
+                    </div>
+                `;
+
+                setPlaceCode(newItem, index);
+                return newItem;
+            }
+
             // Обработка ввода инвентарных номеров
             function setupInventoryInput(input) {
                 input.addEventListener("keydown", function (event) {
                     if (event.key === "Enter") {
                         event.preventDefault();
-                        const incomingId = input.dataset.incomingId;
                         const itemIndex = input.dataset.itemIndex;
-                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}-${itemIndex}`);
-                        const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}-${itemIndex}`);
+                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
 
                         const number = input.value.trim();
                         if (number && availableNumbers.has(number)) {
@@ -256,15 +247,11 @@
                 });
             }
 
-            // Инициализация существующих полей и удаление уже использованных номеров
-            inventoryInputs.forEach(input => {
-                setupInventoryInput(input);
-                const hiddenInput = document.getElementById(`hidden-inventory-numbers-${input.dataset.incomingId}-${input.dataset.itemIndex}`);
-                if (hiddenInput) {
-                    const usedNumbers = hiddenInput.value.split(",").filter(Boolean);
-                    usedNumbers.forEach(num => availableNumbers.delete(num));
-                }
-            });
+            // Добавляем начальную строку
+            const initialItem = createNewItem(0);
+            consolidationList.appendChild(initialItem);
+            const initialInventoryInput = initialItem.querySelector(".inventory-input");
+            setupInventoryInput(initialInventoryInput);
             updateInventoryPool();
 
             // Обработка добавления и удаления строк
@@ -276,52 +263,13 @@
                     const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
                     const lastIndex = parseInt(lastItem.dataset.itemIndex);
                     const newIndex = lastIndex + 1;
-                    const incomingId = lastItem.querySelector(".inventory-input").dataset.incomingId;
 
-                    const newItem = lastItem.cloneNode(true);
-                    newItem.dataset.itemIndex = newIndex;
-
-                    // Обновление атрибутов новой строки
-                    const newInventoryInput = newItem.querySelector(".inventory-input");
-                    newInventoryInput.id = `inventory-input-${incomingId}-${newIndex}`;
-                    newInventoryInput.dataset.itemIndex = newIndex;
-
-                    const newHiddenInput = newItem.querySelector(`input[name="inventory_numbers_${incomingId}_${lastIndex}"]`);
-                    newHiddenInput.id = `hidden-inventory-numbers-${incomingId}-${newIndex}`;
-                    newHiddenInput.name = `inventory_numbers_${incomingId}_${newIndex}`;
-                    newHiddenInput.value = "";
-
-                    const newListContainer = newItem.querySelector(`div[id="inventory-numbers-list-${incomingId}-${lastIndex}"]`);
-                    newListContainer.id = `inventory-numbers-list-${incomingId}-${newIndex}`;
-                    newListContainer.innerHTML = "";
-
-                    const newWeightInput = newItem.querySelector(`input[name="weight_consolidated_${incomingId}_${lastIndex}"]`);
-                    newWeightInput.name = `weight_consolidated_${incomingId}_${newIndex}`;
-                    newWeightInput.id = `weight_${incomingId}-${newIndex}`;
-
-                    const newVolumeInput = newItem.querySelector(`input[name="volume_consolidated_${incomingId}_${lastIndex}"]`);
-                    newVolumeInput.name = `volume_consolidated_${incomingId}_${newIndex}`;
-                    newVolumeInput.id = `volume_${incomingId}-${newIndex}`;
-
-                    const newPlaceInput = newItem.querySelector(`input[name="place_consolidated_${incomingId}_${lastIndex}"]`);
-                    newPlaceInput.name = `place_consolidated_${incomingId}_${newIndex}`;
-                    newPlaceInput.id = `place_${incomingId}-${newIndex}`;
-                    setPlaceCode(newItem, newIndex);
-
-                    const actionsDiv = newItem.querySelector(".d-flex.align-items-center");
-                    actionsDiv.innerHTML = `
-                    <button type="button" class="btn btn-icon btn-outline-info me-3" data-bs-toggle="modal" data-bs-target="#incomingDetailModal${incomingId}">
-                        <span class="bi bi-zoom-in me-2"></span>
-                    </button>
-                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal" data-item-index="${newIndex}">
-                        <span class="bi bi-trash me-2"></span>
-                    </button>
-                `;
-
+                    const newItem = createNewItem(newIndex);
                     const oldAddButton = lastItem.querySelector(".add-item-btn");
                     if (oldAddButton) oldAddButton.parentElement.remove();
 
                     consolidationList.appendChild(newItem);
+                    const newInventoryInput = newItem.querySelector(".inventory-input");
                     setupInventoryInput(newInventoryInput);
                 }
 
@@ -356,14 +304,39 @@
 
                         // Убедимся, что body не имеет классов, блокирующих взаимодействие
                         document.body.classList.remove("modal-open");
-                        document.body.style.overflow = "auto"; // Восстанавливаем прокрутку
-                        document.body.style.paddingRight = ""; // Сбрасываем padding, добавленный Bootstrap
+                        document.body.style.overflow = "auto";
+                        document.body.style.paddingRight = "";
 
                         // Обновление индексов и кодов мест
                         const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
                         remainingItems.forEach((item, index) => {
                             item.dataset.itemIndex = index;
                             setPlaceCode(item, index);
+
+                            // Обновляем атрибуты полей
+                            const inventoryInput = item.querySelector(".inventory-input");
+                            inventoryInput.id = `inventory-input-${index}`;
+                            inventoryInput.dataset.itemIndex = index;
+
+                            const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
+                            hiddenInput.id = `hidden-inventory-numbers-${index}`;
+                            hiddenInput.name = `inventory_numbers_${index}`;
+
+                            const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
+                            listContainer.id = `inventory-numbers-list-${index}`;
+
+                            const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
+                            weightInput.name = `weight_consolidated_${index}`;
+                            weightInput.id = `weight_${index}`;
+
+                            const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
+                            volumeInput.name = `volume_consolidated_${index}`;
+                            volumeInput.id = `volume_${index}`;
+
+                            const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
+                            placeInput.name = `place_consolidated_${index}`;
+                            placeInput.id = `place_${index}`;
+
                             const deleteBtn = item.querySelector(".delete-item-btn");
                             if (deleteBtn) deleteBtn.dataset.itemIndex = index;
                         });
@@ -374,10 +347,10 @@
                             const addButtonDiv = document.createElement("div");
                             addButtonDiv.className = "mt-3";
                             addButtonDiv.innerHTML = `
-                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                        <span class="bi bi-plus-circle me-2"></span>Добавить
-                    </button>
-                `;
+                                <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                    <span class="bi bi-plus-circle me-2"></span>Добавить
+                                </button>
+                            `;
                             lastItem.appendChild(addButtonDiv);
                         }
 
@@ -385,7 +358,7 @@
 
                         // Удаляем обработчик после выполнения
                         modalElement.removeEventListener("hidden.bs.modal", handler);
-                    }, {once: true});
+                    }, { once: true });
                 }
             });
 
@@ -393,10 +366,9 @@
             form.addEventListener("submit", function () {
                 const allInventoryInputs = document.querySelectorAll(".inventory-input");
                 allInventoryInputs.forEach(input => {
-                    const incomingId = input.dataset.incomingId;
                     const itemIndex = input.dataset.itemIndex;
-                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}-${itemIndex}`);
-                    const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}-${itemIndex}`);
+                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                    const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
                     const badges = listContainer.querySelectorAll(".badge");
                     const numbers = Array.from(badges).map(badge => badge.textContent.trim());
                     hiddenInput.value = numbers.join(",");

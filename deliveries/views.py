@@ -693,7 +693,6 @@ def package_new(request, pk):
 
     if request.method == 'POST':
         incomings_data = {incoming.id: incoming for incoming in consolidation.incomings.all()}
-        inventory_numbers = []
         form = PackageForm(request.POST, instance=consolidation, incomings_data=incomings_data)
 
         if form.is_valid():
