@@ -551,8 +551,6 @@ def new_consolidation(request):
 
             # 🔹 Если это не черновик, связываем инкаминги
             if consolidation.status != 'Template':
-                instruction_text = ""
-                count = 1
                 for incoming in selected_incomings:
                     incoming_id = str(incoming.pk)
                     consolidation_incoming = ConsolidationIncoming.objects.create(
@@ -570,11 +568,8 @@ def new_consolidation(request):
                             consolidation_incoming=consolidation_incoming,
                             inventory_number=inventory_obj
                         )
-                    instruction_text += f"Инвентарные номера для {count}: {inventory_numbers}\n"
-                    count += 1
                     incoming.save()
 
-                consolidation.instruction = instruction_text + consolidation.instruction
                 consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
@@ -734,7 +729,7 @@ def package_new(request, pk):
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
-        'inventory_numbers': inventory_numbers,
+        'consolidation_inventory_numbers': inventory_numbers,
     })
 
 

@@ -128,12 +128,7 @@
                                             <p>
                                                 <strong>Инструкция:</strong> {{ consolidation.instruction|default_if_none:"Нет инструкции" }}
                                             </p>
-                                            <p><strong>Инвентарные номера:</strong></p>
-                                            <ul>
-                                                {% for incoming in consolidation.incomings.all %}
-                                                    <li>{{ incoming.inventory_numbers.all|join:", " }}</li>
-                                                {% endfor %}
-                                            </ul>
+{#                                            <p><strong>Инвентарные номера: {{ consolidation. }}</strong></p>#}
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">

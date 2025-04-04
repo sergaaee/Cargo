@@ -4,7 +4,7 @@
 {% block title %}Упаковка{% endblock %}
 
 {% block content %}
-
+    {{ consolidation_inventory_numbers|json_script:"inventory-numbers" }}
     <div class="container-xxl flex-grow-1 container-p-y">
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Упаковка</h4>
         <div class="card mb-4">
@@ -49,6 +49,10 @@
                     </div>
                     <hr class="my-4 mx-n4">
                     <h6>2. Детали отправления</h6>
+                    <div id="all-inventory-numbers" class="mb-3">
+                        <strong>Доступные инвентарные номера:</strong>
+                        <span id="inventory-numbers-pool"></span>
+                    </div>
                     <div class="row g-4">
                         <div class="col-12">
                             <ul id="consolidation-list" class="list-group">
@@ -175,90 +179,109 @@
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            // Извлекаем данные из тега, созданного json_script
+            const inventoryNumbersElement = document.getElementById("inventory-numbers");
+            const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
+            const inventoryPool = document.getElementById("inventory-numbers-pool");
             const inventoryInputs = document.querySelectorAll(".inventory-input");
             const form = document.getElementById("consolidation-form");
             const consolidationList = document.getElementById("consolidation-list");
-            let itemToDelete = null; // Переменная для хранения элемента, который нужно удалить
+            let itemToDelete = null;
 
-            // Получаем трек-код
             const trackCodeInput = document.querySelector('input[name="track_code"]');
             const trackCode = trackCodeInput ? trackCodeInput.value : '';
 
-            // Функция для установки значения "Код места"
+            // Функция установки кода места
             function setPlaceCode(item, index) {
                 const placeInput = item.querySelector('input[name^="place_consolidated_"]');
                 if (placeInput && trackCode) {
-                    placeInput.value = `${trackCode}-${index + 1}`; // Например, ST28-1, ST28-2 и т.д.
+                    placeInput.value = `${trackCode}-${index + 1}`;
                 }
             }
 
-            // Устанавливаем значения "Код места" для существующих строк
+            // Инициализация кодов мест для существующих строк
             const items = consolidationList.querySelectorAll(".consolidation-item");
-            items.forEach((item, index) => {
-                setPlaceCode(item, index);
-            });
+            items.forEach((item, index) => setPlaceCode(item, index));
 
-            // Функция для обработки инвентарных номеров
+            // Инициализация пула номеров
+            let availableNumbers = new Set(allInventoryNumbers);
+
+            // Обновление отображения пула номеров
+            function updateInventoryPool() {
+                inventoryPool.innerHTML = Array.from(availableNumbers)
+                    .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
+                    .join('');
+            }
+
+            // Обработка ввода инвентарных номеров
             function setupInventoryInput(input) {
                 input.addEventListener("keydown", function (event) {
                     if (event.key === "Enter") {
                         event.preventDefault();
-
                         const incomingId = input.dataset.incomingId;
                         const itemIndex = input.dataset.itemIndex;
                         const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}-${itemIndex}`);
                         const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}-${itemIndex}`);
 
                         const number = input.value.trim();
-                        if (number) {
-                            // Обновляем скрытое поле
+                        if (number && availableNumbers.has(number)) {
                             let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
                             if (!currentNumbers.includes(number)) {
                                 currentNumbers.push(number);
                                 hiddenInput.value = currentNumbers.join(",");
+                                availableNumbers.delete(number);
+                                updateInventoryPool();
+
+                                const numberBadge = document.createElement("span");
+                                numberBadge.className = "badge bg-primary me-1";
+                                numberBadge.textContent = number;
+
+                                const removeBtn = document.createElement("span");
+                                removeBtn.className = "ms-2 text-white cursor-pointer";
+                                removeBtn.innerHTML = "×";
+                                removeBtn.addEventListener("click", function () {
+                                    currentNumbers = currentNumbers.filter(n => n !== number);
+                                    hiddenInput.value = currentNumbers.join(",");
+                                    numberBadge.remove();
+                                    availableNumbers.add(number);
+                                    updateInventoryPool();
+                                });
+
+                                numberBadge.appendChild(removeBtn);
+                                listContainer.appendChild(numberBadge);
+                                input.value = "";
                             }
-
-                            // Добавляем номер в UI
-                            const numberBadge = document.createElement("span");
-                            numberBadge.className = "badge bg-primary me-1";
-                            numberBadge.textContent = number;
-
-                            const removeBtn = document.createElement("span");
-                            removeBtn.className = "ms-2 text-white cursor-pointer";
-                            removeBtn.innerHTML = "×";
-                            removeBtn.addEventListener("click", function () {
-                                currentNumbers = currentNumbers.filter(n => n !== number);
-                                hiddenInput.value = currentNumbers.join(",");
-                                numberBadge.remove();
-                            });
-
-                            numberBadge.appendChild(removeBtn);
-                            listContainer.appendChild(numberBadge);
-
-                            input.value = ""; // Очищаем поле ввода
                         }
                     }
                 });
             }
 
-            // Инициализация существующих полей
-            inventoryInputs.forEach(input => setupInventoryInput(input));
+            // Инициализация существующих полей и удаление уже использованных номеров
+            inventoryInputs.forEach(input => {
+                setupInventoryInput(input);
+                const hiddenInput = document.getElementById(`hidden-inventory-numbers-${input.dataset.incomingId}-${input.dataset.itemIndex}`);
+                if (hiddenInput) {
+                    const usedNumbers = hiddenInput.value.split(",").filter(Boolean);
+                    usedNumbers.forEach(num => availableNumbers.delete(num));
+                }
+            });
+            updateInventoryPool();
 
-            // Обработка добавления новой строки и удаления (с делегированием событий)
+            // Обработка добавления и удаления строк
             consolidationList.addEventListener("click", function (event) {
-                // Обработка добавления новой строки
-                if (event.target.closest(".add-item-btn")) {
-                    // Находим последний элемент
+                const addBtn = event.target.closest(".add-item-btn");
+                const deleteBtn = event.target.closest(".delete-item-btn");
+
+                if (addBtn) {
                     const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
                     const lastIndex = parseInt(lastItem.dataset.itemIndex);
                     const newIndex = lastIndex + 1;
                     const incomingId = lastItem.querySelector(".inventory-input").dataset.incomingId;
 
-                    // Клонируем последний элемент
                     const newItem = lastItem.cloneNode(true);
                     newItem.dataset.itemIndex = newIndex;
 
-                    // Обновляем идентификаторы и имена полей в новом элементе
+                    // Обновление атрибутов новой строки
                     const newInventoryInput = newItem.querySelector(".inventory-input");
                     newInventoryInput.id = `inventory-input-${incomingId}-${newIndex}`;
                     newInventoryInput.dataset.itemIndex = newIndex;
@@ -270,7 +293,7 @@
 
                     const newListContainer = newItem.querySelector(`div[id="inventory-numbers-list-${incomingId}-${lastIndex}"]`);
                     newListContainer.id = `inventory-numbers-list-${incomingId}-${newIndex}`;
-                    newListContainer.innerHTML = ""; // Очищаем список номеров
+                    newListContainer.innerHTML = "";
 
                     const newWeightInput = newItem.querySelector(`input[name="weight_consolidated_${incomingId}_${lastIndex}"]`);
                     newWeightInput.name = `weight_consolidated_${incomingId}_${newIndex}`;
@@ -283,126 +306,72 @@
                     const newPlaceInput = newItem.querySelector(`input[name="place_consolidated_${incomingId}_${lastIndex}"]`);
                     newPlaceInput.name = `place_consolidated_${incomingId}_${newIndex}`;
                     newPlaceInput.id = `place_${incomingId}-${newIndex}`;
-                    newPlaceInput.disabled = true; // Убедимся, что поле отключено
-                    setPlaceCode(newItem, newIndex); // Устанавливаем значение "Код места" для новой строки
+                    setPlaceCode(newItem, newIndex);
 
-                    // Обновляем кнопки действий: добавляем кнопку удаления
                     const actionsDiv = newItem.querySelector(".d-flex.align-items-center");
                     actionsDiv.innerHTML = `
-                    <button type="button" class="btn btn-icon btn-outline-info me-3"
-                            data-bs-toggle="modal"
-                            data-bs-target="#incomingDetailModal${incomingId}">
+                    <button type="button" class="btn btn-icon btn-outline-info me-3" data-bs-toggle="modal" data-bs-target="#incomingDetailModal${incomingId}">
                         <span class="bi bi-zoom-in me-2"></span>
                     </button>
-                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#deleteConfirmationModal"
-                            data-item-index="${newIndex}">
+                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal" data-item-index="${newIndex}">
                         <span class="bi bi-trash me-2"></span>
                     </button>
                 `;
 
-                    // Удаляем старую кнопку "+" из последнего элемента
                     const oldAddButton = lastItem.querySelector(".add-item-btn");
-                    if (oldAddButton) {
-                        oldAddButton.parentElement.remove();
-                    }
+                    if (oldAddButton) oldAddButton.parentElement.remove();
 
-                    // Добавляем новый элемент в список
                     consolidationList.appendChild(newItem);
-
-                    // Инициализируем обработчик для нового поля
                     setupInventoryInput(newInventoryInput);
                 }
 
-                // Обработка нажатия на кнопку удаления (с делегированием)
-                if (event.target.closest(".delete-item-btn")) {
-                    const deleteBtn = event.target.closest(".delete-item-btn");
+                if (deleteBtn) {
                     const itemIndex = deleteBtn.dataset.itemIndex;
                     itemToDelete = consolidationList.querySelector(`.consolidation-item[data-item-index="${itemIndex}"]`);
-
-                    console.log("Opening modal for item index:", itemIndex); // Логирование
-
-                    // Открываем модальное окно вручную
-                    const modalElement = document.getElementById("deleteConfirmationModal");
-                    const modal = new bootstrap.Modal(modalElement, {
-                        backdrop: true,
-                        keyboard: true
-                    });
+                    const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
                     modal.show();
                 }
             });
 
-            // Обработка подтверждения удаления
-            const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
-            confirmDeleteBtn.addEventListener("click", function () {
+            // Обработка удаления строки
+            document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
                 if (itemToDelete) {
-                    console.log("Deleting item and closing modal"); // Логирование
-
-                    // Удаляем элемент
-                    itemToDelete.remove();
-                    itemToDelete = null;
-
-                    // Закрываем модальное окно
-                    const modalElement = document.getElementById("deleteConfirmationModal");
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                        console.log("Modal hidden"); // Логирование
-                    } else {
-                        console.log("Modal instance not found"); // Логирование
+                    const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
+                    if (hiddenInput) {
+                        const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
+                        numbersToReturn.forEach(num => availableNumbers.add(num));
+                        updateInventoryPool();
                     }
 
-                    // Ждем, пока модальное окно полностью закроется
-                    modalElement.addEventListener("hidden.bs.modal", function handler() {
-                        console.log("Modal fully closed"); // Логирование
+                    itemToDelete.remove();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById("deleteConfirmationModal"));
+                    modal.hide();
 
-                        // Удаляем все backdrop-элементы
-                        const backdrops = document.querySelectorAll(".modal-backdrop");
-                        backdrops.forEach(backdrop => {
-                            backdrop.remove();
-                            console.log("Backdrop removed"); // Логирование
-                        });
+                    // Обновление индексов и кодов мест
+                    const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
+                    remainingItems.forEach((item, index) => {
+                        item.dataset.itemIndex = index;
+                        setPlaceCode(item, index);
+                        const deleteBtn = item.querySelector(".delete-item-btn");
+                        if (deleteBtn) deleteBtn.dataset.itemIndex = index;
+                    });
 
-                        // Убедимся, что body не имеет классов, блокирующих взаимодействие
-                        document.body.classList.remove("modal-open");
-                        document.body.style.overflow = "auto"; // Восстанавливаем прокрутку
-                        document.body.style.paddingRight = ""; // Сбрасываем padding, добавленный Bootstrap
-                        console.log("Body styles reset"); // Логирование
-
-                        // Обновляем значения "Код места" для оставшихся строк
-                        const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
-                        remainingItems.forEach((item, index) => {
-                            item.dataset.itemIndex = index; // Обновляем индексы
-                            setPlaceCode(item, index);
-
-                            // Обновляем data-item-index в кнопке удаления
-                            const deleteBtn = item.querySelector(".delete-item-btn");
-                            if (deleteBtn) {
-                                deleteBtn.dataset.itemIndex = index;
-                            }
-                        });
-
-                        // Проверяем, есть ли элементы, и добавляем кнопку "+" к последнему, если её нет
-                        const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                        if (lastItem && !lastItem.querySelector(".add-item-btn")) {
-                            const addButtonDiv = document.createElement("div");
-                            addButtonDiv.className = "mt-3";
-                            addButtonDiv.innerHTML = `
-                            <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                                <span class="bi bi-plus-circle me-2"></span>Добавить
-                            </button>
-                        `;
-                            lastItem.appendChild(addButtonDiv);
-                        }
-
-                        // Удаляем обработчик после выполнения
-                        modalElement.removeEventListener("hidden.bs.modal", handler);
-                    }, {once: true});
+                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                    if (lastItem && !lastItem.querySelector(".add-item-btn")) {
+                        const addButtonDiv = document.createElement("div");
+                        addButtonDiv.className = "mt-3";
+                        addButtonDiv.innerHTML = `
+                        <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                            <span class="bi bi-plus-circle me-2"></span>Добавить
+                        </button>
+                    `;
+                        lastItem.appendChild(addButtonDiv);
+                    }
+                    itemToDelete = null;
                 }
             });
 
-            // Перед отправкой формы обновляем все скрытые поля
+            // Обработка отправки формы
             form.addEventListener("submit", function () {
                 const allInventoryInputs = document.querySelectorAll(".inventory-input");
                 allInventoryInputs.forEach(input => {
@@ -410,7 +379,6 @@
                     const itemIndex = input.dataset.itemIndex;
                     const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}-${itemIndex}`);
                     const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}-${itemIndex}`);
-
                     const badges = listContainer.querySelectorAll(".badge");
                     const numbers = Array.from(badges).map(badge => badge.textContent.trim());
                     hiddenInput.value = numbers.join(",");
