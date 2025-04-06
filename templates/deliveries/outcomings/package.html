@@ -84,7 +84,7 @@
                         Вы уверены, что хотите удалить эту строку?
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelDeleteBtn">Отмена</button>
                         <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
                     </div>
                 </div>
@@ -93,288 +93,296 @@
     </div>
 
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Извлекаем данные из тега, созданного json_script
-            const inventoryNumbersElement = document.getElementById("inventory-numbers");
-            const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
-            const inventoryPool = document.getElementById("inventory-numbers-pool");
-            const form = document.getElementById("consolidation-form");
-            const consolidationList = document.getElementById("consolidation-list");
-            let itemToDelete = null;
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Извлекаем данные из тега, созданного json_script
+        const inventoryNumbersElement = document.getElementById("inventory-numbers");
+        const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
+        const inventoryPool = document.getElementById("inventory-numbers-pool");
+        const form = document.getElementById("consolidation-form");
+        const consolidationList = document.getElementById("consolidation-list");
+        let itemToDelete = null;
 
-            const trackCodeInput = document.querySelector('input[name="track_code"]');
-            const trackCode = trackCodeInput ? trackCodeInput.value : '';
+        // Получаем трек-код
+        const trackCodeInput = document.querySelector('input[name="track_code"]');
+        const trackCode = trackCodeInput ? trackCodeInput.value : '';
 
-            // Инициализация пула номеров
-            let availableNumbers = new Set(allInventoryNumbers);
+        // Инициализация пула номеров
+        let availableNumbers = new Set(allInventoryNumbers);
 
-            // Функция установки кода места
-            function setPlaceCode(item, index) {
-                const placeInput = item.querySelector('input[name^="place_consolidated_"]');
-                if (placeInput && trackCode) {
-                    placeInput.value = `${trackCode}-${index + 1}`;
-                }
+        // Функция установки кода места
+        function setPlaceCode(item, index) {
+            const placeInput = item.querySelector('input[name^="place_consolidated_"]');
+            if (placeInput && trackCode) {
+                placeInput.value = `${trackCode}-${index + 1}`;
             }
+        }
 
-            // Обновление отображения пула номеров
-            function updateInventoryPool() {
-                inventoryPool.innerHTML = Array.from(availableNumbers)
-                    .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
-                    .join('');
-            }
+        // Обновление отображения пула номеров
+        function updateInventoryPool() {
+            inventoryPool.innerHTML = Array.from(availableNumbers)
+                .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
+                .join('');
+        }
 
-            // Функция создания новой строки
-            function createNewItem(index) {
-                const newItem = document.createElement("li");
-                newItem.className = "list-group-item consolidation-item";
-                newItem.dataset.itemIndex = index;
+        // Функция создания новой строки
+        function createNewItem(index) {
+            const newItem = document.createElement("li");
+            newItem.className = "list-group-item consolidation-item";
+            newItem.dataset.itemIndex = index;
 
-                const deleteButtonHtml = index > 0 ? `
-                <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-bs-toggle="modal" data-bs-target="#deleteConfirmationModal" data-item-index="${index}">
+            const deleteButtonHtml = index > 0 ? `
+                <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="${index}">
                     <span class="bi bi-trash me-2"></span>
                 </button>
             ` : '';
 
-                newItem.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-2">
-                            <label for="inventory-input-${index}">
-                                Инвентарные номера
-                            </label>
-                            <input id="inventory-input-${index}"
-                                   class="form-control inventory-input"
-                                   data-item-index="${index}"
-                                   placeholder="Введите номер">
+            newItem.innerHTML = `
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="inventory-input-${index}">
+                            Инвентарные номера
+                        </label>
+                        <input id="inventory-input-${index}"
+                               class="form-control inventory-input"
+                               data-item-index="${index}"
+                               placeholder="Введите номер">
 
-                            <!-- Скрытое поле для передачи номеров на сервер -->
-                            <input type="hidden"
-                                   name="inventory_numbers_${index}"
-                                   id="hidden-inventory-numbers-${index}"
-                                   value="">
+                        <!-- Скрытое поле для передачи номеров на сервер -->
+                        <input type="hidden"
+                               name="inventory_numbers_${index}"
+                               id="hidden-inventory-numbers-${index}"
+                               value="">
 
-                            <!-- Динамически отображаемые номера -->
-                            <div id="inventory-numbers-list-${index}" class="mt-2"></div>
-                        </div>
-
-                        <!-- Поле для веса -->
-                        <div class="col-md-2">
-                            <label for="weight_${index}">Вес</label>
-                            <input type="number"
-                                   name="weight_consolidated_${index}"
-                                   class="form-control"
-                                   min="1"
-                                   value="1"
-                                   data-bs-toggle="tooltip">
-                        </div>
-
-                        <!-- Поле для объема -->
-                        <div class="col-md-2">
-                            <label for="volume_${index}">Объем (м^3)</label>
-                            <input type="number"
-                                   name="volume_consolidated_${index}"
-                                   class="form-control"
-                                   min="1"
-                                   value="1"
-                                   data-bs-toggle="tooltip">
-                        </div>
-
-                        <!-- Поле для кода места -->
-                        <div class="col-md-2">
-                            <label for="place_${index}">Код места</label>
-                            <input type="text"
-                                   name="place_consolidated_${index}"
-                                   class="form-control"
-                                   value=""
-                                   disabled>
-                        </div>
-
-                        <!-- Кнопки действий -->
-                        <div class="col-md-4 d-flex align-items-center">
-                            ${deleteButtonHtml}
-                        </div>
+                        <!-- Динамически отображаемые номера -->
+                        <div id="inventory-numbers-list-${index}" class="mt-2"></div>
                     </div>
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                            <span class="bi bi-plus-circle me-2"></span>Добавить
-                        </button>
+
+                    <!-- Поле для веса -->
+                    <div class="col-md-2">
+                        <label for="weight_${index}">Вес</label>
+                        <input type="number"
+                               name="weight_consolidated_${index}"
+                               class="form-control"
+                               min="1"
+                               value="1"
+                               data-bs-toggle="tooltip">
                     </div>
-                `;
 
-                setPlaceCode(newItem, index);
-                return newItem;
-            }
+                    <!-- Поле для объема -->
+                    <div class="col-md-2">
+                        <label for="volume_${index}">Объем (м^3)</label>
+                        <input type="number"
+                               name="volume_consolidated_${index}"
+                               class="form-control"
+                               min="1"
+                               value="1"
+                               data-bs-toggle="tooltip">
+                    </div>
 
-            // Обработка ввода инвентарных номеров
-            function setupInventoryInput(input) {
-                input.addEventListener("keydown", function (event) {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        const itemIndex = input.dataset.itemIndex;
-                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
-                        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+                    <!-- Поле для кода места -->
+                    <div class="col-md-2">
+                        <label for="place_${index}">Код места</label>
+                        <input type="text"
+                               name="place_consolidated_${index}"
+                               class="form-control"
+                               value=""
+                               disabled>
+                    </div>
 
-                        const number = input.value.trim();
-                        if (number && availableNumbers.has(number)) {
-                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
-                            if (!currentNumbers.includes(number)) {
-                                currentNumbers.push(number);
-                                hiddenInput.value = currentNumbers.join(",");
-                                availableNumbers.delete(number);
-                                updateInventoryPool();
+                    <!-- Кнопки действий -->
+                    <div class="col-md-4 d-flex align-items-center">
+                        ${deleteButtonHtml}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                        <span class="bi bi-plus-circle me-2"></span>Добавить
+                    </button>
+                </div>
+            `;
 
-                                const numberBadge = document.createElement("span");
-                                numberBadge.className = "badge bg-primary me-1";
-                                numberBadge.textContent = number;
+            setPlaceCode(newItem, index);
+            return newItem;
+        }
 
-                                const removeBtn = document.createElement("span");
-                                removeBtn.className = "ms-2 text-white cursor-pointer";
-                                removeBtn.innerHTML = "×";
-                                removeBtn.addEventListener("click", function () {
-                                    currentNumbers = currentNumbers.filter(n => n !== number);
-                                    hiddenInput.value = currentNumbers.join(",");
-                                    numberBadge.remove();
-                                    availableNumbers.add(number);
-                                    updateInventoryPool();
-                                });
-
-                                numberBadge.appendChild(removeBtn);
-                                listContainer.appendChild(numberBadge);
-                                input.value = "";
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Добавляем начальную строку
-            const initialItem = createNewItem(0);
-            consolidationList.appendChild(initialItem);
-            const initialInventoryInput = initialItem.querySelector(".inventory-input");
-            setupInventoryInput(initialInventoryInput);
-            updateInventoryPool();
-
-            // Обработка добавления и удаления строк
-            consolidationList.addEventListener("click", function (event) {
-                const addBtn = event.target.closest(".add-item-btn");
-                const deleteBtn = event.target.closest(".delete-item-btn");
-
-                if (addBtn) {
-                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                    const lastIndex = parseInt(lastItem.dataset.itemIndex);
-                    const newIndex = lastIndex + 1;
-
-                    const newItem = createNewItem(newIndex);
-                    const oldAddButton = lastItem.querySelector(".add-item-btn");
-                    if (oldAddButton) oldAddButton.parentElement.remove();
-
-                    consolidationList.appendChild(newItem);
-                    const newInventoryInput = newItem.querySelector(".inventory-input");
-                    setupInventoryInput(newInventoryInput);
-                }
-
-                if (deleteBtn) {
-                    const itemIndex = deleteBtn.dataset.itemIndex;
-                    itemToDelete = consolidationList.querySelector(`.consolidation-item[data-item-index="${itemIndex}"]`);
-                    const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
-                    modal.show();
-                }
-            });
-
-            // Обработка удаления строки
-            document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
-                if (itemToDelete) {
-                    const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
-                    if (hiddenInput) {
-                        const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
-                        numbersToReturn.forEach(num => availableNumbers.add(num));
-                        updateInventoryPool();
-                    }
-
-                    itemToDelete.remove();
-                    const modalElement = document.getElementById("deleteConfirmationModal");
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    modal.hide();
-
-                    // Ждём, пока модальное окно полностью закроется
-                    modalElement.addEventListener("hidden.bs.modal", function handler() {
-                        // Удаляем все backdrop-элементы
-                        const backdrops = document.querySelectorAll(".modal-backdrop");
-                        backdrops.forEach(backdrop => backdrop.remove());
-
-                        // Убедимся, что body не имеет классов, блокирующих взаимодействие
-                        document.body.classList.remove("modal-open");
-                        document.body.style.overflow = "auto";
-                        document.body.style.paddingRight = "";
-
-                        // Обновление индексов и кодов мест
-                        const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
-                        remainingItems.forEach((item, index) => {
-                            item.dataset.itemIndex = index;
-                            setPlaceCode(item, index);
-
-                            // Обновляем атрибуты полей
-                            const inventoryInput = item.querySelector(".inventory-input");
-                            inventoryInput.id = `inventory-input-${index}`;
-                            inventoryInput.dataset.itemIndex = index;
-
-                            const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
-                            hiddenInput.id = `hidden-inventory-numbers-${index}`;
-                            hiddenInput.name = `inventory_numbers_${index}`;
-
-                            const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
-                            listContainer.id = `inventory-numbers-list-${index}`;
-
-                            const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
-                            weightInput.name = `weight_consolidated_${index}`;
-                            weightInput.id = `weight_${index}`;
-
-                            const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
-                            volumeInput.name = `volume_consolidated_${index}`;
-                            volumeInput.id = `volume_${index}`;
-
-                            const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
-                            placeInput.name = `place_consolidated_${index}`;
-                            placeInput.id = `place_${index}`;
-
-                            const deleteBtn = item.querySelector(".delete-item-btn");
-                            if (deleteBtn) deleteBtn.dataset.itemIndex = index;
-                        });
-
-                        // Добавляем кнопку "Добавить" к последнему элементу, если её нет
-                        const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                        if (lastItem && !lastItem.querySelector(".add-item-btn")) {
-                            const addButtonDiv = document.createElement("div");
-                            addButtonDiv.className = "mt-3";
-                            addButtonDiv.innerHTML = `
-                                <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                                    <span class="bi bi-plus-circle me-2"></span>Добавить
-                                </button>
-                            `;
-                            lastItem.appendChild(addButtonDiv);
-                        }
-
-                        itemToDelete = null;
-
-                        // Удаляем обработчик после выполнения
-                        modalElement.removeEventListener("hidden.bs.modal", handler);
-                    }, { once: true });
-                }
-            });
-
-            // Обработка отправки формы
-            form.addEventListener("submit", function () {
-                const allInventoryInputs = document.querySelectorAll(".inventory-input");
-                allInventoryInputs.forEach(input => {
+        // Обработка ввода инвентарных номеров
+        function setupInventoryInput(input) {
+            input.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
                     const itemIndex = input.dataset.itemIndex;
                     const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
                     const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
-                    const badges = listContainer.querySelectorAll(".badge");
-                    const numbers = Array.from(badges).map(badge => badge.textContent.trim());
-                    hiddenInput.value = numbers.join(",");
-                });
+
+                    const number = input.value.trim();
+                    if (number && availableNumbers.has(number)) {
+                        let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                        if (!currentNumbers.includes(number)) {
+                            currentNumbers.push(number);
+                            hiddenInput.value = currentNumbers.join(",");
+                            availableNumbers.delete(number);
+                            updateInventoryPool();
+
+                            const numberBadge = document.createElement("span");
+                            numberBadge.className = "badge bg-primary me-1";
+                            numberBadge.textContent = number;
+
+                            const removeBtn = document.createElement("span");
+                            removeBtn.className = "ms-2 text-white cursor-pointer";
+                            removeBtn.innerHTML = "×";
+                            removeBtn.addEventListener("click", function () {
+                                currentNumbers = currentNumbers.filter(n => n !== number);
+                                hiddenInput.value = currentNumbers.join(",");
+                                numberBadge.remove();
+                                availableNumbers.add(number);
+                                updateInventoryPool();
+                            });
+
+                            numberBadge.appendChild(removeBtn);
+                            listContainer.appendChild(numberBadge);
+                            input.value = "";
+                        }
+                    }
+                }
+            });
+        }
+
+        // Добавляем начальную строку
+        const initialItem = createNewItem(0);
+        consolidationList.appendChild(initialItem);
+        const initialInventoryInput = initialItem.querySelector(".inventory-input");
+        setupInventoryInput(initialInventoryInput);
+        updateInventoryPool();
+
+        // Обработка добавления и удаления строк
+        consolidationList.addEventListener("click", function (event) {
+            const addBtn = event.target.closest(".add-item-btn");
+            const deleteBtn = event.target.closest(".delete-item-btn");
+
+            if (addBtn) {
+                const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                const lastIndex = parseInt(lastItem.dataset.itemIndex);
+                const newIndex = lastIndex + 1;
+
+                const newItem = createNewItem(newIndex);
+                const oldAddButton = lastItem.querySelector(".add-item-btn");
+                if (oldAddButton) oldAddButton.parentElement.remove();
+
+                consolidationList.appendChild(newItem);
+                const newInventoryInput = newItem.querySelector(".inventory-input");
+                setupInventoryInput(newInventoryInput);
+            }
+
+            if (deleteBtn) {
+                // Находим родительский элемент (consolidation-item) напрямую
+                itemToDelete = deleteBtn.closest(".consolidation-item");
+                console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex); // Логирование
+
+                // Открываем модальное окно
+                const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
+                modal.show();
+            }
+        });
+
+        // Обработка удаления строки
+        document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
+            if (itemToDelete) {
+                const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
+                if (hiddenInput) {
+                    const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
+                    numbersToReturn.forEach(num => availableNumbers.add(num));
+                    updateInventoryPool();
+                }
+
+                itemToDelete.remove();
+                const modalElement = document.getElementById("deleteConfirmationModal");
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                modal.hide();
+
+                // Ждём, пока модальное окно полностью закроется
+                modalElement.addEventListener("hidden.bs.modal", function handler() {
+                    // Удаляем все backdrop-элементы
+                    const backdrops = document.querySelectorAll(".modal-backdrop");
+                    backdrops.forEach(backdrop => backdrop.remove());
+
+                    // Убедимся, что body не имеет классов, блокирующих взаимодействие
+                    document.body.classList.remove("modal-open");
+                    document.body.style.overflow = "auto";
+                    document.body.style.paddingRight = "";
+
+                    // Обновление индексов и кодов мест
+                    const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
+                    remainingItems.forEach((item, index) => {
+                        item.dataset.itemIndex = index;
+                        setPlaceCode(item, index);
+
+                        // Обновляем атрибуты полей
+                        const inventoryInput = item.querySelector(".inventory-input");
+                        inventoryInput.id = `inventory-input-${index}`;
+                        inventoryInput.dataset.itemIndex = index;
+
+                        const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
+                        hiddenInput.id = `hidden-inventory-numbers-${index}`;
+                        hiddenInput.name = `inventory_numbers_${index}`;
+
+                        const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
+                        listContainer.id = `inventory-numbers-list-${index}`;
+
+                        const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
+                        weightInput.name = `weight_consolidated_${index}`;
+                        weightInput.id = `weight_${index}`;
+
+                        const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
+                        volumeInput.name = `volume_consolidated_${index}`;
+                        volumeInput.id = `volume_${index}`;
+
+                        const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
+                        placeInput.name = `place_consolidated_${index}`;
+                        placeInput.id = `place_${index}`;
+
+                        // Обновляем data-item-index у кнопки удаления
+                        const deleteBtn = item.querySelector(".delete-item-btn");
+                        if (deleteBtn) {
+                            deleteBtn.dataset.itemIndex = index;
+                            console.log(`Updated delete button index to ${index}`); // Логирование
+                        }
+                    });
+
+                    // Добавляем кнопку "Добавить" к последнему элементу, если её нет
+                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                    if (lastItem && !lastItem.querySelector(".add-item-btn")) {
+                        const addButtonDiv = document.createElement("div");
+                        addButtonDiv.className = "mt-3";
+                        addButtonDiv.innerHTML = `
+                            <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                <span class="bi bi-plus-circle me-2"></span>Добавить
+                            </button>
+                        `;
+                        lastItem.appendChild(addButtonDiv);
+                    }
+
+                    itemToDelete = null;
+
+                    // Удаляем обработчик после выполнения
+                    modalElement.removeEventListener("hidden.bs.modal", handler);
+                }, { once: true });
+            }
+        });
+
+        // Обработка отправки формы
+        form.addEventListener("submit", function () {
+            const allInventoryInputs = document.querySelectorAll(".inventory-input");
+            allInventoryInputs.forEach(input => {
+                const itemIndex = input.dataset.itemIndex;
+                const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+                const badges = listContainer.querySelectorAll(".badge");
+                const numbers = Array.from(badges).map(badge => badge.textContent.trim());
+                hiddenInput.value = numbers.join(",");
             });
         });
-    </script>
+    });
+</script>
 
 {% endblock %}
