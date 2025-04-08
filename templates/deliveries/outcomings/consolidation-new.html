@@ -411,12 +411,12 @@
 
 
             submitButton.addEventListener("click", function (event) {
-                if (!validateSelectedIncomings()) {
-                    event.preventDefault();  // Блокируем отправку формы
-                    showAlert("Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!");
+                const validationResult = validateSelectedIncomings();
+                if (!validationResult.isValid) {
+                    event.preventDefault();
+                    showAlert(validationResult.message);
                 } else {
                     clientInput.disabled = false;
-                    localStorage.clear()
                 }
             });
 
@@ -433,18 +433,34 @@
 
 
             function validateSelectedIncomings() {
-                // Получаем все выбранные поступления из UI
                 const selectedIncomings = document.querySelectorAll("#consolidation-list .list-group-item");
                 for (const item of selectedIncomings) {
                     const incomingId = item.getAttribute("data-id");
                     const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                    const placesCountInput = item.querySelector('input[name="places_consolidated"]');
+                    const placesCount = parseInt(placesCountInput.value, 10);
+
+                    // Сбрасываем подсветку перед проверкой
+                    item.classList.remove("border", "border-danger");
 
                     if (incomingId !== null && (!storedData || JSON.parse(storedData).length === 0)) {
-                        console.log("Проблемное incomingId:", incomingId);
-                        return false;  // Нашли поступление без инвентарных номеров
+                        item.classList.add("border", "border-danger");
+                        return {
+                            isValid: false,
+                            message: "Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!"
+                        };
+                    }
+
+                    const inventoryNumbers = storedData ? JSON.parse(storedData) : [];
+                    if (inventoryNumbers.length < placesCount) {
+                        item.classList.add("border", "border-danger");
+                        return {
+                            isValid: false,
+                            message: `Для поступления #${incomingId} выбрано ${inventoryNumbers.length} инвентарных номеров, но указано ${placesCount} мест. Количество инвентарных номеров должно быть не меньше количества мест.`
+                        };
                     }
                 }
-                return true;  // Все поступления имеют хотя бы один инвентарный номер
+                return {isValid: true, message: ""};
             }
 
 
@@ -833,6 +849,13 @@
                 console.error("Модальное окно не найдено для ID:", incomingId);
             }
         }
+    </script>
+
+    <script>
+        window.addEventListener("beforeunload", function () {
+            // Удаляем только данные, связанные с трекерами и инвентарниками
+            localStorage.clear()
+        });
     </script>
 
 {% endblock %}
