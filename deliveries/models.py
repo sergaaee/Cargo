@@ -160,10 +160,11 @@ class ConsolidationIncoming(UUIDMixin):
 
     class Meta:
         unique_together = (
-        'consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
+            'consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
         indexes = [
             models.Index(fields=['consolidation', 'incoming'], name='consolidation_incoming_idx'),
         ]
+
 
 class ConsolidationInventory(UUIDMixin, TimeStampedMixin):
     consolidation_incoming = models.ForeignKey(ConsolidationIncoming, on_delete=models.CASCADE)
@@ -174,7 +175,6 @@ class ConsolidationInventory(UUIDMixin, TimeStampedMixin):
         indexes = [
             models.Index(fields=['consolidation_incoming', 'inventory_number'], name='consolidation_inventory_idx'),
         ]
-
 
 
 class Consolidation(UUIDMixin, TimeStampedMixin):
@@ -210,6 +210,65 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
 
     def __str__(self):
         return f'{self.incomings} ({self.track_code})'
+
+
+class Place(UUIDMixin, TimeStampedMixin):
+    consolidation = models.ForeignKey(
+        'Consolidation',
+        on_delete=models.CASCADE,
+        related_name='places',
+        verbose_name=_('Consolidation')
+    )
+    place_code = models.CharField(
+        _('Place Code'),
+        max_length=100,
+        help_text=_('Unique code for the place, e.g., ST28-1')
+    )
+    weight = models.IntegerField(
+        _('Weight (kg)'),
+        validators=[MinValueValidator(0)],
+        help_text=_('Weight of the place in kilograms')
+    )
+    volume = models.IntegerField(
+        _('Volume (m^3)'),
+        validators=[MinValueValidator(1)],
+        help_text=_('Volume of the place in cubic meters')
+    )
+    inventory_numbers = models.ManyToManyField(
+        'InventoryNumber',
+        through='PlaceInventory',
+        related_name='place_inventory_numbers',
+        verbose_name=_('Inventory Numbers')
+    )
+
+    def __str__(self):
+        return f"Place {self.place_code} for Consolidation {self.consolidation.track_code}"
+
+    class Meta:
+        unique_together = ('consolidation', 'place_code')
+        indexes = [
+            models.Index(fields=['consolidation', 'place_code'], name='place_consolidation_idx'),
+        ]
+
+class PlaceInventory(UUIDMixin, TimeStampedMixin):
+    place = models.ForeignKey(
+        'Place',
+        on_delete=models.CASCADE,
+        related_name='place_inventories',
+        verbose_name=_('Place')
+    )
+    inventory_number = models.ForeignKey(
+        'InventoryNumber',
+        on_delete=models.CASCADE,
+        related_name='place_inventory',
+        verbose_name=_('Inventory Number')
+    )
+
+    class Meta:
+        unique_together = ('place', 'inventory_number')
+        indexes = [
+            models.Index(fields=['place', 'inventory_number'], name='place_inventory_idx'),
+        ]
 
 
 class ConsolidationCode(UUIDMixin, TimeStampedMixin):

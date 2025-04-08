@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 import json
 
 from user_profile.models import UserProfile
-from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode
+from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
+    ConsolidationInventory
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -340,6 +341,8 @@ class ConsolidationForm(forms.ModelForm):
             raise forms.ValidationError("Пожалуйста, введите трек-код.")
 
 
+
+
 class PackageForm(forms.ModelForm):
     class Meta:
         model = Consolidation
@@ -350,38 +353,55 @@ class PackageForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        self.incomings_data = kwargs.pop('incomings_data', {})
-        super().__init__(*args, **kwargs)
-
     def clean(self):
         cleaned_data = super().clean()
 
-        # Проверяем инвентарные номера для каждого поступления
+        # Получаем данные о местах
+        places_data = {}
+        for key, value in self.data.items():
+            if key.startswith('inventory_numbers_'):
+                place_index = key.split('_')[-1]
+                inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                weight = self.data.get(f'weight_consolidated_{place_index}', 0)
+                volume = self.data.get(f'volume_consolidated_{place_index}', 0)
+                place_code = self.data.get(f'place_consolidated_{place_index}', '')
+                places_data[place_index] = {
+                    'inventory_numbers': inventory_numbers,
+                    'weight': int(weight) if weight else 0,
+                    'volume': int(volume) if volume else 0,
+                    'place_code': place_code,
+                }
+
+        # Проверяем, что места указаны, если это "В работу"
+        if 'in_work' in self.data and not places_data:
+            raise ValidationError('Должно быть указано хотя бы одно место для отправки в работу.')
+
+        # Проверяем уникальность place_code
+        place_codes = [place_data['place_code'] for place_data in places_data.values()]
+        if len(place_codes) != len(set(place_codes)):
+            raise ValidationError('Коды мест должны быть уникальными.')
+
+        # Получаем допустимые инвентарные номера для данной консолидации
+        valid_numbers = list(ConsolidationInventory.objects.filter(
+            consolidation_incoming__consolidation=self.instance
+        ).values_list('inventory_number__number', flat=True).distinct())
+
+        # Валидация мест
+        all_inventory_numbers = []
         errors = []
-        index = 0
-        for incoming_id, incoming in self.incomings_data.items():
-            index += 1
-            field_name = f'inventory_numbers_{incoming_id}'
-            inventory_numbers_raw = self.data.get(field_name, '')
+        for place_index, place_data in places_data.items():
+            inventory_numbers = place_data['inventory_numbers']
+            place_code = place_data['place_code']
 
-            # Разделяем номера
-            inventory_numbers = [num.strip() for num in inventory_numbers_raw.split(',') if num.strip()]
+            if not inventory_numbers:
+                errors.append(f'Для места {place_code} не указаны инвентарные номера.')
+                continue
 
-            # Проверяем количество номеров
-            if len(inventory_numbers) != incoming.places_count:
-                errors.append(
-                    f'Для {index}-го поступления необходимо указать {incoming.places_count} номера(-ов), '
-                    f'но введено {len(inventory_numbers)}.'
-                )
-
-            # Проверяем валидность номеров
-            valid_numbers = list(incoming.inventory_numbers.values_list('number', flat=True))
-            invalid_numbers = [num for num in inventory_numbers if num not in valid_numbers]
-            if invalid_numbers:
-                errors.append(
-                    f'Следующие номера не принадлежат {index}(-ому/-ему) поступлению: {", ".join(invalid_numbers)}.'
-                )
+            # Проверяем вес и объём
+            if place_data['weight'] <= 0:
+                errors.append(f'Вес для места {place_code} должен быть больше 0.')
+            if place_data['volume'] <= 0:
+                errors.append(f'Объём для места {place_code} должен быть больше 0.')
 
         if errors:
             raise ValidationError(errors)

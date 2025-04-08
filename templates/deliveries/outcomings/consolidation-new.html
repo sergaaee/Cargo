@@ -406,32 +406,39 @@
     <script>
 
         document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("consolidation-form");
+            const clientInput = document.getElementById("client");
             const submitButton = document.querySelector('[name="in_work"]');
-            const clientInput = document.getElementById('client');
 
+            // Инициализация состояния clientInput
+            const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
+            clientInput.disabled = selectedIncomingsIds.length > 0;
 
+            // Валидация перед отправкой
             submitButton.addEventListener("click", function (event) {
                 const validationResult = validateSelectedIncomings();
                 if (!validationResult.isValid) {
                     event.preventDefault();
                     showAlert(validationResult.message);
-                } else {
-                    clientInput.disabled = false;
                 }
             });
 
-            document.addEventListener("DOMContentLoaded", function () {
-                const form = document.getElementById("consolidation-form");
-                const clientInput = document.getElementById("client");
-
-                form.addEventListener("submit", function (event) {
-                    if (event.submitter && event.submitter.name === "in_work") {
-                        clientInput.disabled = false;  // Разблокируем перед отправкой
-                    }
-                });
+            // Разблокировка clientInput перед отправкой формы
+            form.addEventListener("submit", function (event) {
+                if (event.submitter && event.submitter.name === "in_work") {
+                    clientInput.disabled = false; // Разблокируем перед отправкой
+                }
             });
 
+            // Обновление списка выбранных поступлений (без влияния на clientInput)
+            function updateSelectedIncomingsField() {
+                const selectedIncomingsField = document.getElementById('selected-incomings');
+                const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
+                selectedIncomingsField.value = selectedIncomingsIds.join(',');
+                // Удаляем clientInput.disabled отсюда, чтобы не мешать отправке формы
+            }
 
+            // Функция валидации
             function validateSelectedIncomings() {
                 const selectedIncomings = document.querySelectorAll("#consolidation-list .list-group-item");
                 for (const item of selectedIncomings) {
@@ -440,7 +447,6 @@
                     const placesCountInput = item.querySelector('input[name="places_consolidated"]');
                     const placesCount = parseInt(placesCountInput.value, 10);
 
-                    // Сбрасываем подсветку перед проверкой
                     item.classList.remove("border", "border-danger");
 
                     if (incomingId !== null && (!storedData || JSON.parse(storedData).length === 0)) {
@@ -462,7 +468,6 @@
                 }
                 return {isValid: true, message: ""};
             }
-
 
             function showAlert(message) {
                 let alertBox = document.getElementById("custom-alert-box");
@@ -854,6 +859,8 @@
     <script>
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками
+            const clientInput = document.getElementById('client');
+            clientInput.disabled = false
             localStorage.clear()
         });
     </script>

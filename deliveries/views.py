@@ -19,7 +19,8 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
+    PlaceInventory
 from django.http import JsonResponse
 
 
@@ -692,43 +693,68 @@ def package_new(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
 
     if request.method == 'POST':
-        incomings_data = {incoming.id: incoming for incoming in consolidation.incomings.all()}
-        form = PackageForm(request.POST, instance=consolidation, incomings_data=incomings_data)
+        form = PackageForm(request.POST, instance=consolidation)
 
         if form.is_valid():
-            consolidation = form.save()
+            consolidation = form.save(commit=False)
 
-            incoming_ids = request.POST.getlist('incoming_id')
-            weights = request.POST.getlist('weight_consolidated')
-            volumes = request.POST.getlist('volume_consolidated')
+            # Получаем данные о местах из формы
+            places_data = {}
+            for key, value in request.POST.items():
+                if key.startswith('inventory_numbers_'):
+                    place_index = key.split('_')[-1]
+                    inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                    weight = request.POST.get(f'weight_consolidated_{place_index}', 0)
+                    volume = request.POST.get(f'volume_consolidated_{place_index}', 0)
+                    place_code = request.POST.get(f'place_consolidated_{place_index}', '')
+                    places_data[place_index] = {
+                        'inventory_numbers': inventory_numbers,
+                        'weight': int(weight) if weight else 0,
+                        'volume': int(volume) if volume else 0,
+                        'place_code': place_code,
+                    }
 
-            for incoming_id, weight, volume in zip(incoming_ids, weights, volumes):
-                incoming = Incoming.objects.get(pk=incoming_id)
-                consolidation_incoming = ConsolidationIncoming.objects.get(
-                    consolidation=consolidation,
-                    incoming=incoming,
-                )
-                consolidation_incoming.weight_consolidated = weight
-                consolidation_incoming.volume_consolidated = volume
+            # Сохраняем места
+            with transaction.atomic():
+                # Удаляем существующие места
+                consolidation.places.all().delete()
 
-                consolidation_incoming.save()
+                # Создаём новые места
+                for place_data in places_data.values():
+                    place = Place.objects.create(
+                        consolidation=consolidation,
+                        place_code=place_data['place_code'],
+                        weight=place_data['weight'],
+                        volume=place_data['volume'],
+                    )
+                    # Привязываем инвентарные номера
+                    inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                    place.inventory_numbers.set(inventory_objs)
 
-            consolidation.status = "Packaged"
+            # Обновляем статус консолидации
+            if 'in_work' in request.POST:
+                consolidation.status = "Packaged"
+            else:
+                consolidation.status = "Draft"
+
             consolidation.save()
-
             messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')
+        else:
+            # Если форма не валидна, передаём ошибки в шаблон
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = PackageForm(instance=consolidation)
 
-    inventory_numbers = list(ConsolidationInventory.objects.filter(
+    # Получаем допустимые инвентарные номера для отображения в шаблоне
+    valid_numbers = list(ConsolidationInventory.objects.filter(
         consolidation_incoming__consolidation=consolidation
     ).values_list('inventory_number__number', flat=True).distinct())
 
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
-        'consolidation_inventory_numbers': inventory_numbers,
+        'consolidation_inventory_numbers': valid_numbers,
     })
 
 

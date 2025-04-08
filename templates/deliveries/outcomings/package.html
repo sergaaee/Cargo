@@ -125,6 +125,27 @@
                 .join('');
         }
 
+        // Функция показа сообщения об ошибке
+        function showError(message) {
+            let alertBox = document.getElementById("custom-alert-box");
+            if (!alertBox) {
+                alertBox = document.createElement("div");
+                alertBox.id = "custom-alert-box";
+                alertBox.className = "alert alert-danger mt-3";
+                alertBox.style.position = "fixed";
+                alertBox.style.top = "20px";
+                alertBox.style.right = "20px";
+                alertBox.style.zIndex = "1050";
+                document.body.appendChild(alertBox);
+            }
+            alertBox.innerHTML = message;
+            alertBox.style.display = "block";
+
+            setTimeout(() => {
+                alertBox.style.display = "none";
+            }, 5000);
+        }
+
         // Функция создания новой строки
         function createNewItem(index) {
             const newItem = document.createElement("li");
@@ -216,9 +237,32 @@
                     const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
 
                     const number = input.value.trim();
-                    if (number && availableNumbers.has(number)) {
+                    if (number) {
+                        // Проверяем, принадлежит ли номер консолидации
+                        if (!allInventoryNumbers.includes(number)) {
+                            showError(`Инвентарный номер ${number} не принадлежит данной консолидации.`);
+                            input.value = "";
+                            return;
+                        }
+
+                        // Проверяем, не используется ли номер в другом месте
                         let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
                         if (!currentNumbers.includes(number)) {
+                            // Проверяем, не используется ли номер в других местах
+                            const allUsedNumbers = new Set();
+                            document.querySelectorAll('input[name^="inventory_numbers_"]').forEach(otherHiddenInput => {
+                                if (otherHiddenInput !== hiddenInput) {
+                                    const otherNumbers = otherHiddenInput.value.split(",").filter(Boolean);
+                                    otherNumbers.forEach(num => allUsedNumbers.add(num));
+                                }
+                            });
+
+                            if (allUsedNumbers.has(number)) {
+                                showError(`Инвентарный номер ${number} уже используется в другом месте.`);
+                                input.value = "";
+                                return;
+                            }
+
                             currentNumbers.push(number);
                             hiddenInput.value = currentNumbers.join(",");
                             availableNumbers.delete(number);
@@ -275,11 +319,9 @@
             }
 
             if (deleteBtn) {
-                // Находим родительский элемент (consolidation-item) напрямую
                 itemToDelete = deleteBtn.closest(".consolidation-item");
-                console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex); // Логирование
+                console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex);
 
-                // Открываем модальное окно
                 const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
                 modal.show();
             }
@@ -300,24 +342,19 @@
                 const modal = bootstrap.Modal.getInstance(modalElement);
                 modal.hide();
 
-                // Ждём, пока модальное окно полностью закроется
                 modalElement.addEventListener("hidden.bs.modal", function handler() {
-                    // Удаляем все backdrop-элементы
                     const backdrops = document.querySelectorAll(".modal-backdrop");
                     backdrops.forEach(backdrop => backdrop.remove());
 
-                    // Убедимся, что body не имеет классов, блокирующих взаимодействие
                     document.body.classList.remove("modal-open");
                     document.body.style.overflow = "auto";
                     document.body.style.paddingRight = "";
 
-                    // Обновление индексов и кодов мест
                     const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
                     remainingItems.forEach((item, index) => {
                         item.dataset.itemIndex = index;
                         setPlaceCode(item, index);
 
-                        // Обновляем атрибуты полей
                         const inventoryInput = item.querySelector(".inventory-input");
                         inventoryInput.id = `inventory-input-${index}`;
                         inventoryInput.dataset.itemIndex = index;
@@ -341,15 +378,13 @@
                         placeInput.name = `place_consolidated_${index}`;
                         placeInput.id = `place_${index}`;
 
-                        // Обновляем data-item-index у кнопки удаления
                         const deleteBtn = item.querySelector(".delete-item-btn");
                         if (deleteBtn) {
                             deleteBtn.dataset.itemIndex = index;
-                            console.log(`Updated delete button index to ${index}`); // Логирование
+                            console.log(`Updated delete button index to ${index}`);
                         }
                     });
 
-                    // Добавляем кнопку "Добавить" к последнему элементу, если её нет
                     const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
                     if (lastItem && !lastItem.querySelector(".add-item-btn")) {
                         const addButtonDiv = document.createElement("div");
@@ -363,15 +398,73 @@
                     }
 
                     itemToDelete = null;
-
-                    // Удаляем обработчик после выполнения
                     modalElement.removeEventListener("hidden.bs.modal", handler);
                 }, { once: true });
             }
         });
 
-        // Обработка отправки формы
-        form.addEventListener("submit", function () {
+        // Валидация перед отправкой формы
+        form.addEventListener("submit", function (event) {
+            // Собираем все использованные номера
+            const allUsedNumbers = new Set();
+            const placeNumberMap = new Map(); // Для хранения номеров по местам
+
+            document.querySelectorAll(".consolidation-item").forEach(item => {
+                const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
+                const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
+                const numbers = hiddenInput.value.split(",").filter(Boolean);
+
+                placeNumberMap.set(placeCode, numbers);
+                numbers.forEach(num => allUsedNumbers.add(num));
+            });
+
+            // Проверка 1: Все ли номера принадлежат консолидации (уже проверяется при вводе, но добавим для надёжности)
+            const invalidNumbers = [];
+            allUsedNumbers.forEach(num => {
+                if (!allInventoryNumbers.includes(num)) {
+                    invalidNumbers.push(num);
+                }
+            });
+
+            if (invalidNumbers.length > 0) {
+                event.preventDefault();
+                showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
+                return;
+            }
+
+            // Проверка 2: Уникальность номеров между местами
+            const numberToPlaces = new Map();
+            placeNumberMap.forEach((numbers, placeCode) => {
+                numbers.forEach(num => {
+                    if (!numberToPlaces.has(num)) {
+                        numberToPlaces.set(num, []);
+                    }
+                    numberToPlaces.get(num).push(placeCode);
+                });
+            });
+
+            const duplicateNumbers = [];
+            numberToPlaces.forEach((places, num) => {
+                if (places.length > 1) {
+                    duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
+                }
+            });
+
+            if (duplicateNumbers.length > 0) {
+                event.preventDefault();
+                showError(duplicateNumbers.join("<br>"));
+                return;
+            }
+
+            // Проверка 3: Все ли доступные номера использованы
+            const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
+            if (unusedNumbers.length > 0) {
+                event.preventDefault();
+                showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
+                return;
+            }
+
+            // Если все проверки пройдены, обновляем скрытые поля перед отправкой
             const allInventoryInputs = document.querySelectorAll(".inventory-input");
             allInventoryInputs.forEach(input => {
                 const itemIndex = input.dataset.itemIndex;
