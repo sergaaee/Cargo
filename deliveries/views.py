@@ -718,6 +718,7 @@ def package_new(request, pk):
             with transaction.atomic():
                 # Удаляем существующие места
                 consolidation.places.all().delete()
+                print(places_data.values())
 
                 # Создаём новые места
                 for place_data in places_data.values():
@@ -737,6 +738,7 @@ def package_new(request, pk):
             else:
                 consolidation.status = "Draft"
 
+            place.save()
             consolidation.save()
             messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')

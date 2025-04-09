@@ -84,7 +84,9 @@
                         Вы уверены, что хотите удалить эту строку?
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelDeleteBtn">Отмена</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelDeleteBtn">
+                            Отмена
+                        </button>
                         <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
                     </div>
                 </div>
@@ -93,72 +95,72 @@
     </div>
 
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Извлекаем данные из тега, созданного json_script
-        const inventoryNumbersElement = document.getElementById("inventory-numbers");
-        const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
-        const inventoryPool = document.getElementById("inventory-numbers-pool");
-        const form = document.getElementById("consolidation-form");
-        const consolidationList = document.getElementById("consolidation-list");
-        let itemToDelete = null;
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Извлекаем данные из тега, созданного json_script
+            const inventoryNumbersElement = document.getElementById("inventory-numbers");
+            const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
+            const inventoryPool = document.getElementById("inventory-numbers-pool");
+            const form = document.getElementById("consolidation-form");
+            const consolidationList = document.getElementById("consolidation-list");
+            let itemToDelete = null;
 
-        // Получаем трек-код
-        const trackCodeInput = document.querySelector('input[name="track_code"]');
-        const trackCode = trackCodeInput ? trackCodeInput.value : '';
+            // Получаем трек-код
+            const trackCodeInput = document.querySelector('input[name="track_code"]');
+            const trackCode = trackCodeInput ? trackCodeInput.value : '';
 
-        // Инициализация пула номеров
-        let availableNumbers = new Set(allInventoryNumbers);
+            // Инициализация пула номеров
+            let availableNumbers = new Set(allInventoryNumbers);
 
-        // Функция установки кода места
-        function setPlaceCode(item, index) {
-            const placeInput = item.querySelector('input[name^="place_consolidated_"]');
-            if (placeInput && trackCode) {
-                placeInput.value = `${trackCode}-${index + 1}`;
+            // Функция установки кода места
+            function setPlaceCode(item, index) {
+                const placeInput = item.querySelector('input[name^="place_consolidated_"]');
+                if (placeInput && trackCode) {
+                    placeInput.value = `${trackCode}-${index + 1}`;
+                }
             }
-        }
 
-        // Обновление отображения пула номеров
-        function updateInventoryPool() {
-            inventoryPool.innerHTML = Array.from(availableNumbers)
-                .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
-                .join('');
-        }
-
-        // Функция показа сообщения об ошибке
-        function showError(message) {
-            let alertBox = document.getElementById("custom-alert-box");
-            if (!alertBox) {
-                alertBox = document.createElement("div");
-                alertBox.id = "custom-alert-box";
-                alertBox.className = "alert alert-danger mt-3";
-                alertBox.style.position = "fixed";
-                alertBox.style.top = "20px";
-                alertBox.style.right = "20px";
-                alertBox.style.zIndex = "1050";
-                document.body.appendChild(alertBox);
+            // Обновление отображения пула номеров
+            function updateInventoryPool() {
+                inventoryPool.innerHTML = Array.from(availableNumbers)
+                    .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
+                    .join('');
             }
-            alertBox.innerHTML = message;
-            alertBox.style.display = "block";
 
-            setTimeout(() => {
-                alertBox.style.display = "none";
-            }, 5000);
-        }
+            // Функция показа сообщения об ошибке
+            function showError(message) {
+                let alertBox = document.getElementById("custom-alert-box");
+                if (!alertBox) {
+                    alertBox = document.createElement("div");
+                    alertBox.id = "custom-alert-box";
+                    alertBox.className = "alert alert-danger mt-3";
+                    alertBox.style.position = "fixed";
+                    alertBox.style.top = "20px";
+                    alertBox.style.right = "20px";
+                    alertBox.style.zIndex = "1050";
+                    document.body.appendChild(alertBox);
+                }
+                alertBox.innerHTML = message;
+                alertBox.style.display = "block";
 
-        // Функция создания новой строки
-        function createNewItem(index) {
-            const newItem = document.createElement("li");
-            newItem.className = "list-group-item consolidation-item";
-            newItem.dataset.itemIndex = index;
+                setTimeout(() => {
+                    alertBox.style.display = "none";
+                }, 5000);
+            }
 
-            const deleteButtonHtml = index > 0 ? `
+            // Функция создания новой строки
+            function createNewItem(index) {
+                const newItem = document.createElement("li");
+                newItem.className = "list-group-item consolidation-item";
+                newItem.dataset.itemIndex = index;
+
+                const deleteButtonHtml = index > 0 ? `
                 <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="${index}">
                     <span class="bi bi-trash me-2"></span>
                 </button>
             ` : '';
 
-            newItem.innerHTML = `
+                newItem.innerHTML = `
                 <div class="row">
                     <div class="col-md-2">
                         <label for="inventory-input-${index}">
@@ -208,7 +210,7 @@
                                name="place_consolidated_${index}"
                                class="form-control"
                                value=""
-                               disabled>
+                               readonly>
                     </div>
 
                     <!-- Кнопки действий -->
@@ -223,259 +225,258 @@
                 </div>
             `;
 
-            setPlaceCode(newItem, index);
-            return newItem;
-        }
+                setPlaceCode(newItem, index);
+                return newItem;
+            }
 
-        // Обработка ввода инвентарных номеров
-        function setupInventoryInput(input) {
-            input.addEventListener("keydown", function (event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    const itemIndex = input.dataset.itemIndex;
-                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
-                    const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+            // Обработка ввода инвентарных номеров
+            function setupInventoryInput(input) {
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        const itemIndex = input.dataset.itemIndex;
+                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
 
-                    const number = input.value.trim();
-                    if (number) {
-                        // Проверяем, принадлежит ли номер консолидации
-                        if (!allInventoryNumbers.includes(number)) {
-                            showError(`Инвентарный номер ${number} не принадлежит данной консолидации.`);
-                            input.value = "";
-                            return;
-                        }
-
-                        // Проверяем, не используется ли номер в другом месте
-                        let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
-                        if (!currentNumbers.includes(number)) {
-                            // Проверяем, не используется ли номер в других местах
-                            const allUsedNumbers = new Set();
-                            document.querySelectorAll('input[name^="inventory_numbers_"]').forEach(otherHiddenInput => {
-                                if (otherHiddenInput !== hiddenInput) {
-                                    const otherNumbers = otherHiddenInput.value.split(",").filter(Boolean);
-                                    otherNumbers.forEach(num => allUsedNumbers.add(num));
-                                }
-                            });
-
-                            if (allUsedNumbers.has(number)) {
-                                showError(`Инвентарный номер ${number} уже используется в другом месте.`);
+                        const number = input.value.trim();
+                        if (number) {
+                            if (!allInventoryNumbers.includes(number)) {
+                                showError(`Инвентарный номер ${number} не принадлежит данной консолидации.`);
                                 input.value = "";
                                 return;
                             }
 
-                            currentNumbers.push(number);
-                            hiddenInput.value = currentNumbers.join(",");
-                            availableNumbers.delete(number);
-                            updateInventoryPool();
+                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            if (!currentNumbers.includes(number)) {
+                                const allUsedNumbers = new Set();
+                                document.querySelectorAll('input[name^="inventory_numbers_"]').forEach(otherHiddenInput => {
+                                    if (otherHiddenInput !== hiddenInput) {
+                                        const otherNumbers = otherHiddenInput.value.split(",").filter(Boolean);
+                                        otherNumbers.forEach(num => allUsedNumbers.add(num));
+                                    }
+                                });
 
-                            const numberBadge = document.createElement("span");
-                            numberBadge.className = "badge bg-primary me-1";
-                            numberBadge.textContent = number;
+                                if (allUsedNumbers.has(number)) {
+                                    showError(`Инвентарный номер ${number} уже используется в другом месте.`);
+                                    input.value = "";
+                                    return;
+                                }
 
-                            const removeBtn = document.createElement("span");
-                            removeBtn.className = "ms-2 text-white cursor-pointer";
-                            removeBtn.innerHTML = "×";
-                            removeBtn.addEventListener("click", function () {
-                                currentNumbers = currentNumbers.filter(n => n !== number);
+                                currentNumbers.push(number);
                                 hiddenInput.value = currentNumbers.join(",");
-                                numberBadge.remove();
-                                availableNumbers.add(number);
+                                availableNumbers.delete(number);
                                 updateInventoryPool();
-                            });
 
-                            numberBadge.appendChild(removeBtn);
-                            listContainer.appendChild(numberBadge);
-                            input.value = "";
+                                const numberBadge = document.createElement("span");
+                                numberBadge.className = "badge bg-primary me-1";
+                                numberBadge.textContent = number;
+                                numberBadge.dataset.number = number; // Сохраняем чистый номер в атрибуте
+
+                                const removeBtn = document.createElement("span");
+                                removeBtn.className = "ms-2 text-white cursor-pointer";
+                                removeBtn.innerHTML = "×";
+                                removeBtn.addEventListener("click", function () {
+                                    currentNumbers = currentNumbers.filter(n => n !== number);
+                                    hiddenInput.value = currentNumbers.join(",");
+                                    numberBadge.remove();
+                                    availableNumbers.add(number);
+                                    updateInventoryPool();
+                                });
+
+                                numberBadge.appendChild(removeBtn);
+                                listContainer.appendChild(numberBadge);
+                                input.value = "";
+                            }
                         }
                     }
+                });
+            }
+
+            // Добавляем начальную строку
+            const initialItem = createNewItem(0);
+            consolidationList.appendChild(initialItem);
+            const initialInventoryInput = initialItem.querySelector(".inventory-input");
+            setupInventoryInput(initialInventoryInput);
+            updateInventoryPool();
+
+            // Обработка добавления и удаления строк
+            consolidationList.addEventListener("click", function (event) {
+                const addBtn = event.target.closest(".add-item-btn");
+                const deleteBtn = event.target.closest(".delete-item-btn");
+
+                if (addBtn) {
+                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                    const lastIndex = parseInt(lastItem.dataset.itemIndex);
+                    const newIndex = lastIndex + 1;
+
+                    const newItem = createNewItem(newIndex);
+                    const oldAddButton = lastItem.querySelector(".add-item-btn");
+                    if (oldAddButton) oldAddButton.parentElement.remove();
+
+                    consolidationList.appendChild(newItem);
+                    const newInventoryInput = newItem.querySelector(".inventory-input");
+                    setupInventoryInput(newInventoryInput);
+                }
+
+                if (deleteBtn) {
+                    itemToDelete = deleteBtn.closest(".consolidation-item");
+                    console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex);
+
+                    const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
+                    modal.show();
                 }
             });
-        }
 
-        // Добавляем начальную строку
-        const initialItem = createNewItem(0);
-        consolidationList.appendChild(initialItem);
-        const initialInventoryInput = initialItem.querySelector(".inventory-input");
-        setupInventoryInput(initialInventoryInput);
-        updateInventoryPool();
+            // Обработка удаления строки
+            document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
+                if (itemToDelete) {
+                    const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
+                    if (hiddenInput) {
+                        const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
+                        numbersToReturn.forEach(num => availableNumbers.add(num));
+                        updateInventoryPool();
+                    }
 
-        // Обработка добавления и удаления строк
-        consolidationList.addEventListener("click", function (event) {
-            const addBtn = event.target.closest(".add-item-btn");
-            const deleteBtn = event.target.closest(".delete-item-btn");
+                    itemToDelete.remove();
+                    const modalElement = document.getElementById("deleteConfirmationModal");
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    modal.hide();
 
-            if (addBtn) {
-                const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                const lastIndex = parseInt(lastItem.dataset.itemIndex);
-                const newIndex = lastIndex + 1;
+                    modalElement.addEventListener("hidden.bs.modal", function handler() {
+                        const backdrops = document.querySelectorAll(".modal-backdrop");
+                        backdrops.forEach(backdrop => backdrop.remove());
 
-                const newItem = createNewItem(newIndex);
-                const oldAddButton = lastItem.querySelector(".add-item-btn");
-                if (oldAddButton) oldAddButton.parentElement.remove();
+                        document.body.classList.remove("modal-open");
+                        document.body.style.overflow = "auto";
+                        document.body.style.paddingRight = "";
 
-                consolidationList.appendChild(newItem);
-                const newInventoryInput = newItem.querySelector(".inventory-input");
-                setupInventoryInput(newInventoryInput);
-            }
+                        const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
+                        remainingItems.forEach((item, index) => {
+                            item.dataset.itemIndex = index;
+                            setPlaceCode(item, index);
 
-            if (deleteBtn) {
-                itemToDelete = deleteBtn.closest(".consolidation-item");
-                console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex);
+                            const inventoryInput = item.querySelector(".inventory-input");
+                            inventoryInput.id = `inventory-input-${index}`;
+                            inventoryInput.dataset.itemIndex = index;
 
-                const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
-                modal.show();
-            }
-        });
+                            const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
+                            hiddenInput.id = `hidden-inventory-numbers-${index}`;
+                            hiddenInput.name = `inventory_numbers_${index}`;
 
-        // Обработка удаления строки
-        document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
-            if (itemToDelete) {
-                const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
-                if (hiddenInput) {
-                    const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
-                    numbersToReturn.forEach(num => availableNumbers.add(num));
-                    updateInventoryPool();
-                }
+                            const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
+                            listContainer.id = `inventory-numbers-list-${index}`;
 
-                itemToDelete.remove();
-                const modalElement = document.getElementById("deleteConfirmationModal");
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                modal.hide();
+                            const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
+                            weightInput.name = `weight_consolidated_${index}`;
+                            weightInput.id = `weight_${index}`;
 
-                modalElement.addEventListener("hidden.bs.modal", function handler() {
-                    const backdrops = document.querySelectorAll(".modal-backdrop");
-                    backdrops.forEach(backdrop => backdrop.remove());
+                            const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
+                            volumeInput.name = `volume_consolidated_${index}`;
+                            volumeInput.id = `volume_${index}`;
 
-                    document.body.classList.remove("modal-open");
-                    document.body.style.overflow = "auto";
-                    document.body.style.paddingRight = "";
+                            const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
+                            placeInput.name = `place_consolidated_${index}`;
+                            placeInput.id = `place_${index}`;
 
-                    const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
-                    remainingItems.forEach((item, index) => {
-                        item.dataset.itemIndex = index;
-                        setPlaceCode(item, index);
+                            const deleteBtn = item.querySelector(".delete-item-btn");
+                            if (deleteBtn) {
+                                deleteBtn.dataset.itemIndex = index;
+                                console.log(`Updated delete button index to ${index}`);
+                            }
+                        });
 
-                        const inventoryInput = item.querySelector(".inventory-input");
-                        inventoryInput.id = `inventory-input-${index}`;
-                        inventoryInput.dataset.itemIndex = index;
-
-                        const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
-                        hiddenInput.id = `hidden-inventory-numbers-${index}`;
-                        hiddenInput.name = `inventory_numbers_${index}`;
-
-                        const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
-                        listContainer.id = `inventory-numbers-list-${index}`;
-
-                        const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
-                        weightInput.name = `weight_consolidated_${index}`;
-                        weightInput.id = `weight_${index}`;
-
-                        const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
-                        volumeInput.name = `volume_consolidated_${index}`;
-                        volumeInput.id = `volume_${index}`;
-
-                        const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
-                        placeInput.name = `place_consolidated_${index}`;
-                        placeInput.id = `place_${index}`;
-
-                        const deleteBtn = item.querySelector(".delete-item-btn");
-                        if (deleteBtn) {
-                            deleteBtn.dataset.itemIndex = index;
-                            console.log(`Updated delete button index to ${index}`);
-                        }
-                    });
-
-                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
-                    if (lastItem && !lastItem.querySelector(".add-item-btn")) {
-                        const addButtonDiv = document.createElement("div");
-                        addButtonDiv.className = "mt-3";
-                        addButtonDiv.innerHTML = `
+                        const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                        if (lastItem && !lastItem.querySelector(".add-item-btn")) {
+                            const addButtonDiv = document.createElement("div");
+                            addButtonDiv.className = "mt-3";
+                            addButtonDiv.innerHTML = `
                             <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
                                 <span class="bi bi-plus-circle me-2"></span>Добавить
                             </button>
                         `;
-                        lastItem.appendChild(addButtonDiv);
-                    }
+                            lastItem.appendChild(addButtonDiv);
+                        }
 
-                    itemToDelete = null;
-                    modalElement.removeEventListener("hidden.bs.modal", handler);
-                }, { once: true });
-            }
-        });
-
-        // Валидация перед отправкой формы
-        form.addEventListener("submit", function (event) {
-            // Собираем все использованные номера
-            const allUsedNumbers = new Set();
-            const placeNumberMap = new Map(); // Для хранения номеров по местам
-
-            document.querySelectorAll(".consolidation-item").forEach(item => {
-                const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
-                const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
-                const numbers = hiddenInput.value.split(",").filter(Boolean);
-
-                placeNumberMap.set(placeCode, numbers);
-                numbers.forEach(num => allUsedNumbers.add(num));
-            });
-
-            // Проверка 1: Все ли номера принадлежат консолидации (уже проверяется при вводе, но добавим для надёжности)
-            const invalidNumbers = [];
-            allUsedNumbers.forEach(num => {
-                if (!allInventoryNumbers.includes(num)) {
-                    invalidNumbers.push(num);
+                        itemToDelete = null;
+                        modalElement.removeEventListener("hidden.bs.modal", handler);
+                    }, {once: true});
                 }
             });
 
-            if (invalidNumbers.length > 0) {
-                event.preventDefault();
-                showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
-                return;
+            // Валидация перед отправкой формы
+            form.addEventListener("submit", function (event) {
+    // Собираем все использованные номера
+    const allUsedNumbers = new Set();
+    const placeNumberMap = new Map();
+
+    document.querySelectorAll(".consolidation-item").forEach(item => {
+        const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
+        const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
+        const numbers = hiddenInput.value.split(",").filter(Boolean);
+
+        placeNumberMap.set(placeCode, numbers);
+        numbers.forEach(num => allUsedNumbers.add(num));
+    });
+
+    // Проверка 1: Все ли номера принадлежат консолидации
+    const invalidNumbers = [];
+    allUsedNumbers.forEach(num => {
+        if (!allInventoryNumbers.includes(num)) {
+            invalidNumbers.push(num);
+        }
+    });
+
+    if (invalidNumbers.length > 0) {
+        event.preventDefault();
+        showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
+        return;
+    }
+
+    // Проверка 2: Уникальность номеров между местами
+    const numberToPlaces = new Map();
+    placeNumberMap.forEach((numbers, placeCode) => {
+        numbers.forEach(num => {
+            if (!numberToPlaces.has(num)) {
+                numberToPlaces.set(num, []);
             }
-
-            // Проверка 2: Уникальность номеров между местами
-            const numberToPlaces = new Map();
-            placeNumberMap.forEach((numbers, placeCode) => {
-                numbers.forEach(num => {
-                    if (!numberToPlaces.has(num)) {
-                        numberToPlaces.set(num, []);
-                    }
-                    numberToPlaces.get(num).push(placeCode);
-                });
-            });
-
-            const duplicateNumbers = [];
-            numberToPlaces.forEach((places, num) => {
-                if (places.length > 1) {
-                    duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
-                }
-            });
-
-            if (duplicateNumbers.length > 0) {
-                event.preventDefault();
-                showError(duplicateNumbers.join("<br>"));
-                return;
-            }
-
-            // Проверка 3: Все ли доступные номера использованы
-            const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
-            if (unusedNumbers.length > 0) {
-                event.preventDefault();
-                showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
-                return;
-            }
-
-            // Если все проверки пройдены, обновляем скрытые поля перед отправкой
-            const allInventoryInputs = document.querySelectorAll(".inventory-input");
-            allInventoryInputs.forEach(input => {
-                const itemIndex = input.dataset.itemIndex;
-                const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
-                const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
-                const badges = listContainer.querySelectorAll(".badge");
-                const numbers = Array.from(badges).map(badge => badge.textContent.trim());
-                hiddenInput.value = numbers.join(",");
-            });
+            numberToPlaces.get(num).push(placeCode);
         });
     });
-</script>
+
+    const duplicateNumbers = [];
+    numberToPlaces.forEach((places, num) => {
+        if (places.length > 1) {
+            duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
+        }
+    });
+
+    if (duplicateNumbers.length > 0) {
+        event.preventDefault();
+        showError(duplicateNumbers.join("<br>"));
+        return;
+    }
+
+    // Проверка 3: Все ли доступные номера использованы
+    const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
+    if (unusedNumbers.length > 0) {
+        event.preventDefault();
+        showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
+        return;
+    }
+
+    // Обновляем скрытые поля перед отправкой
+    const allInventoryInputs = document.querySelectorAll(".inventory-input");
+    allInventoryInputs.forEach(input => {
+        const itemIndex = input.dataset.itemIndex;
+        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+        const badges = listContainer.querySelectorAll(".badge");
+        // Используем data-number вместо textContent
+        const numbers = Array.from(badges).map(badge => badge.dataset.number.trim());
+        hiddenInput.value = numbers.join(",");
+    });
+});
+        });
+    </script>
 
 {% endblock %}
