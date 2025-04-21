@@ -1,0 +1,8 @@
+<form method="GET" action="">
+    <div class="input-group mb-3">
+        <input type="text" name="q" class="form-control"
+               aria-label="Поиск по трек-коду или номеру клиента"
+               placeholder="Поиск по трек-коду или номеру клиента"
+               value="{{ query|default_if_none:''|escape }}">
+    </div>
+</form>

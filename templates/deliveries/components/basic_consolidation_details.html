@@ -1,0 +1,32 @@
+{# templates/deliveries/components/basic_details.html #}
+<h6>1. Основные детали</h6>
+<div class="row g-4">
+    <div class="col-md-3">
+        <label for="client">Клиент</label>
+        <input type="text" name="client" class="form-control" list="client-list"
+               placeholder="Начните вводить номер телефона"
+               value="{{ consolidation.client.profile.phone_number|default_if_none:'' }}"
+               {% if is_package %}disabled{% endif %}>
+        <datalist id="client-list"></datalist>
+    </div>
+    <div class="col-md-3">
+        {% if is_package %}
+            <label for="track_code">Трек-код</label>
+            <input type="text" name="track_code" class="form-control"
+                   value="{{ consolidation.track_code }}" disabled>
+        {% else %}
+            {{ form.delivery_type.label }}
+            {{ form.delivery_type }}
+        {% endif %}
+    </div>
+    <div class="col-md-3">
+        {% if not is_package %}
+            <label for="track_code">Трек-код</label>
+            <input type="text" name="track_code" class="form-control" value="{{ consolidation_code }}">
+        {% endif %}
+    </div>
+    <div class="col-md-3">
+        {{ form.consolidation_date.label }}
+        {{ form.consolidation_date }}
+    </div>
+</div>
