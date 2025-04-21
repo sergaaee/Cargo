@@ -726,8 +726,8 @@ def package_new(request, pk):
                     place_code = request.POST.get(f'place_consolidated_{place_index}', '')
                     places_data[place_index] = {
                         'inventory_numbers': inventory_numbers,
-                        'weight': int(weight) if weight else 0,
-                        'volume': int(volume) if volume else 0,
+                        'weight': float(weight) if weight else 0,
+                        'volume': float(volume) if volume else 0,
                         'place_code': place_code,
                     }
 
@@ -735,7 +735,6 @@ def package_new(request, pk):
             with transaction.atomic():
                 # Удаляем существующие места
                 consolidation.places.all().delete()
-                print(places_data.values())
 
                 # Создаём новые места
                 for place_data in places_data.values():

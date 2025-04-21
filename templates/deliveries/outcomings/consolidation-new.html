@@ -46,10 +46,7 @@
                                        placeholder="Начните вводить имя, email или телефон"
                                        value={{ selected_incomings.first.client.profile.phone_number }}>
                                 <datalist id="client-list"></datalist>
-
-
                             </div>
-
                         </div>
                         <div class="col-md-3">
                             {{ form.delivery_type.label }}
@@ -139,23 +136,19 @@
                                                         </div>
                                                     </div>
                                                 </div>
-
-
                                             </div>
 
                                             <!-- Поле для количества мест -->
                                             <div class="col-md-3">
                                                 <label for="places_count_{{ selected_incoming.id }}">Количество
-                                                    инвентарных номеров (макс {{ selected_incoming.places_count }})</label>
-                                                <input type="number"
+                                                    мест (макс {{ selected_incoming.places_count }})</label>
+                                                <input type="text"
                                                        name="places_consolidated"
                                                        class="form-control"
-                                                       min="1"
-                                                       max="{{ selected_incoming.places_count }}"
-                                                       value="{{ selected_incoming.places_count }}"
-                                                       step="1"
-                                                       data-bs-toggle="tooltip"
-                                                       title="Выберите количество мест (от 1 до {{ selected_incoming.places_count }})">
+                                                       readonly
+                                                       value="0/{{ selected_incoming.places_count }}"
+                                                       data-max-places="{{ selected_incoming.places_count }}"
+                                                       data-incoming-id="{{ selected_incoming.id }}">
                                             </div>
 
                                             <!-- Поле для выбора упаковки -->
@@ -174,7 +167,6 @@
 
                                             <!-- Кнопки действий -->
                                             <div class="col-md-3 d-flex align-items-center">
-                                                <!-- Кнопка открытия модального окна -->
                                                 <button type="button" class="btn btn-icon btn-outline-info me-3"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#incomingDetailModal{{ selected_incoming.id }}">
@@ -185,8 +177,6 @@
                                                         onclick="removeIncomingFromList('{{ selected_incoming.id }}')">
                                                     <i class="bi bi-x me-2"></i>
                                                 </button>
-
-
                                             </div>
                                         </div>
 
@@ -267,7 +257,6 @@
                                         </div>
                                     </li>
                                 {% endfor %}
-
                             </ul>
                             <button type="button" class="btn btn-secondary mt-3" data-bs-toggle="modal"
                                     data-bs-target="#consolidationModal">
@@ -318,7 +307,6 @@
                                         <td><input type="checkbox" class="form-check-input" name="selected_incoming"
                                                    value="{{ incoming.id }}"></td>
                                         <td>
-                                            <!-- Выводим трек-коды через трекеры -->
                                             <ul>
                                                 {% for tracker in incoming.tracker.all %}
                                                     {% for code in tracker.tracking_codes.all %}
@@ -328,7 +316,6 @@
                                             </ul>
                                         </td>
                                         <td>
-                                            <!-- Выводим инвентарные номера -->
                                             <ul>
                                                 {% for inventory_number in incoming.inventory_numbers.all %}
                                                     <li>{{ inventory_number.number }}</li>
@@ -355,7 +342,7 @@
     </div>
     <script src="{% static 'js/client-searching-incoming-new.js' %}"></script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
-    <!-- Cкрипт для выбора инвентарников !-->
+    <!-- Скрипт для выбора инвентарников и обновления количества мест -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             // Загружаем сохраненные данные из localStorage при открытии модального окна
@@ -400,11 +387,122 @@
                     saveToLocalStorage(incomingId, selectedNumbers);
                 }
             });
+
+            // Перед отправкой формы заменяем значение на число
+            document.getElementById("consolidation-form").addEventListener("submit", function () {
+                document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
+                    if (input.dataset.submitValue) {
+                        input.value = input.dataset.submitValue;
+                    }
+                });
+            });
         });
     </script>
 
     <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Загружаем сохраненные данные из localStorage при открытии модального окна
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('shown.bs.modal', function () {
+                    const incomingId = this.id.replace("incomingModal", "");
+                    loadCheckedInventoryNumbers(incomingId);
+                    updatePlacesCount(incomingId);
+                });
+            });
 
+            function saveToLocalStorage(incomingId, inventoryNumbers) {
+                localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(inventoryNumbers));
+            }
+
+            function loadCheckedInventoryNumbers(incomingId) {
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                if (storedData) {
+                    const selectedNumbers = JSON.parse(storedData);
+                    document.querySelectorAll(`.inventory-checkbox[data-incoming-id="${incomingId}"]`).forEach(checkbox => {
+                        if (selectedNumbers.includes(checkbox.dataset.inventoryNumber)) {
+                            checkbox.checked = true;
+                        }
+                    });
+                }
+            }
+
+            function updatePlacesCount(incomingId) {
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                const selectedNumbers = storedData ? JSON.parse(storedData) : [];
+                const placesCountInput = document.querySelector(`input[data-incoming-id="${incomingId}"][name="places_consolidated"]`);
+                if (placesCountInput) {
+                    const maxPlaces = parseInt(placesCountInput.dataset.maxPlaces, 10);
+                    const selectedCount = selectedNumbers.length;
+                    placesCountInput.value = `${selectedCount}/${maxPlaces}`;
+                    placesCountInput.dataset.submitValue = selectedCount;
+                }
+            }
+
+            document.addEventListener('change', function (event) {
+                if (event.target.classList.contains('inventory-checkbox')) {
+                    const incomingId = event.target.dataset.incomingId;
+                    let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
+                        ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
+                        : [];
+
+                    if (event.target.checked) {
+                        if (!selectedNumbers.includes(event.target.dataset.inventoryNumber)) {
+                            selectedNumbers.push(event.target.dataset.inventoryNumber);
+                        }
+                    } else {
+                        selectedNumbers = selectedNumbers.filter(num => num !== event.target.dataset.inventoryNumber);
+                    }
+
+                    saveToLocalStorage(incomingId, selectedNumbers);
+                    updatePlacesCount(incomingId);
+                    updateSelectedInventoryField(); // Update hidden inventory field
+                }
+            });
+
+            // Перед отправкой формы заменяем значение на число
+            document.getElementById("consolidation-form").addEventListener("submit", function () {
+                document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
+                    input.value = input.dataset.submitValue || "0";
+                });
+            });
+
+            // Инициализация количества мест для всех поступлений при загрузке страницы
+            document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
+                const incomingId = input.dataset.incomingId;
+                updatePlacesCount(incomingId);
+            });
+
+            function updateSelectedInventoryField() {
+                const inventoryInput = document.getElementById("selected_inventory");
+                let inventoryData = JSON.parse(inventoryInput.value || "{}");
+
+                document.querySelectorAll('.inventory-checkbox').forEach(checkbox => {
+                    const incomingId = checkbox.dataset.incomingId;
+                    const inventoryNumber = checkbox.dataset.inventoryNumber;
+
+                    if (checkbox.checked) {
+                        if (!inventoryData[incomingId]) {
+                            inventoryData[incomingId] = [];
+                        }
+                        if (!inventoryData[incomingId].includes(inventoryNumber)) {
+                            inventoryData[incomingId].push(inventoryNumber);
+                        }
+                    } else {
+                        if (inventoryData[incomingId]) {
+                            inventoryData[incomingId] = inventoryData[incomingId].filter(num => num !== inventoryNumber);
+                            if (inventoryData[incomingId].length === 0) {
+                                delete inventoryData[incomingId];
+                            }
+                        }
+                    }
+                });
+
+                inventoryInput.value = JSON.stringify(inventoryData);
+            }
+        });
+    </script>
+
+    <script>
         document.addEventListener("DOMContentLoaded", function () {
             const form = document.getElementById("consolidation-form");
             const clientInput = document.getElementById("client");
@@ -430,12 +528,11 @@
                 }
             });
 
-            // Обновление списка выбранных поступлений (без влияния на clientInput)
+            // Обновление списка выбранных поступлений
             function updateSelectedIncomingsField() {
                 const selectedIncomingsField = document.getElementById('selected-incomings');
                 const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
                 selectedIncomingsField.value = selectedIncomingsIds.join(',');
-                // Удаляем clientInput.disabled отсюда, чтобы не мешать отправке формы
             }
 
             // Функция валидации
@@ -445,7 +542,7 @@
                     const incomingId = item.getAttribute("data-id");
                     const storedData = localStorage.getItem(`incoming_${incomingId}`);
                     const placesCountInput = item.querySelector('input[name="places_consolidated"]');
-                    const placesCount = parseInt(placesCountInput.value, 10);
+                    const placesCount = parseInt(placesCountInput.dataset.submitValue || 0, 10);
 
                     item.classList.remove("border", "border-danger");
 
@@ -489,12 +586,10 @@
                 }, 5000);
             }
         });
-
     </script>
 
     <!-- Логика для работы с удаленными поступлениями -->
     <script>
-        // Инициализируем массив для хранения выбранных инкамингов как глобальную переменную
         let selectedIncomingsData = [];
         let tempSelectedIncomings = [];
 
@@ -507,7 +602,6 @@
         }
 
         function createIncomingModal(incomingData) {
-            // Проверяем, есть ли уже модальное окно для этого поступления
             if (document.getElementById(`incomingModal${incomingData.id}`)) return;
 
             let modalHtml = `
@@ -540,7 +634,6 @@
                     } else {
                         modalHtml += `<li>Нет связанных инвентарных номеров</li>`;
                     }
-
                     modalHtml += `</ul></li>`;
                 });
             } else {
@@ -560,20 +653,17 @@
             document.body.insertAdjacentHTML("beforeend", modalHtml);
         }
 
-        // Функция проверки, был ли отмечен инвентарный номер ранее
         function isInventoryChecked(incomingId, inventoryNumber) {
             const storedData = localStorage.getItem(`incoming_${incomingId}`);
             return storedData ? JSON.parse(storedData).includes(inventoryNumber) : false;
         }
 
-        // Обновление localStorage при выборе чекбоксов
         document.addEventListener("DOMContentLoaded", function () {
             const inventoryInput = document.getElementById("selected_inventory");
 
             function updateSelectedInventoryField() {
                 let inventoryData = JSON.parse(inventoryInput.value || "{}");
 
-                // Перебираем все чекбоксы инвентарных номеров
                 document.querySelectorAll('.inventory-checkbox').forEach(checkbox => {
                     const incomingId = checkbox.dataset.incomingId;
                     const inventoryNumber = checkbox.dataset.inventoryNumber;
@@ -589,23 +679,21 @@
                         if (inventoryData[incomingId]) {
                             inventoryData[incomingId] = inventoryData[incomingId].filter(num => num !== inventoryNumber);
                             if (inventoryData[incomingId].length === 0) {
-                                delete inventoryData[incomingId]; // Удаляем, если нет номеров
+                                delete inventoryData[incomingId];
                             }
                         }
                     }
                 });
 
-                inventoryInput.value = JSON.stringify(inventoryData);  // Обновляем скрытое поле
+                inventoryInput.value = JSON.stringify(inventoryData);
             }
 
-            // Обновляем скрытое поле при изменении любого чекбокса инвентарного номера
             document.addEventListener("change", function (event) {
                 if (event.target.classList.contains("inventory-checkbox")) {
                     updateSelectedInventoryField();
                 }
             });
         });
-
 
         document.addEventListener("DOMContentLoaded", function () {
             document.querySelectorAll('.btn-outline-primary[data-bs-toggle="modal"]').forEach(button => {
@@ -620,50 +708,45 @@
             });
         });
 
-        // Функция для поиска объекта incomingData по ID
         function getIncomingDataById(incomingId) {
             const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
             return allIncomingsData.find(item => item.id == incomingId);
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Получаем данные всех инкамингов и типов упаковки
             const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
             const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
             const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
             const selectedIncomingsField = document.getElementById('selected-incomings');
             const clientInput = document.getElementById('client');
 
-
-            // Обновляем поле перед отправкой формы
-
             initialIncomingsData.forEach(incoming => {
                 selectedIncomingsData.push(incoming);
-                updateSelectedIncomingsField();
+                !
+                    updateSelectedIncomingsField();
             });
 
-            // Функция для добавления инкаминга в интерфейс и создания его модального окна
             function addIncomingToList(incomingData) {
                 const newItem = document.createElement('li');
                 newItem.className = 'list-group-item';
                 newItem.setAttribute('data-id', incomingData.id);
-                selectedIncomingsData.push(incomingData)
+                selectedIncomingsData.push(incomingData);
 
-                // Создаем HTML разметку для отображения инкаминга и модального окна
                 newItem.innerHTML = `
         <div class="row">
             <div class="col-md-3">
                 <label for="selected_incoming_${incomingData.id}">Поступление</label>
                 <button type="button" class="btn btn-outline-primary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#incomingModal${incomingData.id}">
-                                                    Показать трек-коды
-                                                </button>
-
+                        data-bs-toggle="modal"
+                        data-bs-target="#incomingModal${incomingData.id}">
+                    Показать трек-коды
+                </button>
             </div>
             <div class="col-md-3">
                 <label for="places_count_${incomingData.id}">Количество мест (макс. ${incomingData.places_count})</label>
-                <input type="number" name="places_consolidated" class="form-control" min="1" max="${incomingData.places_count}" value="${incomingData.places_count}" step="1">
+                <input type="text" name="places_consolidated" class="form-control" readonly
+                       value="0/${incomingData.places_count}" data-max-places="${incomingData.places_count}"
+                       data-incoming-id="${incomingData.id}">
             </div>
             <div class="col-md-3">
                 <label for="package_type_${incomingData.id}">Упаковка</label>
@@ -710,13 +793,10 @@
         </div>
     `;
 
-                // Добавляем новый элемент инкаминга со встроенным модальным окном в список
                 document.getElementById('consolidation-list').appendChild(newItem);
                 updateSelectedIncomingsField();
             }
 
-
-            // Обработка выбора чекбоксов без добавления в интерфейс
             document.querySelectorAll('#selection-table input[name="selected_incoming"]').forEach(checkbox => {
                 checkbox.addEventListener('change', function () {
                     const incomingId = this.value;
@@ -727,11 +807,9 @@
                     } else {
                         tempSelectedIncomings = tempSelectedIncomings.filter(item => item.id !== incomingId);
                     }
-
                 });
             });
 
-            // Добавляем обработчик для кнопки "Консолидация"
             document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
                 tempSelectedIncomings.forEach(incomingData => {
                     updateSelectedIncomingsField();
@@ -739,13 +817,13 @@
                     addIncomingToList(incomingData);
                     document.querySelector(`#selection-table input[value="${incomingData.id}"]`).closest('tr').style.display = 'none';
                 });
-                tempSelectedIncomings = []; // очистка временного массива
+                tempSelectedIncomings = [];
             });
         });
 
         document.addEventListener("DOMContentLoaded", function () {
             const clientInput = document.getElementById("client");
-            const selectionTableRows = document.querySelectorAll("#selection-table tbody");
+            const selectionTableRows = document.querySelectorAll("#selection-table tbody tr");
             const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
             clientInput.disabled = selectedIncomingsIds.length > 0;
 
@@ -755,29 +833,23 @@
                 const clientValue = clientInput.value.trim();
                 let visibleRows = 0;
 
-                // Проверка на наличие хотя бы одного числа в clientValue
                 const containsNumber = /\d/.test(clientValue);
-
-                // Флаг для отслеживания, если нет идеального совпадения
                 let noMatchFound = true;
 
                 selectionTableRows.forEach(row => {
                     const clientCell = row.querySelector("td:last-child");
-                    console.log(clientCell)
                     if (clientCell) {
                         const clientText = clientCell.textContent.trim();
-                        // Точное совпадение или поле не содержит чисел
                         const matches = (containsNumber ? clientText === clientValue : clientText === "");
 
                         row.style.display = matches ? "" : "none";
                         if (matches) {
-                            visibleRows++; // Подсчёт видимых строк
-                            noMatchFound = false; // Есть хотя бы одно совпадение
+                            visibleRows++;
+                            noMatchFound = false;
                         }
                     }
                 });
 
-                // Показываем / скрываем сообщение "не найдено поступлений"
                 let noResultsMessage = document.getElementById("no-results-message");
                 if (!noResultsMessage) {
                     noResultsMessage = document.createElement("tr");
@@ -786,7 +858,6 @@
                     selectionTableRows[0].parentNode.appendChild(noResultsMessage);
                 }
 
-                // Если поле не содержит чисел или нет идеального совпадения, показываем сообщение
                 if (!containsNumber || noMatchFound) {
                     noResultsMessage.style.display = visibleRows === 0 ? "" : "none";
                 } else {
@@ -794,19 +865,15 @@
                 }
             }
 
-            // Фильтрация при изменении значения в поле
             clientInput.addEventListener("input", filterRows);
-
-            // Фильтрация после загрузки (когда Django уже вставил значение)
             setTimeout(filterRows, 1000);
         });
 
-        // Обновленная функция удаления
         function removeIncomingFromList(incomingId) {
             const listItem = document.querySelector(`#consolidation-list [data-id="${incomingId}"]`);
             if (listItem) {
                 listItem.remove();
-                localStorage.removeItem(`incoming_${incomingId}`)
+                localStorage.removeItem(`incoming_${incomingId}`);
             }
 
             const checkbox = document.querySelector(`#selection-table input[value="${incomingId}"]`);
@@ -839,12 +906,10 @@
             }
 
             selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
-            updateSelectedIncomingsField(); // Добавляем вызов для обновления состояния после удаления
+            updateSelectedIncomingsField();
         }
-
     </script>
     <script>
-        // Глобальные функции, доступные для вызова из onclick
         function openIncomingModal(incomingId) {
             const modalElement = document.getElementById(`incomingDetailModal${incomingId}`);
             if (modalElement) {
@@ -855,14 +920,11 @@
             }
         }
     </script>
-
     <script>
         window.addEventListener("beforeunload", function () {
-            // Удаляем только данные, связанные с трекерами и инвентарниками
             const clientInput = document.getElementById('client');
-            clientInput.disabled = false
-            localStorage.clear()
+            clientInput.disabled = false;
+            localStorage.clear();
         });
     </script>
-
 {% endblock %}
