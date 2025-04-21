@@ -97,7 +97,7 @@ class BaseIncomingForm(forms.ModelForm):
         }
 
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    weight = forms.IntegerField(initial=1, required=False,
+    weight = forms.FloatField(initial=1, required=False,
                                 widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
     inventory_numbers = forms.CharField(required=True,
@@ -367,8 +367,8 @@ class PackageForm(forms.ModelForm):
                 place_code = self.data.get(f'place_consolidated_{place_index}', '')
                 places_data[place_index] = {
                     'inventory_numbers': inventory_numbers,
-                    'weight': int(weight) if weight else 0,
-                    'volume': int(volume) if volume else 0,
+                    'weight': float(weight) if weight else 0,
+                    'volume': float(volume) if volume else 0,
                     'place_code': place_code,
                 }
 

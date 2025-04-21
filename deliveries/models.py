@@ -107,14 +107,14 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     places_count = models.IntegerField(_('Places count'), default=0, validators=[MinValueValidator(1)])
     arrival_date = models.DateTimeField(_('Arrival date'), blank=True, null=True)
     size = models.CharField(_('Size (LxHxW)'), blank=True, null=True)
-    weight = models.IntegerField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
+    weight = models.FloatField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
     state = models.CharField(_('State'), choices=StateType.choices, default=StateType.PERFECT, max_length=100)
     package_type = models.CharField(_('Package type'), choices=PackageType.choices, default=PackageType.CARTOON_BOX,
                                     max_length=100)
     status = models.CharField(_('Status'), choices=PackageStatus.choices, default=PackageStatus.UNDECIDED,
                               max_length=100)
 
-    volume = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(1)])
+    volume = models.FloatField(blank=True, null=True, validators=[MinValueValidator(1)])
 
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -154,8 +154,8 @@ class ConsolidationIncoming(UUIDMixin):
     consolidation = models.ForeignKey('Consolidation', on_delete=models.CASCADE)
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     places_consolidated = models.IntegerField(_('Places to consolidate'), validators=[MinValueValidator(1)])
-    volume_consolidated = models.IntegerField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
-    weight_consolidated = models.IntegerField(_('Weight (kg)'), blank=True, null=True,
+    volume_consolidated = models.FloatField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
+    weight_consolidated = models.FloatField(_('Weight (kg)'), blank=True, null=True,
                                               validators=[MinValueValidator(0)])
 
     class Meta:
@@ -224,12 +224,12 @@ class Place(UUIDMixin, TimeStampedMixin):
         max_length=100,
         help_text=_('Unique code for the place, e.g., ST28-1')
     )
-    weight = models.IntegerField(
+    weight = models.FloatField(
         _('Weight (kg)'),
         validators=[MinValueValidator(0)],
         help_text=_('Weight of the place in kilograms')
     )
-    volume = models.IntegerField(
+    volume = models.FloatField(
         _('Volume (m^3)'),
         validators=[MinValueValidator(1)],
         help_text=_('Volume of the place in cubic meters')
