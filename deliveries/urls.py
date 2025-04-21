@@ -3,7 +3,7 @@ from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incomi
     incoming_delete, search_users, \
     incoming_list, consolidation_edit, package_new, consolidation_list, new_consolidation, goods_list, goods_detail, \
     incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list, \
-    incoming_templates
+    incoming_templates, packaged_list
 
 app_name = "deliveries"
 
@@ -31,5 +31,6 @@ urlpatterns = [
     path('consolidation/edit/<uuid:pk>/', consolidation_edit, name='consolidation-edit'),
     path('list-consolidation/', consolidation_list, name='list-consolidation'),
     path('new-package/<uuid:pk>/', package_new, name='new-package'),
+    path('packaged-list/', packaged_list, name='packaged-list'),
     path('search-users/', search_users, name='search-users'),
 ]

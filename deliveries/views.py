@@ -3,10 +3,10 @@ import json
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.urls import reverse
 
-from .choices import PackageType  # Импортируем PackageType
+from .choices import PackageType
 
 from django.contrib.auth.models import User
 
@@ -15,7 +15,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
-    update_inventory_and_trackers
+    update_inventory_and_trackers, packaged_columns
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
@@ -681,6 +681,23 @@ def consolidation_list(request):
     columns = consolidation_columns()
 
     return render(request, 'deliveries/outcomings/consolidation-list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+def packaged_list(request):
+    consolidations = Consolidation.objects.filter(status='Packaged').annotate(
+        total_weight=Sum('places__weight')
+    )
+
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
+
+    columns = packaged_columns()
+
+    return render(request, 'deliveries/outcomings/packaged-list.html', {
         'page_obj': page_obj,
         'sort_by': sort_by,
         'order': sort_order,

@@ -207,6 +207,7 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
     )
 
     status = models.CharField(blank=True, null=True, max_length=100, default="Template")
+    price = models.FloatField(blank=True, null=True, validators=[MinValueValidator(0)])
 
     def __str__(self):
         return f'{self.incomings} ({self.track_code})'

@@ -169,3 +169,15 @@ def consolidation_columns():
         ('delivery_type', 'Доставка'),
         ('status', 'Статус')
     ]
+
+
+def packaged_columns():
+    return [
+        ('created_at', 'Дата отправки'),
+        ('client', 'Клиент'),
+        ('places__count', 'Мест'),
+        ('places__weight__sum', 'Вес'),
+        ('price', 'Цена'),
+        ('delivery_type', 'Доставка'),
+        ('status', 'Статус')
+    ]
