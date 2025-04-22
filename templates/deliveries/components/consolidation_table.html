@@ -58,18 +58,17 @@
                         data-bs-target="#consolidationModal{{ consolidation.id }}">
                     <span class="bi bi-zoom-in"></span>
                 </button>
-                <!--
-                            <a class="btn btn-warning"
-                               href="{% url 'deliveries:consolidation-edit' consolidation.id %}">
-                                <span class="bi bi-pencil-square"></span>
-                            </a>
-                            -->
+
+                <a class="btn btn-warning"
+                   href="{% url 'deliveries:consolidation-edit' consolidation.id %}">
+                    <span class="bi bi-pencil-square"></span>
+                </a>
+
                 {% if consolidation.status == "Packaging" %}
                     <a href="{% url 'deliveries:new-package' consolidation.id %}" class="btn btn-success">
                         <span class="bi bi-box-seam-fill"></span>
                     </a>
                 {% endif %}
-
 
                 <!-- Модальное окно -->
                 <div class="modal fade" id="consolidationModal{{ consolidation.id }}" tabindex="-1"

@@ -782,26 +782,86 @@ def consolidation_edit(request, pk):
     if request.method == 'POST':
         form = ConsolidationForm(request.POST, instance=consolidation)
         if form.is_valid():
+            consolidation = form.save(commit=False)
+            consolidation.manager = request.user
+
+            selected_incomings_ids = request.POST.get('selected_incomings', '').split(',')
+            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids) if selected_incomings_ids[0] else []
+
+            inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
+
             if 'save_draft' in request.POST:
                 consolidation.status = 'Template'
             elif 'in_work' in request.POST:
                 consolidation.status = 'Packaging'
-            form.save()
+
+            consolidation.save()
+            form.save_m2m()
+
+            # Обновляем связи с поступлениями
+            consolidation.incomings.set(selected_incomings)
+
+            if consolidation.status != 'Template':
+                # Удаляем старые связи ConsolidationIncoming
+                ConsolidationIncoming.objects.filter(consolidation=consolidation).delete()
+
+                for incoming in selected_incomings:
+                    incoming_id = str(incoming.pk)
+                    inventory_numbers = inventory_data.get(incoming_id, [])
+                    places_consolidated = len(inventory_numbers)
+
+                    consolidation_incoming = ConsolidationIncoming.objects.create(
+                        consolidation=consolidation,
+                        incoming=incoming,
+                        places_consolidated=places_consolidated
+                    )
+
+                    for inventory_number in inventory_numbers:
+                        inventory_obj = InventoryNumber.objects.get(number=inventory_number)
+                        ConsolidationInventory.objects.create(
+                            consolidation_incoming=consolidation_incoming,
+                            inventory_number=inventory_obj
+                        )
+
+                    incoming.status = "Consolidated"
+                    incoming.save()
+
             messages.success(request, 'Консолидация успешно отредактирована!')
             return redirect('deliveries:list-consolidation')
+        else:
+            messages.error(request, 'Ошибка при редактировании консолидации. Проверьте данные.')
     else:
         form = ConsolidationForm(instance=consolidation)
 
     # Подготавливаем данные для JavaScript
     selected_incomings = consolidation.incomings.all()
-    initial_incomings_data = prepare_incoming_data(selected_incomings)  # Используем ту же функцию
+    incomings = Incoming.objects.exclude(
+        Q(id__in=selected_incomings.values_list('id', flat=True)) |
+        Q(status='Unidentified') |
+        Q(status='Template') |
+        Q(status='Consolidated')
+    )
+    incomings_data = prepare_incoming_data(incomings)
+    initial_incomings_data = prepare_incoming_data(selected_incomings)
     package_types = PackageType.choices
+
+    # Подготавливаем данные об инвентарных номерах для инициализации
+    initial_inventory_data = {}
+    for incoming in selected_incomings:
+        inventory_numbers = ConsolidationInventory.objects.filter(
+            consolidation_incoming__consolidation=consolidation,
+            consolidation_incoming__incoming=incoming
+        ).values_list('inventory_number__number', flat=True)
+        initial_inventory_data[str(incoming.id)] = list(inventory_numbers)
 
     return render(request, 'deliveries/outcomings/consolidation-edit.html', {
         'form': form,
         'consolidation': consolidation,
+        'incomings': incomings,
+        'incomings_data': incomings_data,
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
+        'initial_inventory_data': json.dumps(initial_inventory_data),  # Передаем данные об инвентарных номерах
     })
 
 
