@@ -788,7 +788,11 @@ def consolidation_edit(request, pk):
             selected_incomings_ids = request.POST.get('selected_incomings', '').split(',')
             selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids) if selected_incomings_ids[0] else []
 
-            inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
+            # Парсим selected_inventory
+            try:
+                inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
+            except json.JSONDecodeError as e:
+                messages.error(request, "Ошибка в данных инвентарных номеров. Пожалуйста, проверьте выбор.")
 
             if 'save_draft' in request.POST:
                 consolidation.status = 'Template'
@@ -798,8 +802,6 @@ def consolidation_edit(request, pk):
             consolidation.save()
             form.save_m2m()
 
-            # Обновляем связи с поступлениями
-            consolidation.incomings.set(selected_incomings)
 
             if consolidation.status != 'Template':
                 # Удаляем старые связи ConsolidationIncoming
@@ -808,7 +810,11 @@ def consolidation_edit(request, pk):
                 for incoming in selected_incomings:
                     incoming_id = str(incoming.pk)
                     inventory_numbers = inventory_data.get(incoming_id, [])
-                    places_consolidated = len(inventory_numbers)
+                    places_consolidated = len(inventory_numbers) if inventory_numbers else 0
+
+                    if places_consolidated == 0:
+                        messages.error(request, f'Для поступления #{incoming_id} не выбраны инвентарные номера.')
+                        return render(request, 'deliveries/outcomings/consolidation-edit.html', {...})
 
                     consolidation_incoming = ConsolidationIncoming.objects.create(
                         consolidation=consolidation,
@@ -825,8 +831,7 @@ def consolidation_edit(request, pk):
 
                     incoming.status = "Consolidated"
                     incoming.save()
-
-            messages.success(request, 'Консолидация успешно отредактирована!')
+            consolidation.incomings.set(selected_incomings)
             return redirect('deliveries:list-consolidation')
         else:
             messages.error(request, 'Ошибка при редактировании консолидации. Проверьте данные.')
@@ -861,7 +866,7 @@ def consolidation_edit(request, pk):
         'incomings_data': incomings_data,
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
-        'initial_inventory_data': json.dumps(initial_inventory_data),  # Передаем данные об инвентарных номерах
+        'initial_inventory_data': initial_inventory_data,
     })
 
 
