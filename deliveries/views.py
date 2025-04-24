@@ -518,8 +518,8 @@ def tracker_new(request):
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
 
-@login_required
-@transaction.atomic  # Используем транзакцию для обеспечения целостности данных
+@staff_and_login_required
+@transaction.atomic
 def new_consolidation(request):
     if request.method == 'POST':
         if 'in_work' in request.POST:
@@ -527,13 +527,12 @@ def new_consolidation(request):
         else:
             selected_incomings_ids = request.POST.getlist('selected_incomings')
         selected_incomings = []
-
-        # 🔹 Проверяем, выбраны ли поступления
         if selected_incomings_ids and selected_incomings_ids[0] != '':
             for incoming_id in selected_incomings_ids:
                 incoming = get_object_or_404(Incoming, pk=incoming_id)
                 selected_incomings.append(incoming)
 
+        print(request.POST)
         form = ConsolidationForm(request.POST)
 
         if form.is_valid():
@@ -548,9 +547,8 @@ def new_consolidation(request):
                 consolidation.status = 'Error'
 
             consolidation.save()
-            form.save_m2m()  # Сохраняем ManyToMany отношения
+            form.save_m2m()
 
-            # 🔹 Если это не черновик, связываем инкаминги
             if consolidation.status != 'Template':
                 for incoming in selected_incomings:
                     incoming_id = str(incoming.pk)
@@ -561,7 +559,7 @@ def new_consolidation(request):
                     )
                     incoming.status = "Consolidated"
 
-                    inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))  # Загружаем JSON
+                    inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
                     inventory_numbers = inventory_data.get(incoming_id, [])
                     for inventory_number in inventory_numbers:
                         inventory_obj = InventoryNumber.objects.get(number=inventory_number)
@@ -571,13 +569,40 @@ def new_consolidation(request):
                         )
                     incoming.save()
 
+                # Обработка мест
+                places_data = {}
+                for key, value in request.POST.items():
+                    if key.startswith('inventory_numbers_'):
+                        place_index = key.split('_')[-1]
+                        inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                        weight = request.POST.get(f'weight_consolidated_{place_index}', 0)
+                        volume = request.POST.get(f'volume_consolidated_{place_index}', 0)
+                        place_code = request.POST.get(f'place_consolidated_{place_index}', '')
+                        package_type = request.POST.get(f'package_type_{place_index}', '')
+                        places_data[place_index] = {
+                            'inventory_numbers': inventory_numbers,
+                            'weight': float(weight) if weight else 0,
+                            'volume': float(volume) if volume else 0,
+                            'place_code': place_code,
+                            'package_type': package_type,
+                        }
+
+                for place_data in places_data.values():
+                    place = Place.objects.create(
+                        consolidation=consolidation,
+                        place_code=place_data['place_code'],
+                        package_type=place_data['package_type']
+                    )
+                    inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                    place.inventory_numbers.set(inventory_objs)
+
                 consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
             return redirect('deliveries:list-consolidation')
 
         else:
-            messages.error(request, "Ошибка при создании консолидации. Проверьте данные.")
+            messages.error(request, form.errors)
 
     else:
         form = ConsolidationForm()
@@ -604,7 +629,6 @@ def new_consolidation(request):
 
     incomings_data = prepare_incoming_data(incomings)
     initial_incomings_data = prepare_incoming_data(selected_incomings)
-
     package_types = PackageType.choices
 
     return render(request, 'deliveries/outcomings/consolidation-new.html', {
@@ -786,9 +810,9 @@ def consolidation_edit(request, pk):
             consolidation.manager = request.user
 
             selected_incomings_ids = request.POST.get('selected_incomings', '').split(',')
-            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids) if selected_incomings_ids[0] else []
+            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids) if selected_incomings_ids[
+                0] else []
 
-            # Парсим selected_inventory
             try:
                 inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
             except json.JSONDecodeError as e:
@@ -801,7 +825,6 @@ def consolidation_edit(request, pk):
 
             consolidation.save()
             form.save_m2m()
-
 
             if consolidation.status != 'Template':
                 # Удаляем старые связи ConsolidationIncoming

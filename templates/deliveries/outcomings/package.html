@@ -6,6 +6,15 @@
 {% block content %}
     {{ consolidation_inventory_numbers|json_script:"inventory-numbers" }}
     <div class="container-xxl flex-grow-1 container-p-y">
+    {% if messages %}
+            <div id="alert-box" class="mb-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Упаковка</h4>
         <div class="card mb-4">
             <div class="card-header sticky-element bg-label-secondary d-flex justify-content-sm-between align-items-sm-center flex-column flex-sm-row">

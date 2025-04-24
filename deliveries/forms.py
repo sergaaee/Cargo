@@ -356,7 +356,6 @@ class PackageForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        # Получаем данные о местах
         places_data = {}
         for key, value in self.data.items():
             if key.startswith('inventory_numbers_'):
@@ -365,28 +364,26 @@ class PackageForm(forms.ModelForm):
                 weight = self.data.get(f'weight_consolidated_{place_index}', 0)
                 volume = self.data.get(f'volume_consolidated_{place_index}', 0)
                 place_code = self.data.get(f'place_consolidated_{place_index}', '')
+                package_type = self.data.get(f'package_type_{place_index}', '')
                 places_data[place_index] = {
                     'inventory_numbers': inventory_numbers,
                     'weight': float(weight) if weight else 0,
                     'volume': float(volume) if volume else 0,
                     'place_code': place_code,
+                    'package_type': package_type,
                 }
 
-        # Проверяем, что места указаны, если это "В работу"
         if 'in_work' in self.data and not places_data:
             raise ValidationError('Должно быть указано хотя бы одно место для отправки в работу.')
 
-        # Проверяем уникальность place_code
         place_codes = [place_data['place_code'] for place_data in places_data.values()]
         if len(place_codes) != len(set(place_codes)):
             raise ValidationError('Коды мест должны быть уникальными.')
 
-        # Получаем допустимые инвентарные номера для данной консолидации
         valid_numbers = list(ConsolidationInventory.objects.filter(
             consolidation_incoming__consolidation=self.instance
         ).values_list('inventory_number__number', flat=True).distinct())
 
-        # Валидация мест
         all_inventory_numbers = []
         errors = []
         for place_index, place_data in places_data.items():
@@ -397,11 +394,12 @@ class PackageForm(forms.ModelForm):
                 errors.append(f'Для места {place_code} не указаны инвентарные номера.')
                 continue
 
-            # Проверяем вес и объём
             if place_data['weight'] <= 0:
                 errors.append(f'Вес для места {place_code} должен быть больше 0.')
             if place_data['volume'] <= 0:
                 errors.append(f'Объём для места {place_code} должен быть больше 0.')
+            if not place_data['package_type']:
+                errors.append(f'Для места {place_code} не указан тип упаковки.')
 
         if errors:
             raise ValidationError(errors)

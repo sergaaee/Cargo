@@ -349,7 +349,7 @@
         const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
         const clientInput = document.getElementById('client');
         selectedIncomingsField.value = selectedIncomingsIds.join(',');
-        clientInput.disabled = selectedIncomingsIds.length > 0;
+        clientInput.readonly = selectedIncomingsIds.length > 0;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -425,7 +425,7 @@
 
         form.addEventListener("submit", function (event) {
             if (event.submitter && event.submitter.name === "in_work") {
-                clientInput.disabled = false;
+                clientInput.readonly = false;
             }
             console.log('Form submitted, selected_inventory:', inventoryInput.value); // Отладочный лог
         });

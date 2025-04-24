@@ -228,18 +228,26 @@ class Place(UUIDMixin, TimeStampedMixin):
     weight = models.FloatField(
         _('Weight (kg)'),
         validators=[MinValueValidator(0)],
-        help_text=_('Weight of the place in kilograms')
+        help_text=_('Weight of the place in kilograms'),
+        null=True, blank=True
     )
     volume = models.FloatField(
         _('Volume (m^3)'),
         validators=[MinValueValidator(1)],
-        help_text=_('Volume of the place in cubic meters')
+        help_text=_('Volume of the place in cubic meters'),
+        null=True, blank=True
     )
     inventory_numbers = models.ManyToManyField(
         'InventoryNumber',
         through='PlaceInventory',
         related_name='place_inventory_numbers',
         verbose_name=_('Inventory Numbers')
+    )
+    package_type = models.CharField(
+        _('Package type'),
+        choices=PackageType.choices,
+        default=PackageType.CARTOON_BOX,
+        max_length=100
     )
 
     def __str__(self):
