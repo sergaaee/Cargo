@@ -36,7 +36,7 @@
             </div>
             <div class="card-body">
                 <h6>1. Основные детали</h6>
-                <form id="consolidation-form" method="POST">
+                <form id="consolidation-form" method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
 
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
@@ -236,6 +236,13 @@
                         </select>
                     </div>
 
+                    <!-- Поле для загрузки фотографий -->
+                    <div class="col-md-2">
+                        <label for="photos_${index}">Фотографии</label>
+                        <input type="file" name="photos_${index}" multiple class="form-control" accept="image/*">
+                        <div id="photo-preview-${index}" class="mt-2"></div>
+                    </div>
+
                     <!-- Кнопки действий -->
                     <div class="col-md-2 d-flex align-items-center">
                         ${deleteButtonHtml}
@@ -277,7 +284,36 @@
                         numberBadge.appendChild(removeBtn);
                         listContainer.appendChild(numberBadge);
                     });
+
+                    // Отображение существующих фотографий
+                    const photoPreview = newItem.querySelector(`#photo-preview-${index}`);
+                    if (place.photos && place.photos.length > 0) {
+                        place.photos.forEach(photo => {
+                            const img = document.createElement("img");
+                            img.src = photo.photo.url;
+                            img.alt = "Фото места";
+                            img.style.maxWidth = "50px";
+                            img.style.marginRight = "5px";
+                            photoPreview.appendChild(img);
+                        });
+                    }
                 }
+
+                // Предпросмотр загружаемых фотографий
+                const photoInput = newItem.querySelector(`input[name="photos_${index}"]`);
+                const photoPreview = newItem.querySelector(`#photo-preview-${index}`);
+                photoInput.addEventListener("change", function () {
+                    photoPreview.innerHTML = ""; // Очищаем текущий предпросмотр
+                    const files = photoInput.files;
+                    for (let i = 0; i < files.length; i++) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(files[i]);
+                        img.alt = "Предпросмотр фото";
+                        img.style.maxWidth = "50px";
+                        img.style.marginRight = "5px";
+                        photoPreview.appendChild(img);
+                    }
+                });
 
                 return newItem;
             }
@@ -463,6 +499,13 @@
                             const packageTypeSelect = item.querySelector(`select[name^="package_type_"]`);
                             packageTypeSelect.name = `package_type_${index}`;
                             packageTypeSelect.id = `package_type_${index}`;
+
+                            const photoInput = item.querySelector(`input[name^="photos_"]`);
+                            photoInput.name = `photos_${index}`;
+                            photoInput.id = `photos_${index}`;
+
+                            const photoPreview = item.querySelector(`div[id^="photo-preview-"]`);
+                            photoPreview.id = `photo-preview-${index}`;
 
                             const deleteBtn = item.querySelector(".delete-item-btn");
                             if (deleteBtn) {

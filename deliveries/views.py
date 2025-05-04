@@ -762,7 +762,7 @@ def package_new(request, pk):
                 consolidation.places.all().delete()
 
                 # Создаём новые места
-                for place_data in places_data.values():
+                for place_index, place_data in places_data.items():
                     place = Place.objects.create(
                         consolidation=consolidation,
                         place_code=place_data['place_code'],
@@ -773,6 +773,12 @@ def package_new(request, pk):
                     # Привязываем инвентарные номера
                     inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
                     place.inventory_numbers.set(inventory_objs)
+
+                    # Обработка загруженных фотографий для этого места
+                    photo_files = request.FILES.getlist(f'photos_{place_index}')
+                    for photo_file in photo_files:
+                        photo = Photo(photo=photo_file, place=place)
+                        photo.save()
 
             # Обновляем статус консолидации
             if 'in_work' in request.POST:
@@ -799,12 +805,14 @@ def package_new(request, pk):
     places_data = []
     for place in places:
         inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        photos = list(place.images_set_place.all())  # Получаем фотографии для места
         places_data.append({
             'place_code': place.place_code,
             'weight': place.weight,
             'volume': place.volume,
             'package_type': place.package_type,
             'inventory_numbers': inventory_numbers,
+            'photos': photos,
         })
 
     return render(request, 'deliveries/outcomings/package.html', {
