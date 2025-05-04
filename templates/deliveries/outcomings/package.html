@@ -8,7 +8,7 @@
     {{ places_data|json_script:"placesData" }}
     {{ package_types|json_script:"packageTypes" }}
     <div class="container-xxl flex-grow-1 container-p-y">
-    {% if messages %}
+        {% if messages %}
             <div id="alert-box" class="mb-3">
                 {% for message in messages %}
                     <div class="alert alert-{{ message.tags }}" role="alert">
@@ -598,6 +598,16 @@
                     hiddenInput.value = numbers.join(",");
                 });
             });
+        });
+    </script>
+    <script>
+        window.addEventListener('beforeunload', function () {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('incoming_')) {
+                    localStorage.removeItem(key);
+                }
+            }
         });
     </script>
 

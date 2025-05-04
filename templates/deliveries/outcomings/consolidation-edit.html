@@ -8,7 +8,7 @@
     {{ incomings_data|json_script:"incomingsJson" }}
     {{ initial_incomings_data|json_script:"initialIncomingsJson" }}
     {{ initial_inventory_data|json_script:"initialInventoryData" }}
-
+    {{ places_data|json_script:"placesData" }}
 
     <div class="container-xxl flex-grow-1 container-p-y">
         {% if messages %}
@@ -47,6 +47,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
                     <input type="hidden" id="selected_inventory" name="selected_inventory" value="{}">
+                    <input type="hidden" id="places_data" name="places_data" value="[]">
                     <div class="row g-4">
                         <div class="col-md-3">
                             <div class="form-group">
@@ -224,9 +225,6 @@
                                                                 <strong>Размер:</strong> {{ selected_incoming.size|default:"-" }}
                                                             </li>
                                                             <li class="list-group-item">
-                                                                <strong>Вес:</strong> {{ selected_incoming.weight }} кг
-                                                            </li>
-                                                            <li class="list-group-item">
                                                                 <strong>Статус:</strong> {{ selected_incoming.get_status_display }}
                                                             </li>
                                                             <li class="list-group-item"><strong>Фото:</strong>
@@ -264,7 +262,19 @@
                         </div>
                     </div>
                     <hr class="my-4 mx-n4">
-                    <h6>3. Инструкция</h6>
+                    <h6>3. Места консолидации</h6>
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <ul id="places-list" class="list-group">
+                                <!-- Места будут добавляться через JavaScript -->
+                            </ul>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-3 add-place-btn">
+                                <span class="bi bi-plus-circle me-2"></span>Добавить место
+                            </button>
+                        </div>
+                    </div>
+                    <hr class="my-4 mx-n4">
+                    <h6>4. Инструкция</h6>
                     <div class="row g-4">
                         <div class="col-12">
                             {{ form.instruction }}
@@ -330,163 +340,163 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary" name="consolidation-button"
-                            form="consolidation-selection-form">Консолидация
-                    </button>
+                    <button type="button" class="btn btn-primary" id="consolidation-button">Консолидация</button>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="{% static 'js/client-searching-incoming-new.js' %}"></script>
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
-
     <script>
-    let selectedIncomingsData = [];
-    let tempSelectedIncomings = [];
+        let selectedIncomingsData = [];
+        let tempSelectedIncomings = [];
+        let selectedIncomingsInventory = new Set();
+        let assignedInventoryNumbers = new Set();
 
-    function updateSelectedIncomingsField() {
-        const selectedIncomingsField = document.getElementById('selected-incomings');
-        const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
-        const clientInput = document.getElementById('client');
-        selectedIncomingsField.value = selectedIncomingsIds.join(',');
-        clientInput.readonly = selectedIncomingsIds.length > 0;
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
-        const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
-        const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
-        const initialInventoryDataElement = document.getElementById('initialInventoryData');
-        let initialInventoryData = {};
-
-        // Проверка и парсинг initialInventoryData
-        if (initialInventoryDataElement) {
-            try {
-                initialInventoryData = JSON.parse(initialInventoryDataElement.textContent);
-                console.log('Raw initialInventoryData:', initialInventoryDataElement.textContent);
-                console.log('Parsed initialInventoryData:', initialInventoryData);
-            } catch (e) {
-                console.error('Error parsing initialInventoryData:', e, initialInventoryDataElement.textContent);
-            }
-        } else {
-            console.warn('initialInventoryData element not found');
+        function updateSelectedIncomingsField() {
+            const selectedIncomingsField = document.getElementById('selected-incomings');
+            const selectedIncomingsIds = selectedIncomingsData.map(item => item.id);
+            selectedIncomingsField.value = selectedIncomingsIds.join(',');
         }
 
-        const selectedIncomingsField = document.getElementById('selected-incomings');
-        const clientInput = document.getElementById('client');
-        const inventoryInput = document.getElementById('selected_inventory');
+        document.addEventListener('DOMContentLoaded', function () {
+            const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
+            const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
+            const initialIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent);
+            const initialInventoryDataElement = document.getElementById('initialInventoryData');
+            const placesData = JSON.parse(document.getElementById('placesData').textContent || "[]");
+            const trackCode = document.querySelector('input[name="track_code"]').value;
+            let initialInventoryData = {};
 
-        // Инициализация выбранных поступлений и создание модальных окон
-        initialIncomingsData.forEach(incoming => {
-            selectedIncomingsData.push(incoming);
-            console.log('Added incoming:', incoming.id);
-            const incomingData = allIncomingsData.find(item => item.id === incoming.id);
-            if (incomingData) {
-                createIncomingModal(incomingData); // Создаем модальное окно заранее
-            }
-        });
-        updateSelectedIncomingsField();
-
-        // Инициализация инвентарных номеров в localStorage
-        if (initialInventoryData && typeof initialInventoryData === 'object' && !Array.isArray(initialInventoryData)) {
-            Object.keys(initialInventoryData).forEach(incomingId => {
-                console.log('Processing incomingId:', incomingId);
-                const inventoryNumbers = Array.isArray(initialInventoryData[incomingId]) ? initialInventoryData[incomingId] : [];
-                saveToLocalStorage(incomingId, inventoryNumbers);
-                updatePlacesCount(incomingId); // Обновляем количество мест
-                updateSelectedInventoryField(); // Обновляем hidden-поле selected_inventory
-                loadCheckedInventoryNumbers(incomingId); // Отмечаем чекбоксы
-            });
-        } else {
-            console.warn('initialInventoryData is not a valid object:', initialInventoryData);
-        }
-
-        // Инициализация чекбоксов при открытии модального окна
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('shown.bs.modal', function () {
-                const incomingId = this.id.replace("incomingModal", "");
-                console.log('Modal opened for incomingId:', incomingId);
-                loadCheckedInventoryNumbers(incomingId);
-                updatePlacesCount(incomingId);
-            });
-        });
-
-        const form = document.getElementById('consolidation-form');
-        const submitButton = document.querySelector('[name="in_work"]');
-
-        submitButton.addEventListener("click", function (event) {
-            console.log('Submitting form, selected_inventory:', inventoryInput.value); // Отладочный лог
-            const validationResult = validateSelectedIncomings();
-            if (!validationResult.isValid) {
-                event.preventDefault();
-                showAlert(validationResult.message);
-            }
-        });
-
-        form.addEventListener("submit", function (event) {
-            if (event.submitter && event.submitter.name === "in_work") {
-                clientInput.readonly = false;
-            }
-            console.log('Form submitted, selected_inventory:', inventoryInput.value); // Отладочный лог
-        });
-
-        function validateSelectedIncomings() {
-            const selectedIncomings = document.querySelectorAll("#consolidation-list .list-group-item");
-            for (const item of selectedIncomings) {
-                const incomingId = item.getAttribute("data-id");
-                const storedData = localStorage.getItem(`incoming_${incomingId}`);
-                const placesCountInput = item.querySelector('input[name="places_consolidated"]');
-                const placesCount = parseInt(placesCountInput.dataset.submitValue || 0, 10);
-
-                item.classList.remove("border", "border-danger");
-
-                if (incomingId !== null && (!storedData || JSON.parse(storedData).length === 0)) {
-                    item.classList.add("border", "border-danger");
-                    return {
-                        isValid: false,
-                        message: "Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!"
-                    };
-                }
-
-                const inventoryNumbers = storedData ? JSON.parse(storedData) : [];
-                if (inventoryNumbers.length < placesCount) {
-                    item.classList.add("border", "border-danger");
-                    return {
-                        isValid: false,
-                        message: `Для поступления #${incomingId} выбрано ${inventoryNumbers.length} инвентарных номеров, но указано ${placesCount} мест. Количество инвентарных номеров должно быть не меньше количества мест.`
-                    };
+            if (initialInventoryDataElement) {
+                try {
+                    initialInventoryData = JSON.parse(initialInventoryDataElement.textContent);
+                } catch (e) {
+                    console.error('Error parsing initialInventoryData:', e);
                 }
             }
-            return {isValid: true, message: ""};
-        }
 
-        function showAlert(message) {
-            let alertBox = document.getElementById("custom-alert-box");
-            if (!alertBox) {
-                alertBox = document.createElement("div");
-                alertBox.id = "custom-alert-box";
-                alertBox.className = "alert alert-danger mt-3";
-                alertBox.style.position = "fixed";
-                alertBox.style.top = "20px";
-                alertBox.style.right = "20px";
-                alertBox.style.zIndex = "1050";
-                document.body.appendChild(alertBox);
+            const selectedIncomingsField = document.getElementById('selected-incomings');
+            const clientInput = document.getElementById('client');
+            const inventoryInput = document.getElementById('selected_inventory');
+            const placesInput = document.getElementById('places_data');
+            const placesList = document.getElementById('places-list');
+
+            // Initialize selected incomings and their inventory numbers
+            initialIncomingsData.forEach(incoming => {
+                selectedIncomingsData.push(incoming);
+                incoming.inventory_numbers.forEach(number => selectedIncomingsInventory.add(number));
+                // Save pre-selected inventory numbers to localStorage
+                const inventoryNumbers = initialInventoryData[incoming.id] || [];
+                if (inventoryNumbers.length > 0) {
+                    saveToLocalStorage(incoming.id, inventoryNumbers);
+                    updatePlacesCount(incoming.id);
+                }
+            });
+            updateSelectedIncomingsField();
+
+            // Initialize places
+            placesData.forEach(place => {
+                place.inventory_numbers.forEach(number => assignedInventoryNumbers.add(number));
+            });
+
+            // Инициализация инвентарных номеров в localStorage
+            if (initialInventoryData && typeof initialInventoryData === 'object' && !Array.isArray(initialInventoryData)) {
+                Object.keys(initialInventoryData).forEach(incomingId => {
+                    console.log('Processing incomingId:', incomingId);
+                    const inventoryNumbers = Array.isArray(initialInventoryData[incomingId]) ? initialInventoryData[incomingId] : [];
+                    saveToLocalStorage(incomingId, inventoryNumbers);
+                    updatePlacesCount(incomingId); // Обновляем количество мест
+                    updateSelectedInventoryField(); // Обновляем hidden-поле selected_inventory
+                    loadCheckedInventoryNumbers(incomingId); // Отмечаем чекбоксы
+                });
+            } else {
+                console.warn('initialInventoryData is not a valid object:', initialInventoryData);
             }
-            alertBox.innerHTML = message;
-            alertBox.style.display = "block";
 
-            setTimeout(() => {
-                alertBox.style.display = "none";
-            }, 5000);
-        }
+            const form = document.getElementById('consolidation-form');
+            const submitButton = document.querySelector('[name="in_work"]');
 
-        function addIncomingToList(incomingData) {
-            const newItem = document.createElement('li');
-            newItem.className = 'list-group-item';
-            newItem.setAttribute('data-id', incomingData.id);
-            selectedIncomingsData.push(incomingData);
+            submitButton.addEventListener("click", function (event) {
+                const validationResult = validateSelectedIncomings();
+                if (!validationResult.isValid) {
+                    event.preventDefault();
+                    showAlert(validationResult.message);
+                }
+            });
 
-            newItem.innerHTML = `
+            form.addEventListener("submit", function () {
+                clientInput.disabled = false; // Unlock client field
+                const placesDataToSave = [];
+                document.querySelectorAll('#places-list .list-group-item').forEach(placeItem => {
+                    const placeCode = placeItem.querySelector('input[name^="place_code_"]').value;
+                    const packageType = placeItem.querySelector('select[name^="package_type_"]').value;
+                    const inventoryNumbers = Array.from(placeItem.querySelectorAll('.inventory-badge')).map(badge => badge.textContent.trim());
+                    placesDataToSave.push({
+                        place_code: placeCode,
+                        package_type: packageType,
+                        inventory_numbers: inventoryNumbers
+                    });
+                });
+                placesInput.value = JSON.stringify(placesDataToSave);
+            });
+
+            function validateSelectedIncomings() {
+                const selectedIncomings = document.querySelectorAll("#consolidation-list .list-group-item");
+                for (const item of selectedIncomings) {
+                    const incomingId = item.getAttribute("data-id");
+                    const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                    const placesCountInput = item.querySelector('input[name="places_consolidated"]');
+                    const placesCount = parseInt(placesCountInput.dataset.submitValue || 0, 10);
+
+                    item.classList.remove("border", "border-danger");
+
+                    if (incomingId !== null && (!storedData || JSON.parse(storedData).length === 0)) {
+                        item.classList.add("border", "border-danger");
+                        return {
+                            isValid: false,
+                            message: "Выбраны поступления без инвентарных номеров. Выберите хотя бы один номер для каждого поступления!"
+                        };
+                    }
+
+                    const inventoryNumbers = storedData ? JSON.parse(storedData) : [];
+                    if (inventoryNumbers.length < placesCount) {
+                        item.classList.add("border", "border-danger");
+                        return {
+                            isValid: false,
+                            message: `Для поступления #${incomingId} выбрано ${inventoryNumbers.length} инвентарных номеров, но указано ${placesCount} мест.`
+                        };
+                    }
+                }
+                return {isValid: true, message: ""};
+            }
+
+            function showAlert(message) {
+                let alertBox = document.getElementById("custom-alert-box");
+                if (!alertBox) {
+                    alertBox = document.createElement("div");
+                    alertBox.id = "custom-alert-box";
+                    alertBox.className = "alert alert-danger mt-3";
+                    alertBox.style.position = "fixed";
+                    alertBox.style.top = "20px";
+                    alertBox.style.right = "20px";
+                    alertBox.style.zIndex = "1050";
+                    document.body.appendChild(alertBox);
+                }
+                alertBox.innerHTML = message;
+                alertBox.style.display = "block";
+                setTimeout(() => alertBox.style.display = "none", 5000);
+            }
+
+            function addIncomingToList(incomingData) {
+                const newItem = document.createElement('li');
+                newItem.className = 'list-group-item';
+                newItem.setAttribute('data-id', incomingData.id);
+                selectedIncomingsData.push(incomingData);
+                incomingData.inventory_numbers.forEach(number => selectedIncomingsInventory.add(number));
+
+                newItem.innerHTML = `
                 <div class="row">
                     <div class="col-md-3">
                         <label for="selected_incoming_${incomingData.id}">Поступление</label>
@@ -517,278 +527,287 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Модальное окно для отображения деталей поступления -->
-                <div class="modal fade" id="incomingDetailModal${incomingData.id}" tabindex="-1" aria-labelledby="incomingDetailModalLabel${incomingData.id}" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="incomingDetailModalLabel${incomingData.id}">
-                                    Детали поступления #${incomingData.id}
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item"><strong>Трек-коды:</strong> ${incomingData.tracking_codes ? incomingData.tracking_codes.join(', ') : 'Коды не найдены'}</li>
-                                    <li class="list-group-item"><strong>Инвентарные номера:</strong> ${incomingData.inventory_numbers.join(', ')}</li>
-                                    <li class="list-group-item"><strong>Количество мест:</strong> ${incomingData.places_count}</li>
-                                    <li class="list-group-item"><strong>Дата прибытия:</strong> ${incomingData.arrival_date || '-'}</li>
-                                    <li class="list-group-item"><strong>Размер:</strong> ${incomingData.size || '-'}</li>
-                                    <li class="list-group-item"><strong>Вес:</strong> ${incomingData.weight || '-'} кг</li>
-                                    <li class="list-group-item"><strong>Статус:</strong> ${incomingData.status || '-'}</li>
-                                </ul>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             `;
-            document.getElementById('consolidation-list').appendChild(newItem);
-            createIncomingModal(incomingData);
-            updateSelectedIncomingsField();
-        }
-
-        function createIncomingModal(incomingData) {
-            if (document.getElementById(`incomingModal${incomingData.id}`)) return;
-
-            let modalHtml = `
-                <div class="modal fade" id="incomingModal${incomingData.id}" tabindex="-1" aria-labelledby="incomingModalLabel${incomingData.id}" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="incomingModalLabel${incomingData.id}">Детали поступления #${incomingData.id}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                            </div>
-                            <div class="modal-body">
-                                <h6>Трек-коды и их инвентарные номера:</h6>
-                                <ul>`;
-            if (incomingData.track_inv_map && incomingData.track_inv_map.length > 0) {
-                incomingData.track_inv_map.forEach(tracker => {
-                    modalHtml += `
-                        <li><strong>${tracker.code}</strong>
-                            <ul>`;
-                    if (tracker.inventory_numbers && tracker.inventory_numbers.length > 0) {
-                        tracker.inventory_numbers.forEach(inventory => {
-                            const isChecked = isInventoryChecked(incomingData.id, inventory) ? "checked" : "";
-                            modalHtml += `
-                                <li>
-                                    <input type="checkbox" class="inventory-checkbox"
-                                           data-incoming-id="${incomingData.id}"
-                                           data-inventory-number="${inventory}" ${isChecked}>
-                                    ${inventory}
-                                </li>`;
-                        });
-                    } else {
-                        modalHtml += `<li>Нет связанных инвентарных номеров</li>`;
-                    }
-                    modalHtml += `</ul></li>`;
-                });
-            } else {
-                modalHtml += `<li>Нет трек-кодов</li>`;
-            }
-
-            modalHtml += `
-                                </ul>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML("beforeend", modalHtml);
-        }
-
-        function isInventoryChecked(incomingId, inventoryNumber) {
-            const storedData = localStorage.getItem(`incoming_${incomingId}`);
-            return storedData ? JSON.parse(storedData).includes(inventoryNumber) : false;
-        }
-
-        document.querySelectorAll('#selection-table input[name="selected_incoming"]').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const incomingId = this.value;
-                const incomingData = allIncomingsData.find(item => item.id === incomingId);
-
-                if (this.checked && incomingData) {
-                    tempSelectedIncomings.push(incomingData);
-                } else {
-                    tempSelectedIncomings = tempSelectedIncomings.filter(item => item.id !== incomingId);
-                }
-            });
-        });
-
-        document.querySelector('[name="consolidation-button"]').addEventListener('click', function () {
-            tempSelectedIncomings.forEach(incomingData => {
+                document.getElementById('consolidation-list').appendChild(newItem);
+                createIncomingModal(incomingData);
                 updateSelectedIncomingsField();
-                addIncomingToList(incomingData);
-                document.querySelector(`#selection-table input[value="${incomingData.id}"]`).closest('tr').style.display = 'none';
-            });
-            tempSelectedIncomings = [];
-        });
+            }
 
-        document.querySelectorAll('.btn-outline-primary[data-bs-toggle="modal"]').forEach(button => {
-            button.addEventListener('click', function () {
-                const incomingId = this.getAttribute('data-bs-target').replace('#incomingModal', '');
-                const incomingData = getIncomingDataById(incomingId);
+            function createIncomingModal(incomingData) {
+                if (document.getElementById(`incomingModal${incomingData.id}`)) return;
 
-                if (incomingData) {
-                    createIncomingModal(incomingData);
-                }
-            });
-        });
-
-        function getIncomingDataById(incomingId) {
-            return allIncomingsData.find(item => item.id == incomingId);
-        }
-
-        function updateSelectedInventoryField() {
-            let inventoryData = JSON.parse(inventoryInput.value || "{}");
-
-            document.querySelectorAll('.inventory-checkbox').forEach(checkbox => {
-                const incomingId = checkbox.dataset.incomingId;
-                const inventoryNumber = checkbox.dataset.inventoryNumber;
-
-                if (checkbox.checked) {
-                    if (!inventoryData[incomingId]) {
-                        inventoryData[incomingId] = [];
-                    }
-                    if (!inventoryData[incomingId].includes(inventoryNumber)) {
-                        inventoryData[incomingId].push(inventoryNumber);
-                    }
-                } else {
-                    if (inventoryData[incomingId]) {
-                        inventoryData[incomingId] = inventoryData[incomingId].filter(num => num !== inventoryNumber);
-                        if (inventoryData[incomingId].length === 0) {
-                            delete inventoryData[incomingId];
+                let modalHtml = `
+        <div class="modal fade" id="incomingModal${incomingData.id}" tabindex="-1" aria-labelledby="incomingModalLabel${incomingData.id}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="incomingModalLabel${incomingData.id}">Детали поступления #${incomingData.id}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>Трек-коды и их инвентарные номера:</h6>
+                        <ul>`;
+                if (incomingData.track_inv_map && incomingData.track_inv_map.length > 0) {
+                    incomingData.track_inv_map.forEach(tracker => {
+                        modalHtml += `<li><strong>${tracker.code}</strong>
+                <ul>`;
+                        if (tracker.inventory_numbers && tracker.inventory_numbers.length > 0) {
+                            tracker.inventory_numbers.forEach(inventory => {
+                                const isChecked = (initialInventoryData[incomingData.id] || []).includes(inventory) ? "checked" : "";
+                                modalHtml += `<li><input type="checkbox" class="inventory-checkbox" data-incoming-id="${incomingData.id}" data-inventory-number="${inventory}" ${isChecked}> ${inventory}</li>`;
+                            });
+                        } else {
+                            modalHtml += `<li>Нет связанных инвентарных номеров</li>`;
                         }
-                    }
-                }
-            });
-
-            inventoryInput.value = JSON.stringify(inventoryData);
-            console.log('Updated selected_inventory:', inventoryInput.value); // Отладочный лог
-        }
-
-        document.addEventListener("change", function (event) {
-            if (event.target.classList.contains("inventory-checkbox")) {
-                updateSelectedInventoryField();
-                const incomingId = event.target.dataset.incomingId;
-                updatePlacesCount(incomingId);
-            }
-        });
-
-        function saveToLocalStorage(incomingId, inventoryNumbers) {
-            localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(inventoryNumbers));
-        }
-
-        function loadCheckedInventoryNumbers(incomingId) {
-            const storedData = localStorage.getItem(`incoming_${incomingId}`);
-            if (storedData) {
-                const selectedNumbers = JSON.parse(storedData);
-                document.querySelectorAll(`.inventory-checkbox[data-incoming-id="${incomingId}"]`).forEach(checkbox => {
-                    checkbox.checked = selectedNumbers.includes(checkbox.dataset.inventoryNumber);
-                });
-            }
-        }
-
-        function updatePlacesCount(incomingId) {
-            const storedData = localStorage.getItem(`incoming_${incomingId}`);
-            const selectedNumbers = storedData ? JSON.parse(storedData) : [];
-            const placesCountInput = document.querySelector(`input[data-incoming-id="${incomingId}"][name="places_consolidated"]`);
-            if (placesCountInput) {
-                const maxPlaces = parseInt(placesCountInput.dataset.maxPlaces, 10);
-                const selectedCount = selectedNumbers.length;
-                placesCountInput.value = `${selectedCount}/${maxPlaces}`;
-                placesCountInput.dataset.submitValue = selectedCount;
-            }
-        }
-
-        document.addEventListener('change', function (event) {
-            if (event.target.classList.contains('inventory-checkbox')) {
-                const incomingId = event.target.dataset.incomingId;
-                let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
-                    ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
-                    : [];
-
-                if (event.target.checked) {
-                    if (!selectedNumbers.includes(event.target.dataset.inventoryNumber)) {
-                        selectedNumbers.push(event.target.dataset.inventoryNumber);
-                    }
+                        modalHtml += `</ul></li>`;
+                    });
                 } else {
-                    selectedNumbers = selectedNumbers.filter(num => num !== event.target.dataset.inventoryNumber);
+                    modalHtml += `<li>Нет трек-кодов</li>`;
                 }
-
-                saveToLocalStorage(incomingId, selectedNumbers);
-                updatePlacesCount(incomingId);
-                updateSelectedInventoryField();
+                modalHtml += `</ul></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button></div></div></div></div>`;
+                document.body.insertAdjacentHTML("beforeend", modalHtml);
+                loadCheckedInventoryNumbers(incomingData.id);
             }
-        });
 
-        form.addEventListener("submit", function () {
-            document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
-                input.value = input.dataset.submitValue || "0";
-            });
-        });
+            function isInventoryChecked(incomingId, inventoryNumber) {
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                return storedData ? JSON.parse(storedData).includes(inventoryNumber) : (initialInventoryData[incomingId] || []).includes(inventoryNumber);
+            }
 
-        // Инициализация количества мест для всех поступлений
-        document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
-            const incomingId = input.dataset.incomingId;
-            updatePlacesCount(incomingId);
-        });
-    });
-
-    function removeIncomingFromList(incomingId) {
-        const listItem = document.querySelector(`#consolidation-list [data-id="${incomingId}"]`);
-        if (listItem) {
-            listItem.remove();
-            localStorage.removeItem(`incoming_${incomingId}`);
-        }
-
-        const checkbox = document.querySelector(`#selection-table input[value="${incomingId}"]`);
-        if (checkbox) {
-            checkbox.checked = false;
-            checkbox.closest('tr').style.display = '';
-        } else {
-            const incomingData = selectedIncomingsData.find(item => item.id === incomingId);
-            if (incomingData) {
-                const tableBody = document.querySelector('#selection-table tbody');
-                const newRow = document.createElement('tr');
-                newRow.innerHTML = `
-                    <td><input type="checkbox" class="form-check-input" name="selected_incoming" value="${incomingData.id}"></td>
-                    <td><ul>${incomingData.tracking_codes ? incomingData.tracking_codes.map(code => `<li>${code}</li>`).join('') : '<li>Коды не найдены</li>'}</ul></td>
-                    <td><ul>${incomingData.inventory_numbers ? incomingData.inventory_numbers.map(number => `<li>${number}</li>`).join('') : '<li>Номера не найдены</li>'}</ul></td>
-                    <td>${incomingData.arrival_date || '-'}</td>
-                    <td>${incomingData.tag || '-'}</td>
-                    <td>${incomingData.client_phone || '-'}</td>
-                `;
-                tableBody.appendChild(newRow);
-                const newCheckbox = newRow.querySelector('input[type="checkbox"]');
-                newCheckbox.addEventListener('change', function () {
+            document.querySelectorAll('#selection-table input[name="selected_incoming"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const incomingId = this.value;
+                    const incomingData = allIncomingsData.find(item => item.id === incomingId);
                     if (this.checked && incomingData) {
                         tempSelectedIncomings.push(incomingData);
                     } else {
                         tempSelectedIncomings = tempSelectedIncomings.filter(item => item.id !== incomingId);
                     }
                 });
+            });
+
+            document.querySelector('#consolidation-button').addEventListener('click', function () {
+                tempSelectedIncomings.forEach(incomingData => {
+                    addIncomingToList(incomingData);
+                    // Automatically select all inventory numbers for new incomings
+                    const availableInventoryNumbers = incomingData.track_inv_map.flatMap(tracker => tracker.inventory_numbers || []);
+                    if (availableInventoryNumbers.length > 0) {
+                        saveToLocalStorage(incomingData.id, availableInventoryNumbers);
+                        updatePlacesCount(incomingData.id);
+                    }
+                    document.querySelector(`#selection-table input[value="${incomingData.id}"]`).closest('tr').style.display = 'none';
+                });
+                tempSelectedIncomings = [];
+                updateSelectedIncomingsField();
+                updateSelectedInventoryField();
+                bootstrap.Modal.getInstance(document.getElementById('consolidationModal')).hide();
+            });
+
+            function updateSelectedInventoryField() {
+                let inventoryData = {};
+                selectedIncomingsData.forEach(incoming => {
+                    const storedData = localStorage.getItem(`incoming_${incoming.id}`);
+                    if (storedData) {
+                        inventoryData[incoming.id] = JSON.parse(storedData);
+                    }
+                });
+                inventoryInput.value = JSON.stringify(inventoryData);
             }
-        }
 
-        selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
-        updateSelectedIncomingsField();
-        updateSelectedInventoryField(); // Обновляем selected_inventory при удалении
-    }
+            document.addEventListener("change", function (event) {
+                if (event.target.classList.contains("inventory-checkbox")) {
+                    const incomingId = event.target.dataset.incomingId;
+                    const inventoryNumber = event.target.dataset.inventoryNumber;
+                    let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`) ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`)) : [];
+                    if (event.target.checked) {
+                        if (!selectedNumbers.includes(inventoryNumber)) selectedNumbers.push(inventoryNumber);
+                    } else {
+                        selectedNumbers = selectedNumbers.filter(num => num !== inventoryNumber);
+                    }
+                    saveToLocalStorage(incomingId, selectedNumbers);
+                    updatePlacesCount(incomingId);
+                    updateSelectedInventoryField();
+                }
+            });
 
-    function openIncomingModal(incomingId) {
-        const modalElement = document.getElementById(`incomingDetailModal${incomingId}`);
-        if (modalElement) {
-            const modal = new bootstrap.Modal(modalElement);
-            modal.show();
-        } else {
-            console.error("Модальное окно не найдено для ID:", incomingId);
-        }
-    }
-</script>
+            function saveToLocalStorage(incomingId, inventoryNumbers) {
+                localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(inventoryNumbers));
+            }
+
+            function loadCheckedInventoryNumbers(incomingId) {
+                let selectedNumbers = initialInventoryData[incomingId] || [];
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                if (storedData) {
+                    selectedNumbers = JSON.parse(storedData);
+                } else if (selectedNumbers.length > 0) {
+                    saveToLocalStorage(incomingId, selectedNumbers);
+                }
+                document.querySelectorAll(`.inventory-checkbox[data-incoming-id="${incomingId}"]`).forEach(checkbox => {
+                    checkbox.checked = selectedNumbers.includes(checkbox.dataset.inventoryNumber);
+                });
+            }
+
+            function updatePlacesCount(incomingId) {
+                const storedData = localStorage.getItem(`incoming_${incomingId}`);
+                const selectedNumbers = storedData ? JSON.parse(storedData) : [];
+                const placesCountInput = document.querySelector(`input[data-incoming-id="${incomingId}"][name="places_consolidated"]`);
+                if (placesCountInput) {
+                    const maxPlaces = parseInt(placesCountInput.dataset.maxPlaces, 10);
+                    const selectedCount = selectedNumbers.length;
+                    placesCountInput.value = `${selectedCount}/${maxPlaces}`;
+                    placesCountInput.dataset.submitValue = selectedCount;
+                }
+            }
+
+            form.addEventListener("submit", function () {
+                document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
+                    input.value = input.dataset.submitValue || "0";
+                });
+            });
+
+            document.querySelectorAll('input[name="places_consolidated"]').forEach(input => {
+                const incomingId = input.dataset.incomingId;
+                updatePlacesCount(incomingId);
+            });
+
+            function createPlaceItem(place, index) {
+                const placeItem = document.createElement('li');
+                placeItem.className = 'list-group-item';
+                placeItem.innerHTML = `
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="place_code_${index}">Код места</label>
+                        <input type="text" name="place_code_${index}" class="form-control" value="${place.place_code}" readonly>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="package_type_${index}">Тип упаковки</label>
+                        <select name="package_type_${index}" class="form-select">
+                            ${packageTypes.map(type => `<option value="${type[0]}" ${type[0] === place.package_type ? 'selected' : ''}>${type[1]}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="inventory_input_${index}">Инвентарные номера</label>
+                        <input type="text" id="inventory_input_${index}" class="form-control inventory-input" placeholder="Введите номер и нажмите Enter">
+                        <div class="inventory-badges mt-2" data-place-index="${index}"></div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-center">
+                        <button type="button" class="btn btn-icon btn-outline-danger delete-place-btn" data-index="${index}">
+                            <span class="bi bi-trash me-2"></span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+                const badgesContainer = placeItem.querySelector('.inventory-badges');
+                place.inventory_numbers.forEach(number => {
+                    const badge = createInventoryBadge(number, index);
+                    badgesContainer.appendChild(badge);
+                    assignedInventoryNumbers.add(number);
+                });
+
+                return placeItem;
+            }
+
+            placesData.forEach((place, index) => {
+                const placeItem = createPlaceItem(place, index);
+                placesList.appendChild(placeItem);
+            });
+
+            document.querySelector('.add-place-btn').addEventListener('click', function () {
+                const index = placesList.children.length;
+                const newPlace = {
+                    place_code: `${trackCode}-${index + 1}`,
+                    package_type: packageTypes[0][0],
+                    inventory_numbers: []
+                };
+                const placeItem = createPlaceItem(newPlace, index);
+                placesList.appendChild(placeItem);
+            });
+
+            placesList.addEventListener('click', function (event) {
+                if (event.target.closest('.delete-place-btn')) {
+                    const index = event.target.closest('.delete-place-btn').dataset.index;
+                    const placeItem = placesList.querySelector(`li:nth-child(${parseInt(index) + 1})`);
+                    const badges = placeItem.querySelectorAll('.inventory-badge');
+                    badges.forEach(badge => assignedInventoryNumbers.delete(badge.textContent.trim()));
+                    placeItem.remove();
+                }
+            });
+
+            function createInventoryBadge(number, placeIndex) {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary me-1 mb-1 inventory-badge';
+                badge.textContent = number;
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'btn-close btn-close-white ms-1';
+                removeBtn.setAttribute('aria-label', 'Удалить');
+                removeBtn.addEventListener('click', function () {
+                    badge.remove();
+                    assignedInventoryNumbers.delete(number);
+                });
+                badge.appendChild(removeBtn);
+                return badge;
+            }
+
+            document.addEventListener('keypress', function (event) {
+                if (event.target.classList.contains('inventory-input') && event.key === 'Enter') {
+                    event.preventDefault(); // Prevent form submission
+                    const input = event.target;
+                    const placeIndex = input.id.replace('inventory_input_', '');
+                    const number = input.value.trim();
+                    if (number && selectedIncomingsInventory.has(number) && !assignedInventoryNumbers.has(number)) {
+                        const badgesContainer = document.querySelector(`.inventory-badges[data-place-index="${placeIndex}"]`);
+                        const badge = createInventoryBadge(number, placeIndex);
+                        badgesContainer.appendChild(badge);
+                        assignedInventoryNumbers.add(number);
+                        input.value = '';
+                    } else {
+                        showAlert('Номер не доступен или уже используется.');
+                    }
+                }
+            });
+
+            function removeIncomingFromList(incomingId) {
+                const listItem = document.querySelector(`#consolidation-list [data-id="${incomingId}"]`);
+                if (listItem) {
+                    listItem.remove();
+                    localStorage.removeItem(`incoming_${incomingId}`);
+                }
+
+                const incomingData = selectedIncomingsData.find(item => item.id === incomingId);
+                if (incomingData) {
+                    incomingData.inventory_numbers.forEach(number => {
+                        selectedIncomingsInventory.delete(number);
+                        assignedInventoryNumbers.delete(number);
+                        document.querySelectorAll('.inventory-badge').forEach(badge => {
+                            if (badge.textContent.trim() === number) badge.remove();
+                        });
+                    });
+                    selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
+                }
+
+                updateSelectedIncomingsField();
+                updateSelectedInventoryField();
+            }
+
+            function openIncomingModal(incomingId) {
+                const modalElement = document.getElementById(`incomingModal${incomingId}`);
+                if (modalElement) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                }
+            }
+        });
+    </script>
+    <script>
+        // Очистка localStorage при уходе со страницы
+        window.addEventListener('beforeunload', function () {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('incoming_')) {
+                    localStorage.removeItem(key);
+                }
+            }
+        });
+    </script>
 {% endblock %}

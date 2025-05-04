@@ -825,6 +825,7 @@ def package_new(request, pk):
 
 
 @staff_and_login_required
+@transaction.atomic
 def consolidation_edit(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
     if request.method == 'POST':
@@ -833,15 +834,20 @@ def consolidation_edit(request, pk):
             consolidation = form.save(commit=False)
             consolidation.manager = request.user
 
+            # Обработка выбранных поступлений
             selected_incomings_ids = request.POST.get('selected_incomings', '').split(',')
-            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids) if selected_incomings_ids[
-                0] else []
+            selected_incomings_ids = [id for id in selected_incomings_ids if id]  # Удаляем пустые ID
+            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
 
+            # Обработка инвентарных номеров
             try:
                 inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
-            except json.JSONDecodeError as e:
-                messages.error(request, "Ошибка в данных инвентарных номеров. Пожалуйста, проверьте выбор.")
+                places_data = json.loads(request.POST.get("places_data", "[]"))
+            except json.JSONDecodeError:
+                messages.error(request, "Ошибка в данных инвентарных номеров или мест. Пожалуйста, проверьте выбор.")
+                return redirect('deliveries:consolidation-edit', pk=pk)
 
+            # Установка статуса консолидации
             if 'save_draft' in request.POST:
                 consolidation.status = 'Template'
             elif 'in_work' in request.POST:
@@ -850,42 +856,57 @@ def consolidation_edit(request, pk):
             consolidation.save()
             form.save_m2m()
 
-            if consolidation.status != 'Template':
-                # Удаляем старые связи ConsolidationIncoming
-                ConsolidationIncoming.objects.filter(consolidation=consolidation).delete()
+            # Очистка старых связей ConsolidationIncoming
+            ConsolidationIncoming.objects.filter(consolidation=consolidation).delete()
 
-                for incoming in selected_incomings:
-                    incoming_id = str(incoming.pk)
-                    inventory_numbers = inventory_data.get(incoming_id, [])
-                    places_consolidated = len(inventory_numbers) if inventory_numbers else 0
+            # Создание новых связей с поступлениями
+            for incoming in selected_incomings:
+                incoming_id = str(incoming.id)
+                inventory_numbers = inventory_data.get(incoming_id, [])
+                places_consolidated = len(inventory_numbers) if inventory_numbers else 0
 
-                    if places_consolidated == 0:
-                        messages.error(request, f'Для поступления #{incoming_id} не выбраны инвентарные номера.')
-                        return render(request, 'deliveries/outcomings/consolidation-edit.html', {...})
+                if places_consolidated == 0:
+                    messages.error(request, f'Для поступления #{incoming_id} не выбраны инвентарные номера.')
+                    return redirect('deliveries:consolidation-edit', pk=pk)
 
-                    consolidation_incoming = ConsolidationIncoming.objects.create(
-                        consolidation=consolidation,
-                        incoming=incoming,
-                        places_consolidated=places_consolidated
+                consolidation_incoming = ConsolidationIncoming.objects.create(
+                    consolidation=consolidation,
+                    incoming=incoming,
+                    places_consolidated=places_consolidated
+                )
+
+                for inventory_number in inventory_numbers:
+                    inventory_obj = InventoryNumber.objects.get(number=inventory_number)
+                    ConsolidationInventory.objects.create(
+                        consolidation_incoming=consolidation_incoming,
+                        inventory_number=inventory_obj
                     )
 
-                    for inventory_number in inventory_numbers:
-                        inventory_obj = InventoryNumber.objects.get(number=inventory_number)
-                        ConsolidationInventory.objects.create(
-                            consolidation_incoming=consolidation_incoming,
-                            inventory_number=inventory_obj
-                        )
+                incoming.status = "Consolidated"
+                incoming.save()
 
-                    incoming.status = "Consolidated"
-                    incoming.save()
+            # Обработка мест
+            consolidation.places.all().delete()
+            for place_data in places_data:
+                place = Place.objects.create(
+                    consolidation=consolidation,
+                    place_code=place_data['place_code'],
+                    package_type=place_data['package_type'],
+                )
+                inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                place.inventory_numbers.set(inventory_objs)
+
+            # Обновление связи консолидации с поступлениями
             consolidation.incomings.set(selected_incomings)
+
+            messages.success(request, 'Консолидация успешно обновлена.')
             return redirect('deliveries:list-consolidation')
         else:
             messages.error(request, 'Ошибка при редактировании консолидации. Проверьте данные.')
     else:
         form = ConsolidationForm(instance=consolidation)
 
-    # Подготавливаем данные для JavaScript
+    # Подготовка данных для шаблона
     selected_incomings = consolidation.incomings.all()
     incomings = Incoming.objects.exclude(
         Q(id__in=selected_incomings.values_list('id', flat=True)) |
@@ -897,7 +918,7 @@ def consolidation_edit(request, pk):
     initial_incomings_data = prepare_incoming_data(selected_incomings)
     package_types = PackageType.choices
 
-    # Подготавливаем данные об инвентарных номерах для инициализации
+    # Подготовка данных об инвентарных номерах
     initial_inventory_data = {}
     for incoming in selected_incomings:
         inventory_numbers = ConsolidationInventory.objects.filter(
@@ -905,6 +926,17 @@ def consolidation_edit(request, pk):
             consolidation_incoming__incoming=incoming
         ).values_list('inventory_number__number', flat=True)
         initial_inventory_data[str(incoming.id)] = list(inventory_numbers)
+
+    # Подготовка данных о местах
+    places = consolidation.places.all()
+    places_data = []
+    for place in places:
+        inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        places_data.append({
+            'place_code': place.place_code,
+            'package_type': place.package_type,
+            'inventory_numbers': inventory_numbers,
+        })
 
     return render(request, 'deliveries/outcomings/consolidation-edit.html', {
         'form': form,
@@ -914,6 +946,7 @@ def consolidation_edit(request, pk):
         'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
         'initial_inventory_data': initial_inventory_data,
+        'places_data': places_data,
     })
 
 
