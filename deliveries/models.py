@@ -8,7 +8,8 @@ from django.conf import settings
 
 
 class Photo(UUIDMixin, TimeStampedMixin):
-    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set')
+    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set', blank=True, null=True)
+    place = models.ForeignKey('Place', on_delete=models.CASCADE, related_name='images_set_place', blank=True, null=True)
     photo = models.ImageField(upload_to='images/')
 
     # resizing the image, you can change parameters like size and quality.
@@ -250,6 +251,8 @@ class Place(UUIDMixin, TimeStampedMixin):
         max_length=100
     )
 
+    images = models.ManyToManyField(Photo, through='PhotoPlace', related_name='place_images', blank=True)
+
     def __str__(self):
         return f"Place {self.place_code} for Consolidation {self.consolidation.track_code}"
 
@@ -328,4 +331,15 @@ class PhotoIncoming(UUIDMixin):
     class Meta:
         indexes = [
             models.Index(fields=['incoming_id', 'photo_id'], name='photo_incoming_idx'),
+        ]
+
+
+class PhotoPlace(UUIDMixin):
+    place = models.ForeignKey('Place', on_delete=models.CASCADE)
+    photo = models.ForeignKey('Photo', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['place_id', 'photo_id'], name='photo_place_idx'),
         ]

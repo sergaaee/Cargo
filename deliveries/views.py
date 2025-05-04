@@ -532,7 +532,6 @@ def new_consolidation(request):
                 incoming = get_object_or_404(Incoming, pk=incoming_id)
                 selected_incomings.append(incoming)
 
-        print(request.POST)
         form = ConsolidationForm(request.POST)
 
         if form.is_valid():
@@ -748,11 +747,13 @@ def package_new(request, pk):
                     weight = request.POST.get(f'weight_consolidated_{place_index}', 0)
                     volume = request.POST.get(f'volume_consolidated_{place_index}', 0)
                     place_code = request.POST.get(f'place_consolidated_{place_index}', '')
+                    package_type = request.POST.get(f'package_type_{place_index}', '')
                     places_data[place_index] = {
                         'inventory_numbers': inventory_numbers,
                         'weight': float(weight) if weight else 0,
                         'volume': float(volume) if volume else 0,
                         'place_code': place_code,
+                        'package_type': package_type,
                     }
 
             # Сохраняем места
@@ -767,6 +768,7 @@ def package_new(request, pk):
                         place_code=place_data['place_code'],
                         weight=place_data['weight'],
                         volume=place_data['volume'],
+                        package_type=place_data['package_type'],
                     )
                     # Привязываем инвентарные номера
                     inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
@@ -778,7 +780,6 @@ def package_new(request, pk):
             else:
                 consolidation.status = "Draft"
 
-            place.save()
             consolidation.save()
             messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')
@@ -793,10 +794,25 @@ def package_new(request, pk):
         consolidation_incoming__consolidation=consolidation
     ).values_list('inventory_number__number', flat=True).distinct())
 
+    # Получаем существующие места для автозаполнения
+    places = consolidation.places.all()
+    places_data = []
+    for place in places:
+        inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        places_data.append({
+            'place_code': place.place_code,
+            'weight': place.weight,
+            'volume': place.volume,
+            'package_type': place.package_type,
+            'inventory_numbers': inventory_numbers,
+        })
+
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
         'consolidation_inventory_numbers': valid_numbers,
+        'places_data': places_data,
+        'package_types': PackageType.choices,
     })
 
 

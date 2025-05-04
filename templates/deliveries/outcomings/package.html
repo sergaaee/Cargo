@@ -5,6 +5,8 @@
 
 {% block content %}
     {{ consolidation_inventory_numbers|json_script:"inventory-numbers" }}
+    {{ places_data|json_script:"placesData" }}
+    {{ package_types|json_script:"packageTypes" }}
     <div class="container-xxl flex-grow-1 container-p-y">
     {% if messages %}
             <div id="alert-box" class="mb-3">
@@ -65,7 +67,7 @@
                     <div class="row g-4">
                         <div class="col-12">
                             <ul id="consolidation-list" class="list-group">
-                                <!-- Начальная строка будет добавлена через JavaScript -->
+                                <!-- Начальные строки будут добавлены через JavaScript -->
                             </ul>
                         </div>
                     </div>
@@ -106,9 +108,11 @@
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Извлекаем данные из тега, созданного json_script
+            // Извлекаем данные из тегов, созданных json_script
             const inventoryNumbersElement = document.getElementById("inventory-numbers");
             const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
+            const placesData = JSON.parse(document.getElementById("placesData").textContent || "[]");
+            const packageTypes = JSON.parse(document.getElementById("packageTypes").textContent);
             const inventoryPool = document.getElementById("inventory-numbers-pool");
             const form = document.getElementById("consolidation-form");
             const consolidationList = document.getElementById("consolidation-list");
@@ -158,7 +162,7 @@
             }
 
             // Функция создания новой строки
-            function createNewItem(index) {
+            function createNewItem(index, place = null) {
                 const newItem = document.createElement("li");
                 newItem.className = "list-group-item consolidation-item";
                 newItem.dataset.itemIndex = index;
@@ -224,19 +228,57 @@
                                readonly>
                     </div>
 
+                    <!-- Поле для типа упаковки -->
+                    <div class="col-md-2">
+                        <label for="package_type_${index}">Тип упаковки</label>
+                        <select name="package_type_${index}" class="form-control">
+                            ${packageTypes.map(type => `<option value="${type[0]}">${type[1]}</option>`).join('')}
+                        </select>
+                    </div>
+
                     <!-- Кнопки действий -->
-                    <div class="col-md-4 d-flex align-items-center">
+                    <div class="col-md-2 d-flex align-items-center">
                         ${deleteButtonHtml}
                     </div>
                 </div>
-                <div class="mt-3">
-                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
-                        <span class="bi bi-plus-circle me-2"></span>Добавить
-                    </button>
-                </div>
+                <div class="mt-3"></div> <!-- Место для кнопки "Добавить" -->
             `;
 
                 setPlaceCode(newItem, index);
+
+                if (place) {
+                    const placeInput = newItem.querySelector('input[name^="place_consolidated_"]');
+                    placeInput.value = place.place_code;
+                    const weightInput = newItem.querySelector('input[name^="weight_consolidated_"]');
+                    weightInput.value = place.weight;
+                    const volumeInput = newItem.querySelector('input[name^="volume_consolidated_"]');
+                    volumeInput.value = place.volume;
+                    const packageTypeSelect = newItem.querySelector('select[name^="package_type_"]');
+                    packageTypeSelect.value = place.package_type;
+                    const hiddenInput = newItem.querySelector('input[name^="inventory_numbers_"]');
+                    hiddenInput.value = place.inventory_numbers.join(',');
+                    const listContainer = newItem.querySelector(`#inventory-numbers-list-${index}`);
+                    place.inventory_numbers.forEach(number => {
+                        const numberBadge = document.createElement("span");
+                        numberBadge.className = "badge bg-primary me-1";
+                        numberBadge.textContent = number;
+                        numberBadge.dataset.number = number;
+                        const removeBtn = document.createElement("span");
+                        removeBtn.className = "ms-2 text-white cursor-pointer";
+                        removeBtn.innerHTML = "×";
+                        removeBtn.addEventListener("click", function () {
+                            const currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            const updatedNumbers = currentNumbers.filter(n => n !== number);
+                            hiddenInput.value = updatedNumbers.join(",");
+                            numberBadge.remove();
+                            availableNumbers.add(number);
+                            updateInventoryPool();
+                        });
+                        numberBadge.appendChild(removeBtn);
+                        listContainer.appendChild(numberBadge);
+                    });
+                }
+
                 return newItem;
             }
 
@@ -281,7 +323,7 @@
                                 const numberBadge = document.createElement("span");
                                 numberBadge.className = "badge bg-primary me-1";
                                 numberBadge.textContent = number;
-                                numberBadge.dataset.number = number; // Сохраняем чистый номер в атрибуте
+                                numberBadge.dataset.number = number;
 
                                 const removeBtn = document.createElement("span");
                                 removeBtn.className = "ms-2 text-white cursor-pointer";
@@ -303,11 +345,42 @@
                 });
             }
 
-            // Добавляем начальную строку
-            const initialItem = createNewItem(0);
-            consolidationList.appendChild(initialItem);
-            const initialInventoryInput = initialItem.querySelector(".inventory-input");
-            setupInventoryInput(initialInventoryInput);
+            // Инициализация существующих мест
+            let assignedNumbers = [];
+            if (placesData && placesData.length > 0) {
+                placesData.forEach((place, index) => {
+                    const newItem = createNewItem(index, place);
+                    consolidationList.appendChild(newItem);
+                    const inventoryInput = newItem.querySelector(".inventory-input");
+                    setupInventoryInput(inventoryInput);
+                    assignedNumbers = assignedNumbers.concat(place.inventory_numbers);
+                });
+
+                const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                const addButtonDiv = document.createElement("div");
+                addButtonDiv.className = "mt-3";
+                addButtonDiv.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                        <span class="bi bi-plus-circle me-2"></span>Добавить
+                    </button>
+                `;
+                lastItem.appendChild(addButtonDiv);
+            } else {
+                const initialItem = createNewItem(0);
+                consolidationList.appendChild(initialItem);
+                const initialInventoryInput = initialItem.querySelector(".inventory-input");
+                setupInventoryInput(initialInventoryInput);
+                const addButtonDiv = document.createElement("div");
+                addButtonDiv.className = "mt-3";
+                addButtonDiv.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                        <span class="bi bi-plus-circle me-2"></span>Добавить
+                    </button>
+                `;
+                initialItem.appendChild(addButtonDiv);
+            }
+
+            availableNumbers = new Set(allInventoryNumbers.filter(num => !assignedNumbers.includes(num)));
             updateInventoryPool();
 
             // Обработка добавления и удаления строк
@@ -331,8 +404,6 @@
 
                 if (deleteBtn) {
                     itemToDelete = deleteBtn.closest(".consolidation-item");
-                    console.log("Opening modal for item with index:", itemToDelete.dataset.itemIndex);
-
                     const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
                     modal.show();
                 }
@@ -389,10 +460,13 @@
                             placeInput.name = `place_consolidated_${index}`;
                             placeInput.id = `place_${index}`;
 
+                            const packageTypeSelect = item.querySelector(`select[name^="package_type_"]`);
+                            packageTypeSelect.name = `package_type_${index}`;
+                            packageTypeSelect.id = `package_type_${index}`;
+
                             const deleteBtn = item.querySelector(".delete-item-btn");
                             if (deleteBtn) {
                                 deleteBtn.dataset.itemIndex = index;
-                                console.log(`Updated delete button index to ${index}`);
                             }
                         });
 
@@ -416,77 +490,71 @@
 
             // Валидация перед отправкой формы
             form.addEventListener("submit", function (event) {
-    // Собираем все использованные номера
-    const allUsedNumbers = new Set();
-    const placeNumberMap = new Map();
+                const allUsedNumbers = new Set();
+                const placeNumberMap = new Map();
 
-    document.querySelectorAll(".consolidation-item").forEach(item => {
-        const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
-        const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
-        const numbers = hiddenInput.value.split(",").filter(Boolean);
+                document.querySelectorAll(".consolidation-item").forEach(item => {
+                    const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
+                    const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
+                    const numbers = hiddenInput.value.split(",").filter(Boolean);
 
-        placeNumberMap.set(placeCode, numbers);
-        numbers.forEach(num => allUsedNumbers.add(num));
-    });
+                    placeNumberMap.set(placeCode, numbers);
+                    numbers.forEach(num => allUsedNumbers.add(num));
+                });
 
-    // Проверка 1: Все ли номера принадлежат консолидации
-    const invalidNumbers = [];
-    allUsedNumbers.forEach(num => {
-        if (!allInventoryNumbers.includes(num)) {
-            invalidNumbers.push(num);
-        }
-    });
+                const invalidNumbers = [];
+                allUsedNumbers.forEach(num => {
+                    if (!allInventoryNumbers.includes(num)) {
+                        invalidNumbers.push(num);
+                    }
+                });
 
-    if (invalidNumbers.length > 0) {
-        event.preventDefault();
-        showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
-        return;
-    }
+                if (invalidNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
+                    return;
+                }
 
-    // Проверка 2: Уникальность номеров между местами
-    const numberToPlaces = new Map();
-    placeNumberMap.forEach((numbers, placeCode) => {
-        numbers.forEach(num => {
-            if (!numberToPlaces.has(num)) {
-                numberToPlaces.set(num, []);
-            }
-            numberToPlaces.get(num).push(placeCode);
-        });
-    });
+                const numberToPlaces = new Map();
+                placeNumberMap.forEach((numbers, placeCode) => {
+                    numbers.forEach(num => {
+                        if (!numberToPlaces.has(num)) {
+                            numberToPlaces.set(num, []);
+                        }
+                        numberToPlaces.get(num).push(placeCode);
+                    });
+                });
 
-    const duplicateNumbers = [];
-    numberToPlaces.forEach((places, num) => {
-        if (places.length > 1) {
-            duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
-        }
-    });
+                const duplicateNumbers = [];
+                numberToPlaces.forEach((places, num) => {
+                    if (places.length > 1) {
+                        duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
+                    }
+                });
 
-    if (duplicateNumbers.length > 0) {
-        event.preventDefault();
-        showError(duplicateNumbers.join("<br>"));
-        return;
-    }
+                if (duplicateNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(duplicateNumbers.join("<br>"));
+                    return;
+                }
 
-    // Проверка 3: Все ли доступные номера использованы
-    const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
-    if (unusedNumbers.length > 0) {
-        event.preventDefault();
-        showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
-        return;
-    }
+                const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
+                if (unusedNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
+                    return;
+                }
 
-    // Обновляем скрытые поля перед отправкой
-    const allInventoryInputs = document.querySelectorAll(".inventory-input");
-    allInventoryInputs.forEach(input => {
-        const itemIndex = input.dataset.itemIndex;
-        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
-        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
-        const badges = listContainer.querySelectorAll(".badge");
-        // Используем data-number вместо textContent
-        const numbers = Array.from(badges).map(badge => badge.dataset.number.trim());
-        hiddenInput.value = numbers.join(",");
-    });
-});
+                const allInventoryInputs = document.querySelectorAll(".inventory-input");
+                allInventoryInputs.forEach(input => {
+                    const itemIndex = input.dataset.itemIndex;
+                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                    const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+                    const badges = listContainer.querySelectorAll(".badge");
+                    const numbers = Array.from(badges).map(badge => badge.dataset.number.trim());
+                    hiddenInput.value = numbers.join(",");
+                });
+            });
         });
     </script>
 
