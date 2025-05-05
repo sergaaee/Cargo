@@ -18,7 +18,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     update_inventory_and_trackers, packaged_columns
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm
+    GenerateInventoryNumbersForm, NewLocationForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
     Location
@@ -1044,3 +1044,16 @@ def search_users(request):
     ]
 
     return JsonResponse(results, safe=False)
+
+
+def location_new(request):
+    if request.method == 'POST':
+        form = NewLocationForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            # Найти последний инвентарный номер
+            Location.objects.create(name=name, created_by=request.user)
+            return redirect('deliveries:list-incoming')
+    else:
+        form = NewLocationForm()
+    return render(request, 'deliveries/create_location.html', {'form': form})

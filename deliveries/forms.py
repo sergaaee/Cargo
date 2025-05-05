@@ -411,4 +411,8 @@ class GenerateInventoryNumbersForm(forms.Form):
     count = forms.IntegerField(min_value=1, label="Количество инвентарных номеров для генерации")
 
 
+class NewLocationForm(forms.Form):
+    name = forms.CharField(label="Название локации")
+
+
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)
