@@ -94,6 +94,13 @@
                         <ul class="menu-sub">
 
                             <li class="menu-item">
+                                <a href="{% url 'deliveries:generate-inventory-numbers' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Генерация инвентарников</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
                                 <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
                                     <div data-i18n="Incoming new">Поступление</div>

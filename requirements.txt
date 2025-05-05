@@ -21,4 +21,5 @@ pillow
 django-cleanup
 djangorestframework
 django-phonenumber-field[phonenumbers]
+reportlab
 

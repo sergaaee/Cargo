@@ -17,11 +17,16 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
+    GenerateInventoryNumbersForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
-    PlaceInventory
-from django.http import JsonResponse
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place
+import re
+from datetime import datetime
+from django.http import HttpResponse, JsonResponse
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.graphics.barcode import code128
 
 
 @staff_and_login_required
@@ -948,6 +953,57 @@ def consolidation_edit(request, pk):
         'initial_inventory_data': initial_inventory_data,
         'places_data': places_data,
     })
+
+
+@staff_and_login_required
+def generate_inventory_numbers(request):
+    if request.method == 'POST':
+        form = GenerateInventoryNumbersForm(request.POST)
+        if form.is_valid():
+            count = form.cleaned_data['count']
+            # Найти последний инвентарный номер
+            last_number = InventoryNumber.objects.order_by('-number').first()
+            if last_number:
+                match = re.match(r'INV(\d+)', last_number.number)
+                if match:
+                    num = int(match.group(1))
+                else:
+                    num = 0
+            else:
+                num = 0
+            # Генерировать новые номера
+            new_numbers = []
+            for i in range(1, count + 1):
+                next_num = num + i
+                next_number = f'INV{next_num}'  # Формат без padding: INV1, INV2 и т.д.
+                new_numbers.append(next_number)
+            # Сохранить новые инвентарные номера
+            for number in new_numbers:
+                InventoryNumber.objects.create(number=number, is_occupied=False)
+            # Генерировать PDF с измененными размерами
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="inventory_numbers.pdf"'
+            p = canvas.Canvas(response, pagesize=(3.5 * inch, 2.0 * inch))  # Увеличена ширина, уменьшена высота
+            for number in new_numbers:
+                # Нарисовать дату в правом верхнем углу
+                p.setFont("Helvetica", 8)
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                p.drawRightString(3.5 * inch - 10, 2.0 * inch - 10, date_str)
+                # Нарисовать штрихкод в центре
+                barcode = code128.Code128(number, barHeight=50)  # Уменьшена высота штрихкода
+                barcode_width = barcode.width
+                x = (3.5 * inch - barcode_width) / 2
+                y = (2.0 * inch - 50) / 2
+                barcode.drawOn(p, x, y)
+                # Нарисовать инвентарный номер внизу
+                p.setFont("Helvetica", 10)
+                p.drawCentredString(3.5 * inch / 2, 10, number)
+                p.showPage()
+            p.save()
+            return response
+    else:
+        form = GenerateInventoryNumbersForm()
+    return render(request, 'deliveries/generate_inventory_numbers.html', {'form': form})
 
 
 @staff_and_login_required
