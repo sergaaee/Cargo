@@ -24,8 +24,8 @@ class Photo(UUIDMixin, TimeStampedMixin):
 class InventoryNumber(UUIDMixin, TimeStampedMixin):
     number = models.CharField(max_length=100, unique=True)
     is_occupied = models.BooleanField(default=False)
-    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True,
-                                     related_name='inventory_numbers_tracker_code')
+    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True, related_name='inventory_numbers_tracker_code')
+    location = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True, related_name='inventory_numbers')
 
     def __str__(self):
         return self.number
@@ -343,3 +343,9 @@ class PhotoPlace(UUIDMixin):
         indexes = [
             models.Index(fields=['place_id', 'photo_id'], name='photo_place_idx'),
         ]
+
+
+class Location(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=150)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   null=True)

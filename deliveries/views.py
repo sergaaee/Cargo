@@ -20,7 +20,8 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
     GenerateInventoryNumbersForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
+    Location
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -43,27 +44,22 @@ def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
         formset = PhotoFormSet(request.POST, request.FILES)
-
         client_phone = request.POST.get("client", "").strip()
 
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
-
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-            # 🔹 Если клиент введён вручную, проверяем его
+            # Client logic
             if client_phone:
                 try:
                     client_profile = UserProfile.objects.get(phone_number=client_phone)
                     incoming.client = client_profile.user
                 except UserProfile.DoesNotExist:
                     return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-
-
             else:
-                # 🔹 Используем стандартную логику
                 if tracker.created_by:
                     incoming.client = tracker.created_by
                 elif incoming.tag and incoming.tag.created_by:
@@ -72,20 +68,14 @@ def incoming_new(request):
                     incoming.status = 'Unidentified'
                     incoming.client = None
 
-            # 🔹 Проверка трек-кодов и тегов на владельца
+            # Tracker and tag ownership checks
             conflicting_items = []
-
-            # Проверяем, не принадлежат ли трек-коды другому клиенту
             for tracker_code in tracker_codes:
                 tracker_code_obj = TrackerCode.objects.filter(code=tracker_code).first()
                 if tracker_code_obj and tracker_code_obj.created_by and tracker_code_obj.created_by != incoming.client:
                     conflicting_items.append(f'❌ Трек-код {tracker_code} принадлежит другому клиенту!')
-
-            # Проверяем, не принадлежит ли метка другому клиенту
             if incoming.tag and incoming.tag.created_by and incoming.tag.created_by != incoming.client:
                 conflicting_items.append(f'❌ Метка "{incoming.tag.name}" принадлежит другому клиенту!')
-
-            # Если есть конфликты, не сохраняем и показываем ошибку
             if conflicting_items:
                 return JsonResponse({'success': False, 'errors': conflicting_items})
 
@@ -93,6 +83,8 @@ def incoming_new(request):
                 incoming.status = 'Template'
 
             incoming.save()
+
+            # Associate tracker codes and inventory numbers
             tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
             for tracker_code, inventory_numbers in tracker_inventory_map.items():
                 tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
@@ -107,27 +99,47 @@ def incoming_new(request):
                         inventory_number=inventory_number_obj
                     )
 
-            # Активируем трек-коды
+            # Activate tracker codes
             for tracker_code in tracker_codes:
                 tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
                                                                               defaults={'status': 'Active'})
                 tracker_code_obj.status = 'Active'
                 tracker_code_obj.save()
 
-            # Привязываем трекер
             incoming.tracker.add(tracker)
-
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
 
-            # Сохраняем фотографии
+            # Save photos
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
+            # Update tracker status
             if tracker.tracking_codes.filter(status='Inactive').count() == 0:
                 tracker.status = 'Completed'
                 tracker.save()
 
+            # Save locations for inventory numbers
+            for key in request.POST:
+                if key.startswith('inventory_numbers_'):
+                    index = key.split('_')[-1]
+                    inventory_numbers_str = request.POST[key]
+                    location_id = request.POST.get(f'location_{index}')
+                    if location_id:
+                        try:
+                            location = Location.objects.get(id=location_id)
+                        except Location.DoesNotExist:
+                            continue
+                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+                        for number in inventory_numbers:
+                            try:
+                                inventory_obj = InventoryNumber.objects.get(number=number)
+                                inventory_obj.location = location
+                                inventory_obj.save()
+                            except InventoryNumber.DoesNotExist:
+                                pass  # Optionally log this error
+
+            # Redirect based on status
             if incoming.status == 'Template':
                 return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
             elif incoming.status == 'Unidentified':
@@ -147,6 +159,7 @@ def incoming_new(request):
     trackers = Tracker.objects.exclude(status="Completed")
     tags = Tag.objects.all()
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+    locations = Location.objects.all()  # Fetch all locations
 
     return render(request, 'deliveries/incomings/incoming-new.html', {
         'form': form,
@@ -154,6 +167,7 @@ def incoming_new(request):
         'tags': tags,
         'trackers': trackers,
         'available_inventory_numbers': available_inventory_numbers,
+        'locations': locations,  # Pass locations to the template
     })
 
 
