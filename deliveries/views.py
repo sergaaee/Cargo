@@ -137,6 +137,8 @@ def incoming_new(request):
                                 inventory_obj.save()
                             except InventoryNumber.DoesNotExist:
                                 pass  # Optionally log this error
+                    else:
+                        return JsonResponse({'success': False, 'errors': ['Please provide location for each inventory number.']})
 
             # Redirect based on status
             if incoming.status == 'Template':
@@ -232,6 +234,8 @@ def incoming_edit(request, pk):
                                 inventory_obj.save()
                             except InventoryNumber.DoesNotExist:
                                 pass
+                    else:
+                        return JsonResponse({'success': False, 'errors': ['Please provide location for each inventory number.']})
 
             if incoming.status == 'Template':
                 return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
