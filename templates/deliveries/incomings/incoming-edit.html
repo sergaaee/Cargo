@@ -6,7 +6,6 @@
 {% block content %}
     <script>
         function removePhotoEdit(photoId) {
-            // Отправка AJAX-запроса для удаления фото
             fetch(`/incomings/delete-photo/${photoId}/`, {
                 method: 'DELETE',
                 headers: {
@@ -14,15 +13,13 @@
                 }
             }).then(response => {
                 if (response.ok) {
-                    // Удаляем элемент фотографии с экрана
                     document.getElementById(`photo-${photoId}`).remove();
                 }
             });
         }
     </script>
     <!-- Модальное окно -->
-    <div class="modal fade" id="additionalInputModal" tabindex="-1" aria-labelledby="additionalInputModalLabel"
-         aria-hidden="true">
+    <div class="modal fade" id="additionalInputModal" tabindex="-1" aria-labelledby="additionalInputModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -33,15 +30,9 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="inventory-input">Инвентарные номера</label>
-                            <input id="inventory-input" list="inventory-list" class="form-control"
-                                   placeholder="Введите инвентарный номер">
-                            <datalist id="inventory-list">
-                                <!-- Список доступных инвентарных номеров -->
-                            </datalist>
-                            <!-- Блок для отображения выбранных инвентарных номеров -->
-                            <div id="selected-inventory-numbers" class="mt-2">
-                                <!-- Здесь будут динамически добавляться выбранные инвентарные номера -->
-                            </div>
+                            <input id="inventory-input" list="inventory-list" class="form-control" placeholder="Введите инвентарный номер">
+                            <datalist id="inventory-list"></datalist>
+                            <div id="selected-inventory-numbers" class="mt-2"></div>
                         </div>
                     </div>
                 </div>
@@ -50,7 +41,6 @@
     </div>
 
     <div class="container-xxl flex-grow-1 container-p-y">
-        <!-- Блок для отображения сообщений -->
         {% if messages %}
             <div id="alert-box" class="mb-3">
                 {% for message in messages %}
@@ -67,72 +57,47 @@
                 <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
                 <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
 
-                <!-- первая строка -->
+                <!-- Детали поступления -->
                 <div class="card accordion-item active">
                     <h2 class="accordion-header" id="headingBaseIncoming">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapseBaseIncoming" aria-expanded="true"
-                                aria-controls="collapseBaseIncoming">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBaseIncoming" aria-expanded="true" aria-controls="collapseBaseIncoming">
                             1. Детали поступления
                         </button>
                     </h2>
-                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show"
-                         aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show" aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
-                            <!-- Поля формы Incoming -->
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label for="tracker">Трек-коды:</label>
-                                                <input type="text" name="tracker" id="tracker-input" class="form-control"
-       {% if incoming.status != "Template" %}disabled{% endif %}>
-
-                                                <div class="form-check mt-2">
-                                                    <input type="checkbox" class="form-check-input"
-                                                           id="no-tracker-checkbox" {%if incoming.status != "Template"%}disabled{% endif %}>
-                                                    <label class="form-check-label" for="no-tracker-checkbox">Нет
-                                                        трек-кода</label>
-                                                </div>
-                                            </div>
+                                        <label for="tracker">Трек-коды:</label>
+                                        <input type="text" name="tracker" id="tracker-input" class="form-control" {% if incoming.status != "Template" %}disabled{% endif %}>
+                                        <div class="form-check mt-2">
+                                            <input type="checkbox" class="form-check-input" id="no-tracker-checkbox" {% if incoming.status != "Template" %}disabled{% endif %}>
+                                            <label class="form-check-label" for="no-tracker-checkbox">Нет трек-кода</label>
                                         </div>
-                                        <!-- Скрытое поле для передачи выбранных трекеров -->
                                         <input type="hidden" id="selected-trackers-input" name="tracker">
-
-                                        <!-- Блок для отображения выбранных трекеров -->
-                                        <div id="selected-trackers" class="mt-2" {% if incoming.status != "Template" %} hidden {% endif %}>
-                                            <!-- Здесь будут динамически добавляться выбранные коды -->
-                                        </div>
+                                        <div id="selected-trackers" class="mt-2" {% if incoming.status != "Template" %}hidden{% endif %}></div>
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.places_count.label_tag }} {{ form.places_count }}
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.arrival_date.label_tag }} <input type="datetime-local" name="arrival_date" class="form-control"
-       value="{{ incoming.arrival_date|date:'Y-m-d\TH:i' }}">
+                                        {{ form.arrival_date.label_tag }} <input type="datetime-local" name="arrival_date" class="form-control" value="{{ incoming.arrival_date|date:'Y-m-d\TH:i' }}">
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.status.label_tag }}
-                                        {{ form.status }}
+                                        {{ form.status.label_tag }} {{ form.status }}
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <!-- Поле для редактирования тега -->
                                         <label for="tag">Тег клиента:</label>
-                                        <input type="text" name="tag" class="form-control"
-                                               value="{{ incoming.tag.name }}">
+                                        <input type="text" name="tag" class="form-control" value="{{ incoming.tag.name }}">
                                     </div>
                                 </div>
                             </div>
@@ -140,17 +105,14 @@
                     </div>
                 </div>
 
-                <!-- вторая строка: фотографии -->
+                <!-- Фотографии поступления -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingPhotoIncoming">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapsePhotoIncoming" aria-expanded="false"
-                                aria-controls="collapsePhotoIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePhotoIncoming" aria-expanded="false" aria-controls="collapsePhotoIncoming">
                             2. Фотографии поступления
                         </button>
                     </h2>
-                    <div id="collapsePhotoIncoming" class="accordion-collapse collapse"
-                         aria-labelledby="headingPhotoIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapsePhotoIncoming" class="accordion-collapse collapse" aria-labelledby="headingPhotoIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="row g-3">
                                 <div class="col-12">
@@ -161,27 +123,19 @@
                                                 {% for photo in incoming.images_set.all %}
                                                     <div class="col-md-3" id="photo-{{ photo.id }}">
                                                         <img src="{{ photo.photo.url }}" class="img-fluid" alt="Фото">
-                                                        <button type="button" class="btn btn-danger mt-2"
-                                                                onclick="removePhotoEdit('{{ photo.id }}')">Удалить
-                                                        </button>
+                                                        <button type="button" class="btn btn-danger mt-2" onclick="removePhotoEdit('{{ photo.id }}')">Удалить</button>
                                                     </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
-
-                                        <!-- Поле для добавления новых фото -->
-                                        <div id="collapsePhotoIncoming" class="accordion-collapse collapse"
-                                             aria-labelledby="headingPhotoIncoming"
-                                             data-bs-parent="#collapsibleSection">
-                                            <div class="accordion-body">
-                                                <div class="row g-3">
-                                                    <div class="col-12">
-                                                        <div class="card-body">
-                                                            <div id="formset-container">
-                                                                {{ formset.management_form }}
-                                                                <label for="photo">Загрузить фото:</label>
-                                                                <input type="file" name="photo" multiple>
-                                                            </div>
+                                        <div class="accordion-body">
+                                            <div class="row g-3">
+                                                <div class="col-12">
+                                                    <div class="card-body">
+                                                        <div id="formset-container">
+                                                            {{ formset.management_form }}
+                                                            <label for="photo">Загрузить фото:</label>
+                                                            <input type="file" name="photo" multiple>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -194,40 +148,33 @@
                     </div>
                 </div>
 
-                <!-- третья строка: прочая информация -->
+                <!-- Прочая информация -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingOthersIncoming">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapseOthersIncoming" aria-expanded="true"
-                                aria-controls="collapseOthersIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOthersIncoming" aria-expanded="true" aria-controls="collapseOthersIncoming">
                             3. Прочая информация
                         </button>
                     </h2>
-                    <div id="collapseOthersIncoming" class="accordion-collapse collapse"
-                         aria-labelledby="headingOthersIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapseOthersIncoming" class="accordion-collapse collapse" aria-labelledby="headingOthersIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
-                            <!-- Прочие поля формы -->
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.size.label_tag }} {{ form.size }}
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.state.label_tag }} {{ form.state }}
                                         <input type="hidden" name="state" value="{{ form.state.value }}">
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.package_type.label_tag }} {{ form.package_type }}
                                         <input type="hidden" name="package_type" value="{{ form.package_type.value }}">
                                     </div>
                                 </div>
-
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         {{ form.weight.label_tag }} {{ form.weight }}
@@ -237,44 +184,94 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Персоналии -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingPersonalia">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapsePersonalia" aria-expanded="false"
-                                aria-controls="collapsePersonalia">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonalia" aria-expanded="false" aria-controls="collapsePersonalia">
                             4. Персоналии
                         </button>
                     </h2>
-                    <div id="collapsePersonalia" class="accordion-collapse collapse"
-                         aria-labelledby="headingPersonalia" data-bs-parent="#collapsibleSection">
+                    <div id="collapsePersonalia" class="accordion-collapse collapse" aria-labelledby="headingPersonalia" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="form-group">
                                 <label for="client-input">Клиент</label>
-                                <input type="text" id="client-input" name="client" class="form-control"
-                                       list="client-list" placeholder="Введите имя, email или телефон"
-                                       value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
+                                <input type="text" id="client-input" name="client" class="form-control" list="client-list" placeholder="Введите имя, email или телефон" value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
                                 <datalist id="client-list"></datalist>
                             </div>
                         </div>
                     </div>
                 </div>
 
-
+                <!-- Размещение на локации -->
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingLocationIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLocationIncoming" aria-expanded="false" aria-controls="collapseLocationIncoming">
+                            5. Размещение на локации
+                        </button>
+                    </h2>
+                    <div id="collapseLocationIncoming" class="accordion-collapse collapse" aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <div class="row g-3" id="location-selection">
+                                {% for group in location_inventory_groups %}
+                                    <div class="col-12 location-item" data-item-index="{{ forloop.counter0 }}">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label for="inventory-input-{{ forloop.counter0 }}">Инвентарные номера</label>
+                                                    <input id="inventory-input-{{ forloop.counter0 }}" class="form-control inventory-input" data-item-index="{{ forloop.counter0 }}" placeholder="Введите номер и нажмите Enter">
+                                                    <input type="hidden" name="inventory_numbers_{{ forloop.counter0 }}" id="hidden-inventory-numbers-{{ forloop.counter0 }}" value="{{ group.inventory_numbers|join:',' }}">
+                                                    <div id="inventory-numbers-list-{{ forloop.counter0 }}" class="mt-2">
+                                                        {% for number in group.inventory_numbers %}
+                                                            <span class="badge bg-primary me-1" data-number="{{ number }}">{{ number }} <span class="ms-2 text-white cursor-pointer">×</span></span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label for="location-{{ forloop.counter0 }}">Локация</label>
+                                                    <select name="location_{{ forloop.counter0 }}" class="form-control" id="location-{{ forloop.counter0 }}">
+                                                        <option value="">Выберите локацию</option>
+                                                        {% for location in locations %}
+                                                            <option value="{{ location.id }}" {% if location.id == group.location_id %}selected{% endif %}>
+                                                                {{ location.name }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group mt-4">
+                                                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="{{ forloop.counter0 }}">
+                                                        <span class="bi bi-trash"></span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                    <span class="bi bi-plus-circle me-2"></span>Добавить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
-            <button type="submit" name="save_draft"
-                    class="btn btn-label-success mt-4 waves-effect">
-                Сохранить как черновик
-            </button>
+            <button type="submit" name="save_draft" class="btn btn-label-success mt-4 waves-effect">Сохранить как черновик</button>
             <a href="{% url 'deliveries:delete-incoming' incoming.id %}" class="btn btn-label-danger waves-effect mt-4">Удалить</a>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
             <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
             <input type="hidden" id="inventory_numbers_input" name="inventory_numbers">
-            <!-- Кнопка для отмены -->
         </form>
     </div>
     <script>
-            let codesNumsMap = JSON.parse('{{ codes_nums_map|escapejs }}');
+        let codesNumsMap = JSON.parse('{{ codes_nums_map|escapejs }}');
+        let locsNumsMap = JSON.parse('{{ locs_num_map|escapejs }}');
     </script>
     <script src="{% static 'js/input-size-mask.js' %}"></script>
     <script src="{% static 'js/client-searching-edit.js' %}"></script>
@@ -283,10 +280,7 @@
     <script src="{% static 'js/submit-logic-edit.js' %}"></script>
     <script>
         window.addEventListener("beforeunload", function () {
-            // Удаляем только данные, связанные с трекерами и инвентарниками
             localStorage.removeItem('trackerInventoryMap');
         });
     </script>
-
-
 {% endblock %}

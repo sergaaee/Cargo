@@ -43,7 +43,6 @@ def delete_photo(request, pk):
 def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
-        formset = PhotoFormSet(request.POST, request.FILES)
         client_phone = request.POST.get("client", "").strip()
 
         if form.is_valid():
@@ -214,6 +213,26 @@ def incoming_edit(request, pk):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
+            # Внутри POST-обработки
+            for key in request.POST:
+                if key.startswith('inventory_numbers_'):
+                    index = key.split('_')[-1]
+                    inventory_numbers_str = request.POST[key]
+                    location_id = request.POST.get(f'location_{index}')
+                    if location_id:
+                        try:
+                            location = Location.objects.get(id=location_id)
+                        except Location.DoesNotExist:
+                            continue
+                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+                        for number in inventory_numbers:
+                            try:
+                                inventory_obj = InventoryNumber.objects.get(number=number)
+                                inventory_obj.location = location
+                                inventory_obj.save()
+                            except InventoryNumber.DoesNotExist:
+                                pass
+
             if incoming.status == 'Template':
                 return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
             elif incoming.status == 'Unidentified':
@@ -247,7 +266,23 @@ def incoming_edit(request, pk):
 
         codes_nums_map[code] = inventory_numbers
 
+    # Locations - inv numbers map
+    locs_num_map = {}
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        locs_num_map[str(loc_id)] = list(inventory_numbers)
+
+    # Группировка для шаблона
+    location_inventory_groups = []
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        location_inventory_groups.append({
+            'location_id': loc_id,
+            'inventory_numbers': list(inventory_numbers)
+        })
+
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+    locations = Location.objects.all()  # Fetch all locations
 
     # ✅ Если НЕ AJAX, рендерим HTML
     return render(request, 'deliveries/incomings/incoming-edit.html', {
@@ -255,6 +290,9 @@ def incoming_edit(request, pk):
         'incoming': incoming,
         'available_inventory_numbers': available_inventory_numbers,
         'codes_nums_map': json.dumps(codes_nums_map),
+        'locs_num_map': json.dumps(locs_num_map),
+        'locations': locations,
+        'location_inventory_groups': location_inventory_groups,
     })
 
 
@@ -1051,7 +1089,6 @@ def location_new(request):
         form = NewLocationForm(request.POST)
         if form.is_valid():
             name = form.cleaned_data['name']
-            # Найти последний инвентарный номер
             Location.objects.create(name=name, created_by=request.user)
             return redirect('deliveries:list-incoming')
     else:

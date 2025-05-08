@@ -346,6 +346,6 @@ class PhotoPlace(UUIDMixin):
 
 
 class Location(UUIDMixin, TimeStampedMixin):
-    name = models.CharField(_('Name'), max_length=150)
+    name = models.CharField(_('Name'), max_length=150, unique=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
                                    null=True)
