@@ -157,18 +157,6 @@
                                                        data-max-places="{{ selected_incoming.places_count }}"
                                                        data-incoming-id="{{ selected_incoming.id }}">
                                             </div>
-                                            <div class="col-md-3">
-                                                <label for="package_type_{{ selected_incoming.id }}">Упаковка</label>
-                                                <select name="package_type_{{ selected_incoming.id }}"
-                                                        class="form-select">
-                                                    {% for package_type in package_types %}
-                                                        <option value="{{ package_type.0 }}"
-                                                                {% if package_type.0 == selected_incoming.package_type %}selected{% endif %}>
-                                                            {{ package_type.1 }}
-                                                        </option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
                                             <div class="col-md-3 d-flex align-items-center">
                                                 <button type="button" class="btn btn-icon btn-outline-info me-3"
                                                         data-bs-toggle="modal"
@@ -512,12 +500,6 @@
                                value="0/${incomingData.places_count}" data-max-places="${incomingData.places_count}"
                                data-incoming-id="${incomingData.id}">
                     </div>
-                    <div class="col-md-3">
-                        <label for="package_type_${incomingData.id}">Упаковка</label>
-                        <select name="package_type_${incomingData.id}" class="form-select">
-                            ${packageTypes.map(type => `<option value="${type[0]}" ${type[0] === incomingData.package_type ? 'selected' : ''}>${type[1]}</option>`).join('')}
-                        </select>
-                    </div>
                     <div class="col-md-3 d-flex align-items-center">
                         <button type="button" class="btn btn-icon btn-outline-info me-3" onclick="openIncomingModal('${incomingData.id}')">
                             <span class="bi bi-zoom-in me-2"></span>
@@ -600,7 +582,7 @@
                 tempSelectedIncomings = [];
                 updateSelectedIncomingsField();
                 updateSelectedInventoryField();
-                bootstrap.Modal.getInstance(document.getElementById('consolidationModal')).hide();
+                bootstrap.Modal.getInstance(document.getElementById('consolidationModal')).close();
             });
 
             function updateSelectedInventoryField() {
