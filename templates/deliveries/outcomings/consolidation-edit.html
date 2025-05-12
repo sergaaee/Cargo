@@ -86,6 +86,11 @@
                                         data-arrival-date="{{ selected_incoming.arrival_date|default_if_none:"-" }}"
                                         data-tag="{{ selected_incoming.tag.name|default_if_none:"-" }}"
                                         data-client-phone="{{ selected_incoming.client.profile.phone_number|default_if_none:"-" }}">
+                                        <div class="mb-2">
+                                            <strong>Выбранные инвентарные номера:</strong>
+                                            <div id="inventory-numbers-list-{{ selected_incoming.id }}"
+                                                 class="mt-2"></div>
+                                        </div>
                                         <div class="row">
                                             <div class="col-md-3">
                                                 <label for="selected_incoming_{{ selected_incoming.id }}">Поступление</label>
@@ -162,11 +167,6 @@
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#incomingDetailModal{{ selected_incoming.id }}">
                                                     <span class="bi bi-zoom-in me-2"></span>
-                                                </button>
-                                                <button type="button" class="btn btn-icon btn-outline-danger"
-                                                        data-id="{{ selected_incoming.id }}"
-                                                        onclick="removeIncomingFromList('{{ selected_incoming.id }}')">
-                                                    <i class="bi bi-x me-2"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -348,6 +348,52 @@
             selectedIncomingsField.value = selectedIncomingsIds.join(',');
         }
 
+        function updateInventoryBadges(incomingId) {
+            const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}`);
+            if (!listContainer) return;
+
+            const storedData = localStorage.getItem(`incoming_${incomingId}`);
+            const selectedNumbers = storedData ? JSON.parse(storedData) : (initialInventoryData[incomingId] || []);
+
+            listContainer.innerHTML = selectedNumbers
+                .map(num => `
+            <span class="badge bg-primary me-1">
+                ${num}
+                <span class="ms-2 text-white cursor-pointer" data-number="${num}" onclick="removeInventoryNumber('${incomingId}', '${num}')">×</span>
+            </span>
+        `)
+                .join('');
+        }
+
+        function saveToLocalStorage(incomingId, inventoryNumbers) {
+            localStorage.setItem(`incoming_${incomingId}`, JSON.stringify(inventoryNumbers));
+        }
+
+        function removeInventoryNumber(incomingId, inventoryNumber) {
+            // Удаляем номер из localStorage
+            let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
+                ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
+                : [];
+            selectedNumbers = selectedNumbers.filter(num => num !== inventoryNumber);
+            saveToLocalStorage(incomingId, selectedNumbers);
+
+            // Обновляем список бейджей
+            updateInventoryBadges(incomingId);
+
+            // Снимаем чекбокс
+            const checkbox = document.querySelector(`.inventory-checkbox[data-incoming-id="${incomingId}"][data-inventory-number="${inventoryNumber}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+
+            // Проверяем, используется ли номер в местах
+            const isUsedInPlaces = Array.from(document.querySelectorAll('.inventory-badge'))
+                .some(badge => badge.textContent.trim() === inventoryNumber);
+            if (!isUsedInPlaces) {
+                assignedInventoryNumbers.delete(inventoryNumber);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const allIncomingsData = JSON.parse(document.getElementById('incomingsJson').textContent);
             const packageTypes = JSON.parse(document.getElementById('packageTypesJson').textContent);
@@ -371,6 +417,7 @@
             const placesInput = document.getElementById('places_data');
             const placesList = document.getElementById('places-list');
 
+
             // Initialize selected incomings and their inventory numbers
             initialIncomingsData.forEach(incoming => {
                 selectedIncomingsData.push(incoming);
@@ -380,6 +427,7 @@
                 if (inventoryNumbers.length > 0) {
                     saveToLocalStorage(incoming.id, inventoryNumbers);
                     updatePlacesCount(incoming.id);
+                    updateInventoryBadges(incoming.id);
                 }
             });
             updateSelectedIncomingsField();
@@ -600,13 +648,49 @@
                 if (event.target.classList.contains("inventory-checkbox")) {
                     const incomingId = event.target.dataset.incomingId;
                     const inventoryNumber = event.target.dataset.inventoryNumber;
-                    let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`) ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`)) : [];
+                    let selectedNumbers = localStorage.getItem(`incoming_${incomingId}`)
+                        ? JSON.parse(localStorage.getItem(`incoming_${incomingId}`))
+                        : [];
+
                     if (event.target.checked) {
-                        if (!selectedNumbers.includes(inventoryNumber)) selectedNumbers.push(inventoryNumber);
+                        // Логика при выборе чекбокса
+                        if (!selectedNumbers.includes(inventoryNumber)) {
+                            selectedNumbers.push(inventoryNumber);
+                            selectedIncomingsInventory.add(inventoryNumber);
+                            saveToLocalStorage(incomingId, selectedNumbers);
+                            updateInventoryBadges(incomingId); // Обновляем бейджи
+                        }
                     } else {
+                        // Логика при снятии чекбокса
                         selectedNumbers = selectedNumbers.filter(num => num !== inventoryNumber);
+                        saveToLocalStorage(incomingId, selectedNumbers);
+
+                        // Удаляем бейджи из мест
+                        document.querySelectorAll(`.inventory-badge`).forEach(badge => {
+                            if (badge.textContent.trim() === inventoryNumber) {
+                                badge.remove();
+                                assignedInventoryNumbers.delete(inventoryNumber);
+                            }
+                        });
+
+                        // Проверяем, используется ли номер в других поступлениях
+                        const isUsedElsewhere = selectedIncomingsData.some(incoming => {
+                            if (incoming.id !== incomingId) {
+                                const storedData = localStorage.getItem(`incoming_${incoming.id}`);
+                                return storedData && JSON.parse(storedData).includes(inventoryNumber);
+                            }
+                            return false;
+                        });
+
+                        // Если номер не используется, удаляем из selectedIncomingsInventory
+                        if (!isUsedElsewhere) {
+                            selectedIncomingsInventory.delete(inventoryNumber);
+                        }
+
+                        // Обновляем список "Выбранные инвентарные номера"
+                        updateInventoryBadges(incomingId);
                     }
-                    saveToLocalStorage(incomingId, selectedNumbers);
+
                     updatePlacesCount(incomingId);
                     updateSelectedInventoryField();
                 }
@@ -759,17 +843,33 @@
                 const incomingData = selectedIncomingsData.find(item => item.id === incomingId);
                 if (incomingData) {
                     incomingData.inventory_numbers.forEach(number => {
-                        selectedIncomingsInventory.delete(number);
-                        assignedInventoryNumbers.delete(number);
-                        document.querySelectorAll('.inventory-badge').forEach(badge => {
-                            if (badge.textContent.trim() === number) badge.remove();
+                        // Проверяем, используется ли номер в других поступлениях
+                        const isUsedElsewhere = selectedIncomingsData.some(incoming => {
+                            if (incoming.id !== incomingId) {
+                                const storedData = localStorage.getItem(`incoming_${incoming.id}`);
+                                return storedData && JSON.parse(storedData).includes(number);
+                            }
+                            return false;
                         });
+
+                        // Удаляем из selectedIncomingsInventory, если не используется
+                        if (!isUsedElsewhere) {
+                            selectedIncomingsInventory.delete(number);
+                        }
+
+                        // Удаляем все бейджи с этим номером
+                        document.querySelectorAll(`.inventory-badge`).forEach(badge => {
+                            if (badge.textContent.trim().startsWith(number)) {
+                                badge.remove();
+                            }
+                        });
+
+                        assignedInventoryNumbers.delete(number);
                     });
                     selectedIncomingsData = selectedIncomingsData.filter(item => item.id !== incomingId);
                 }
 
                 updateSelectedIncomingsField();
-                updateSelectedInventoryField();
             }
 
             function openIncomingModal(incomingId) {
