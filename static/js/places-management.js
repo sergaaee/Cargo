@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="col-md-2">
                     <label for="package_type_${index}">Упаковка</label>
                     <select name="package_type_${index}" class="form-select">
-                        ${JSON.parse(document.getElementById('packageTypesJson').textContent).map(pt => `<option value="${pt[0]}">${pt[1]}</option>`).join('')}
+                        ${JSON.parse(document.getElementById('packageTypesJson').textContent).map(pt => `<option value="${pt}">${pt}</option>`).join('')}
                     </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-center">

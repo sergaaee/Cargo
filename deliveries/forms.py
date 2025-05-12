@@ -98,7 +98,7 @@ class BaseIncomingForm(forms.ModelForm):
 
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
     weight = forms.FloatField(initial=1, required=False,
-                                widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+                              widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
     inventory_numbers = forms.CharField(required=True,
                                         widget=forms.TextInput(
@@ -341,8 +341,6 @@ class ConsolidationForm(forms.ModelForm):
             raise forms.ValidationError("Пожалуйста, введите трек-код.")
 
 
-
-
 class PackageForm(forms.ModelForm):
     class Meta:
         model = Consolidation
@@ -413,6 +411,38 @@ class GenerateInventoryNumbersForm(forms.Form):
 
 class NewLocationForm(forms.Form):
     name = forms.CharField(label="Название локации")
+
+
+class DeliveryTypeForm(forms.Form):
+    name = forms.CharField(label="Название вида доставки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите инвентарные номера.',
+                               'invalid': 'Некорректный формат инвентарного номера.',
+                           }, )
+    price = forms.FloatField(initial=1, required=True,
+                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    eta = forms.CharField(label="Приблизительное время доставки", required=True,
+                          widget=forms.TextInput(
+                              attrs={'class': 'form-control'}, ),
+                          )
+
+
+class PackageTypeForm(forms.Form):
+    name = forms.CharField(label="Название вида упаковки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+    price = forms.FloatField(label="Цена", initial=1, required=True,
+                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    description = forms.CharField(
+        label="Описание упаковки",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control'}, ),
+    )
 
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)

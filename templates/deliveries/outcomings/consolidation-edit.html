@@ -664,7 +664,7 @@
                     <div class="col-md-2">
                         <label for="package_type_${index}">Тип упаковки</label>
                         <select name="package_type_${index}" class="form-select">
-                            ${packageTypes.map(type => `<option value="${type[0]}" ${type[0] === place.package_type ? 'selected' : ''}>${type[1]}</option>`).join('')}
+                            ${packageTypes.map(type => `<option value="${type}" ${type === place.package_type ? 'selected' : ''}>${type}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-4">

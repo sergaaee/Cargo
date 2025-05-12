@@ -6,8 +6,6 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.urls import reverse
 
-from .choices import PackageType
-
 from django.contrib.auth.models import User
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,10 +16,10 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     update_inventory_and_trackers, packaged_columns
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm, NewLocationForm
+    GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
-    Location
+    Location, PackageType, DeliveryType
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -138,7 +136,8 @@ def incoming_new(request):
                             except InventoryNumber.DoesNotExist:
                                 pass  # Optionally log this error
                     else:
-                        return JsonResponse({'success': False, 'errors': ['Please provide location for each inventory number.']})
+                        return JsonResponse(
+                            {'success': False, 'errors': ['Please provide location for each inventory number.']})
 
             # Redirect based on status
             if incoming.status == 'Template':
@@ -235,7 +234,8 @@ def incoming_edit(request, pk):
                             except InventoryNumber.DoesNotExist:
                                 pass
                     else:
-                        return JsonResponse({'success': False, 'errors': ['Please provide location for each inventory number.']})
+                        return JsonResponse(
+                            {'success': False, 'errors': ['Please provide location for each inventory number.']})
 
             if incoming.status == 'Template':
                 return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
@@ -647,15 +647,19 @@ def new_consolidation(request):
                             'package_type': package_type,
                         }
 
+                consolidation_price = 0
                 for place_data in places_data.values():
+                    package_type = PackageType.objects.get(name=place_data['package_type'])
+                    consolidation_price += package_type.price
                     place = Place.objects.create(
                         consolidation=consolidation,
                         place_code=place_data['place_code'],
-                        package_type=place_data['package_type']
+                        package_type=package_type,
                     )
                     inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
                     place.inventory_numbers.set(inventory_objs)
 
+                consolidation.price = consolidation_price + consolidation.delivery_type.price
                 consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
@@ -689,7 +693,7 @@ def new_consolidation(request):
 
     incomings_data = prepare_incoming_data(incomings)
     initial_incomings_data = prepare_incoming_data(selected_incomings)
-    package_types = PackageType.choices
+    package_types = list(PackageType.objects.values_list('name', flat=True))
 
     return render(request, 'deliveries/outcomings/consolidation-new.html', {
         'form': form,
@@ -824,12 +828,13 @@ def package_new(request, pk):
 
                 # Создаём новые места
                 for place_index, place_data in places_data.items():
+                    package_type = PackageType.objects.get(name=place_data['package_type'])
                     place = Place.objects.create(
                         consolidation=consolidation,
                         place_code=place_data['place_code'],
                         weight=place_data['weight'],
                         volume=place_data['volume'],
-                        package_type=place_data['package_type'],
+                        package_type=package_type,
                     )
                     # Привязываем инвентарные номера
                     inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
@@ -871,17 +876,19 @@ def package_new(request, pk):
             'place_code': place.place_code,
             'weight': place.weight,
             'volume': place.volume,
-            'package_type': place.package_type,
+            'package_type': place.package_type.name,
             'inventory_numbers': inventory_numbers,
             'photos': photos,
         })
+
+    package_types = list(PackageType.objects.values_list('name', flat=True))
 
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
         'consolidation_inventory_numbers': valid_numbers,
         'places_data': places_data,
-        'package_types': PackageType.choices,
+        'package_types': package_types,
     })
 
 
@@ -948,16 +955,21 @@ def consolidation_edit(request, pk):
 
             # Обработка мест
             consolidation.places.all().delete()
+            consolidation_price = 0
             for place_data in places_data:
+                package_type = PackageType.objects.get(name=place_data['package_type'])
+                consolidation_price += package_type.price
                 place = Place.objects.create(
                     consolidation=consolidation,
                     place_code=place_data['place_code'],
-                    package_type=place_data['package_type'],
+                    package_type=package_type,
                 )
                 inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
                 place.inventory_numbers.set(inventory_objs)
 
             # Обновление связи консолидации с поступлениями
+            consolidation.price = consolidation_price + consolidation.delivery_type.price
+            consolidation.save()
             consolidation.incomings.set(selected_incomings)
 
             messages.success(request, 'Консолидация успешно обновлена.')
@@ -977,7 +989,7 @@ def consolidation_edit(request, pk):
     )
     incomings_data = prepare_incoming_data(incomings)
     initial_incomings_data = prepare_incoming_data(selected_incomings)
-    package_types = PackageType.choices
+    package_types = list(PackageType.objects.values_list('name', flat=True))
 
     # Подготовка данных об инвентарных номерах
     initial_inventory_data = {}
@@ -995,7 +1007,7 @@ def consolidation_edit(request, pk):
         inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
         places_data.append({
             'place_code': place.place_code,
-            'package_type': place.package_type,
+            'package_type': place.package_type.name,
             'inventory_numbers': inventory_numbers,
         })
 
@@ -1098,3 +1110,30 @@ def location_new(request):
     else:
         form = NewLocationForm()
     return render(request, 'deliveries/create_location.html', {'form': form})
+
+
+def delivery_type_new(request):
+    if request.method == 'POST':
+        form = DeliveryTypeForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            price = form.cleaned_data['price']
+            eta = form.cleaned_data['eta']
+            DeliveryType.objects.create(name=name, price=price, eta=eta)
+            return redirect('deliveries:list-incoming')
+    else:
+        form = DeliveryTypeForm()
+    return render(request, 'deliveries/create_delivery_type.html', {'form': form})
+
+def package_type_new(request):
+    if request.method == 'POST':
+        form = PackageTypeForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            price = form.cleaned_data['price']
+            description = form.cleaned_data['description']
+            PackageType.objects.create(name=name, price=price, description=description)
+            return redirect('deliveries:list-incoming')
+    else:
+        form = PackageTypeForm()
+    return render(request, 'deliveries/create_package_type.html', {'form': form})
