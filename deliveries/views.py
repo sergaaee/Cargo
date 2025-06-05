@@ -1133,7 +1133,66 @@ def package_type_new(request):
             price = form.cleaned_data['price']
             description = form.cleaned_data['description']
             PackageType.objects.create(name=name, price=price, description=description)
-            return redirect('deliveries:list-incoming')
+            return redirect('deliveries:list-package-type')
     else:
         form = PackageTypeForm()
-    return render(request, 'deliveries/create_package_type.html', {'form': form})
+    return render(request, 'deliveries/package_type/create_package_type.html', {'form': form})
+
+
+@staff_and_login_required
+def package_type_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    package_types = PackageType.objects.all()
+
+    package_types = package_types.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(package_types, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('price', 'Цена'),
+        ('description', 'Описание')
+    ]
+
+    return render(request, 'deliveries/package_type/package_type_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def package_type_edit(request, pk):
+    package_type = get_object_or_404(PackageType, pk=pk)
+
+    if request.method == 'POST':
+        form = PackageTypeForm(request.POST, instance=package_type)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-package-type')
+    else:
+        form = PackageTypeForm(instance=package_type)
+
+    return render(request, 'deliveries/package_type/package_type_edit.html', {'form': form, 'package_type': package_type})
+
+
+@staff_and_login_required
+def package_type_delete(request, pk):
+    package_type = get_object_or_404(PackageType, pk=pk)
+    if request.method == 'POST':
+        package_type.delete()
+        return redirect('deliveries:list-package-type')
+    return render(request, 'deliveries/package_type/package_type_delete.html', {'package_type': package_type})
+

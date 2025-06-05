@@ -5,7 +5,7 @@ import json
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory
+    ConsolidationInventory, PackageType
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -429,7 +429,11 @@ class DeliveryTypeForm(forms.Form):
                           )
 
 
-class PackageTypeForm(forms.Form):
+class PackageTypeForm(forms.ModelForm):
+    class Meta:
+        model = PackageType
+        fields = ['name', 'price', 'description']
+
     name = forms.CharField(label="Название вида упаковки", required=True,
                            widget=forms.TextInput(
                                attrs={'class': 'form-control'}, ),
