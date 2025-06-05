@@ -1120,10 +1120,11 @@ def delivery_type_new(request):
             price = form.cleaned_data['price']
             eta = form.cleaned_data['eta']
             DeliveryType.objects.create(name=name, price=price, eta=eta)
-            return redirect('deliveries:list-incoming')
+            return redirect('deliveries:list-delivery-type')
     else:
         form = DeliveryTypeForm()
-    return render(request, 'deliveries/create_delivery_type.html', {'form': form})
+    return render(request, 'deliveries/delivery_type/create_delivery_type.html', {'form': form})
+
 
 def package_type_new(request):
     if request.method == 'POST':
@@ -1185,7 +1186,8 @@ def package_type_edit(request, pk):
     else:
         form = PackageTypeForm(instance=package_type)
 
-    return render(request, 'deliveries/package_type/package_type_edit.html', {'form': form, 'package_type': package_type})
+    return render(request, 'deliveries/package_type/package_type_edit.html',
+                  {'form': form, 'package_type': package_type})
 
 
 @staff_and_login_required
@@ -1196,3 +1198,61 @@ def package_type_delete(request, pk):
         return redirect('deliveries:list-package-type')
     return render(request, 'deliveries/package_type/package_type_delete.html', {'package_type': package_type})
 
+
+@staff_and_login_required
+def delivery_type_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    delivery_types = DeliveryType.objects.all()
+
+    delivery_types = delivery_types.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(delivery_types, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('price', 'Цена'),
+        ('eta', 'Примерное время доставки')
+    ]
+
+    return render(request, 'deliveries/delivery_type/delivery_type_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def delivery_type_edit(request, pk):
+    delivery_type = get_object_or_404(DeliveryType, pk=pk)
+
+    if request.method == 'POST':
+        form = DeliveryTypeForm(request.POST, instance=delivery_type)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-delivery-type')
+    else:
+        form = DeliveryTypeForm(instance=delivery_type)
+
+    return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
+                  {'form': form, 'delivery_type': delivery_type})
+
+
+@staff_and_login_required
+def delivery_type_delete(request, pk):
+    delivery_type = get_object_or_404(DeliveryType, pk=pk)
+    if request.method == 'POST':
+        delivery_type.delete()
+        return redirect('deliveries:list-delivery-type')
+    return render(request, 'deliveries/delivery_type/delivery_type_delete.html', {'delivery_type': delivery_type})

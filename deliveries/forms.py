@@ -1,11 +1,10 @@
 from django import forms
 from django.forms.models import inlineformset_factory
 from django.core.exceptions import ValidationError
-import json
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType
+    ConsolidationInventory, PackageType, DeliveryType
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -413,22 +412,6 @@ class NewLocationForm(forms.Form):
     name = forms.CharField(label="Название локации")
 
 
-class DeliveryTypeForm(forms.Form):
-    name = forms.CharField(label="Название вида доставки", required=True,
-                           widget=forms.TextInput(
-                               attrs={'class': 'form-control'}, ),
-                           error_messages={
-                               'required': 'Пожалуйста, введите инвентарные номера.',
-                               'invalid': 'Некорректный формат инвентарного номера.',
-                           }, )
-    price = forms.FloatField(initial=1, required=True,
-                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    eta = forms.CharField(label="Приблизительное время доставки", required=True,
-                          widget=forms.TextInput(
-                              attrs={'class': 'form-control'}, ),
-                          )
-
-
 class PackageTypeForm(forms.ModelForm):
     class Meta:
         model = PackageType
@@ -444,6 +427,26 @@ class PackageTypeForm(forms.ModelForm):
                              widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
     description = forms.CharField(
         label="Описание упаковки",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control'}, ),
+    )
+
+
+class DeliveryTypeForm(forms.ModelForm):
+    class Meta:
+        model = DeliveryType
+        fields = ['name', 'price', 'eta']
+
+    name = forms.CharField(label="Название вида упаковки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+    price = forms.FloatField(label="Цена", initial=1, required=True,
+                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    eta = forms.CharField(
+        label="Примерное время доставки",
         widget=forms.TextInput(
             attrs={'class': 'form-control'}, ),
     )
