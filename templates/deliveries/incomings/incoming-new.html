@@ -206,6 +206,11 @@
                     <div id="collapseLocationIncoming" class="accordion-collapse collapse"
                          aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
+                            <div class="mb-2">
+                                <strong>Доступные инвентарные номера:</strong>
+                                <div id="available-inventory-numbers-for-location-container"
+                                     class="mt-2"></div>
+                            </div>
                             <div class="row g-3" id="location-selection">
                                 <div class="col-12 location-item" data-item-index="0">
                                     <div class="row g-3">
@@ -408,6 +413,15 @@
                                     numberBadge.appendChild(removeBtn);
                                     listContainer.appendChild(numberBadge);
                                     input.value = "";
+
+                                    const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
+                                    console.log('HGERE', availableContainer);
+                                    if (availableContainer) {
+                                        console.log('nubmer:', number)
+                                        const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
+                                        badges.forEach(badge => badge.remove());
+                                    }
+
                                     updateSelectedInventoryInput();
                                 } else {
                                     alert("Нет такого инвентарного номера.");
@@ -484,7 +498,16 @@
                                 });
                                 numberBadge.appendChild(removeBtn);
                                 firstListContainer.appendChild(numberBadge);
+
+                                const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
+                                if (availableContainer) {
+                                    console.log('nubmer:', number)
+                                    const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
+                                    badges.forEach(badge => badge.remove());
+                                }
+
                                 updateSelectedInventoryInput();
+
                             } else {
                                 alert("Нет такого инвентарного номера.");
                             }

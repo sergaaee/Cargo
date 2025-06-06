@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
     const trackerInput = document.getElementById('tracker-input');
     const selectedTrackersContainer = document.getElementById('selected-trackers');
+    const availableInventoryNumbersForLocationsContainer = document.getElementById('available-inventory-numbers-for-location-container');
     const noTrackerCheckbox = document.getElementById('no-tracker-checkbox');
     const selectedTrackersInput = document.getElementById('selected-trackers-input');
     const modal = new bootstrap.Modal(document.getElementById('additionalInputModal'));
@@ -81,6 +82,20 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function loadAvailableInventoryNumbers(trackerCode) {
+        const inventoryNumbers = trackerInventoryMap[trackerCode] || [];
+        availableInventoryNumbersForLocationsContainer.innerHTML = '';
+
+        inventoryNumbers.forEach((number) => {
+            const inventoryDiv = document.createElement('div');
+            inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-secondary', 'me-1', 'mb-1'); // Используем bg-secondary для серого цвета
+            inventoryDiv.textContent = number;
+            inventoryDiv.dataset.number = number;
+
+            availableInventoryNumbersForLocationsContainer.appendChild(inventoryDiv);
+        });
+    }
+
     // Функция для добавления трек-кода и открытия модального окна для инвентарных номеров
     function addSelectedTracker() {
         let selectedCode = trackerInput.value.trim();
@@ -92,9 +107,11 @@ document.addEventListener("DOMContentLoaded", function () {
             selectedTrackers.push(selectedCode);
             updateSelectedTrackers();
             loadInventoryNumbersForTracker(selectedCode);
+            loadAvailableInventoryNumbers(selectedCode);
             modal.show();
         } else if (selectedTrackers.includes(selectedCode)) {
             loadInventoryNumbersForTracker(selectedCode);
+            loadAvailableInventoryNumbers(selectedCode);
             modal.show();
         }
         trackerInput.value = '';
@@ -109,6 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
             selectedTrackers.push(selectedCode);
             updateSelectedTrackers();
             loadInventoryNumbersForTracker(selectedCode);
+            loadAvailableInventoryNumbers(selectedCode);
             modal.show();
         }
     });
@@ -137,6 +155,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     trackerInventoryMap[currentTracker].push(selectedNumber);
                     localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
                     loadInventoryNumbersForTracker(currentTracker);
+                    loadAvailableInventoryNumbers(currentTracker);
                 }
             }
             inventoryInput.value = ''; // очищаем поле ввода
@@ -156,6 +175,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 trackerInventoryMap[currentTracker].push(selectedNumber);
                 localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
                 loadInventoryNumbersForTracker(currentTracker);
+                loadAvailableInventoryNumbers(currentTracker);
             }
         }
         inventoryInput.value = ''; // очищаем поле ввода

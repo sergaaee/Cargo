@@ -76,6 +76,53 @@ def incoming_new(request):
             if conflicting_items:
                 return JsonResponse({'success': False, 'errors': conflicting_items})
 
+            # Validate inventory numbers and locations before any saves
+            all_inventory_numbers = set(form.cleaned_data['inventory_numbers'])  # All inventory numbers from form
+            assigned_inventory_numbers = set()  # Track inventory numbers with valid locations
+            location_assignments = []  # Store valid assignments for later processing
+
+            for key in request.POST:
+                if key.startswith('inventory_numbers_'):
+                    index = key.split('_')[-1]
+                    inventory_numbers_str = request.POST[key]
+                    location_id = request.POST.get(f'location_{index}')
+                    inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+
+                    if not location_id:
+                        return JsonResponse(
+                            {'success': False,
+                             'errors': f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inventory_numbers)}'}
+                        )
+
+                    try:
+                        location = Location.objects.get(id=location_id)
+                    except Location.DoesNotExist:
+                        return JsonResponse(
+                            {'success': False,
+                             'errors': f'Локация с ID {location_id} не существует для инвентарных номеров: {", ".join(inventory_numbers)}'}
+                        )
+
+                    for number in inventory_numbers:
+                        try:
+                            inventory_obj = InventoryNumber.objects.get(number=number)
+                            assigned_inventory_numbers.add(inventory_obj)
+                            location_assignments.append((inventory_obj, location))  # Store for later saving
+                        except InventoryNumber.DoesNotExist:
+                            return JsonResponse(
+                                {'success': False,
+                                 'errors': f'Инвентарный номер {number} не существует в базе данных.'}
+                            )
+
+            # Check if all inventory numbers have been assigned a location
+            unassigned_inventory_numbers = all_inventory_numbers - assigned_inventory_numbers
+            if unassigned_inventory_numbers:
+                return JsonResponse(
+                    {'success': False,
+                     'errors': [
+                         f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inv.number for inv in sorted(unassigned_inventory_numbers, key=lambda x: x.number))}']}
+                )
+
+            # All validations passed, now proceed with saving
             if 'save_draft' in request.POST:
                 incoming.status = 'Template'
 
@@ -98,10 +145,13 @@ def incoming_new(request):
 
             # Activate tracker codes
             for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
-                                                                              defaults={'status': 'Active'})
+                tracker_code_obj, created = TrackerCode.objects.get_or_create(
+                    code=tracker_code,
+                    defaults={'status': 'Active'}
+                )
                 tracker_code_obj.status = 'Active'
                 tracker_code_obj.save()
+
 
             incoming.tracker.add(tracker)
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
@@ -117,27 +167,9 @@ def incoming_new(request):
                 tracker.save()
 
             # Save locations for inventory numbers
-            for key in request.POST:
-                if key.startswith('inventory_numbers_'):
-                    index = key.split('_')[-1]
-                    inventory_numbers_str = request.POST[key]
-                    location_id = request.POST.get(f'location_{index}')
-                    if location_id:
-                        try:
-                            location = Location.objects.get(id=location_id)
-                        except Location.DoesNotExist:
-                            continue
-                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
-                        for number in inventory_numbers:
-                            try:
-                                inventory_obj = InventoryNumber.objects.get(number=number)
-                                inventory_obj.location = location
-                                inventory_obj.save()
-                            except InventoryNumber.DoesNotExist:
-                                pass  # Optionally log this error
-                    else:
-                        return JsonResponse(
-                            {'success': False, 'errors': ['Please provide location for each inventory number.']})
+            for inventory_obj, location in location_assignments:
+                inventory_obj.location = location
+                inventory_obj.save()
 
             # Redirect based on status
             if incoming.status == 'Template':
@@ -155,20 +187,19 @@ def incoming_new(request):
     else:
         form = IncomingForm()
         formset = PhotoFormSet()
+        trackers = Tracker.objects.exclude(status="Completed")
+        tags = Tag.objects.all()
+        available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+        locations = Location.objects.all()
 
-    trackers = Tracker.objects.exclude(status="Completed")
-    tags = Tag.objects.all()
-    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-    locations = Location.objects.all()  # Fetch all locations
-
-    return render(request, 'deliveries/incomings/incoming-new.html', {
-        'form': form,
-        'formset': formset,
-        'tags': tags,
-        'trackers': trackers,
-        'available_inventory_numbers': available_inventory_numbers,
-        'locations': locations,  # Pass locations to the template
-    })
+        return render(request, 'deliveries/incomings/incoming-new.html', {
+            'form': form,
+            'formset': formset,
+            'tags': tags,
+            'trackers': trackers,
+            'available_inventory_numbers': available_inventory_numbers,
+            'locations': locations,
+        })
 
 
 @staff_and_login_required
@@ -235,7 +266,7 @@ def incoming_edit(request, pk):
                                 pass
                     else:
                         return JsonResponse(
-                            {'success': False, 'errors': ['Please provide location for each inventory number.']})
+                            {'success': False, 'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
 
             if incoming.status == 'Template':
                 return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
