@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Инициализация пула номеров
     window.availableNumbers = new Set();
+    window.trackCode = trackCode;
     const selectedIncomingsData = JSON.parse(document.getElementById('initialIncomingsJson').textContent) || [];
     selectedIncomingsData.forEach(incoming => {
         if (incoming.inventory_numbers) {
@@ -13,54 +14,66 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+    trackCodeInput.addEventListener('input', function () {
+        const newTrackCode = this.value.trim();
+        // Обновляем глобальную переменную trackCode
+        window.trackCode = newTrackCode;
+
+        // Обновляем значения всех существующих полей place_consolidated
+        const placeInputs = document.querySelectorAll('input[name^="place_consolidated_"]');
+        placeInputs.forEach((input, index) => {
+            input.value = `${newTrackCode}-${index + 1}`;
+        });
+    });
+
     // Функция для создания новой строки места
     function createNewPlace(index) {
-        const newItem = document.createElement("li");
-        newItem.className = "list-group-item place-item";
-        newItem.dataset.itemIndex = index;
+    const newItem = document.createElement("li");
+    newItem.className = "list-group-item place-item";
+    newItem.dataset.itemIndex = index;
 
-        const deleteButtonHtml = index > 0 ? `
-            <button type="button" class="btn btn-icon btn-outline-danger delete-place-btn" data-item-index="${index}">
-                <span class="bi bi-trash me-2"></span>
-            </button>
-        ` : '';
+    const deleteButtonHtml = index > 0 ? `
+        <button type="button" class="btn btn-icon btn-outline-danger delete-place-btn" data-item-index="${index}">
+            <span class="bi bi-trash me-2"></span>
+        </button>
+    ` : '';
 
-        newItem.innerHTML = `
-            <div class="row">
-                <div class="col-md-3">
-                    <label for="inventory-input-${index}">Инвентарные номера</label>
-                    <input id="inventory-input-${index}"
-                           class="form-control inventory-input"
-                           data-item-index="${index}"
-                           placeholder="Введите номер">
-                    <input type="hidden"
-                           name="inventory_numbers_${index}"
-                           id="hidden-inventory-numbers-${index}"
-                           value="">
-                    <div id="place-inventory-numbers-list-${index}" class="mt-2"></div>
-                </div>
-                <div class="col-md-2">
-                    <label for="place_${index}">Код места</label>
-                    <input type="text"
-                           name="place_consolidated_${index}"
-                           class="form-control"
-                           value="${trackCode}-${index + 1}"
-                           readonly>
-                </div>
-                <div class="col-md-2">
-                    <label for="package_type_${index}">Упаковка</label>
-                    <select name="package_type_${index}" class="form-select">
-                        ${JSON.parse(document.getElementById('packageTypesJson').textContent).map(pt => `<option value="${pt}">${pt}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="col-md-1 d-flex align-items-center">
-                    ${deleteButtonHtml}
-                </div>
+    newItem.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <label for="inventory-input-${index}">Инвентарные номера</label>
+                <input id="inventory-input-${index}"
+                       class="form-control inventory-input"
+                       data-item-index="${index}"
+                       placeholder="Введите номер">
+                <input type="hidden"
+                       name="inventory_numbers_${index}"
+                       id="hidden-inventory-numbers-${index}"
+                       value="">
+                <div id="place-inventory-numbers-list-${index}" class="mt-2"></div>
             </div>
-        `;
+            <div class="col-md-2">
+                <label for="place_${index}">Код места</label>
+                <input type="text"
+                       name="place_consolidated_${index}"
+                       class="form-control"
+                       value="${window.trackCode}-${index + 1}"
+                       readonly>
+            </div>
+            <div class="col-md-2">
+                <label for="package_type_${index}">Упаковка</label>
+                <select name="package_type_${index}" class="form-select">
+                    ${JSON.parse(document.getElementById('packageTypesJson').textContent).map(pt => `<option value="${pt}">${pt}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-md-1 d-flex align-items-center">
+                ${deleteButtonHtml}
+            </div>
+        </div>
+    `;
 
-        return newItem;
-    }
+    return newItem;
+}
 
     // Обработка ввода инвентарных номеров для мест
     function setupInventoryInput(input) {
@@ -231,6 +244,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
             itemToDelete = null;
             modalElement.removeEventListener("hidden.bs.modal", handler);
-        }, { once: true });
+        }, {once: true});
     });
 });
