@@ -16,10 +16,10 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     update_inventory_and_trackers, packaged_columns
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm
+    GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
-    Location, PackageType, DeliveryType
+    Location, PackageType, DeliveryType, DeliveryPriceRange
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -690,7 +690,7 @@ def new_consolidation(request):
                     inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
                     place.inventory_numbers.set(inventory_objs)
 
-                consolidation.price = consolidation_price + consolidation.delivery_type.price
+                consolidation.price = consolidation_price
                 consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
@@ -836,6 +836,8 @@ def package_new(request, pk):
 
             # Получаем данные о местах из формы
             places_data = {}
+            total_volume = 0
+            total_weight = 0
             for key, value in request.POST.items():
                 if key.startswith('inventory_numbers_'):
                     place_index = key.split('_')[-1]
@@ -851,6 +853,16 @@ def package_new(request, pk):
                         'place_code': place_code,
                         'package_type': package_type,
                     }
+                    total_volume += float(volume)
+                    total_weight += float(weight)
+
+            tariff = DeliveryPriceRange.objects.filter(
+                delivery_type=consolidation.delivery_type,
+                min_density__lte=total_volume,
+                max_density__gte=total_volume
+            ).first()
+
+            consolidation.price += float(tariff.price_per_kg) * total_weight
 
             # Сохраняем места
             with transaction.atomic():
@@ -999,7 +1011,7 @@ def consolidation_edit(request, pk):
                 place.inventory_numbers.set(inventory_objs)
 
             # Обновление связи консолидации с поступлениями
-            consolidation.price = consolidation_price + consolidation.delivery_type.price
+            consolidation.price = consolidation_price
             consolidation.save()
             consolidation.incomings.set(selected_incomings)
 
@@ -1146,15 +1158,16 @@ def location_new(request):
 def delivery_type_new(request):
     if request.method == 'POST':
         form = DeliveryTypeForm(request.POST)
-        if form.is_valid():
-            name = form.cleaned_data['name']
-            price = form.cleaned_data['price']
-            eta = form.cleaned_data['eta']
-            DeliveryType.objects.create(name=name, price=price, eta=eta)
+        formset = DeliveryPriceRangeFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            delivery_type = form.save()
+            formset.instance = delivery_type
+            formset.save()
             return redirect('deliveries:list-delivery-type')
     else:
         form = DeliveryTypeForm()
-    return render(request, 'deliveries/delivery_type/create_delivery_type.html', {'form': form})
+        formset = DeliveryPriceRangeFormSet()
+    return render(request, 'deliveries/delivery_type/create_delivery_type.html', {'form': form, 'formset': formset})
 
 
 def package_type_new(request):
@@ -1251,7 +1264,6 @@ def delivery_type_list(request):
     # Добавляем колонки с метками для отображения в таблице
     columns = [
         ('name', 'Название'),
-        ('price', 'Цена'),
         ('eta', 'Примерное время доставки')
     ]
 

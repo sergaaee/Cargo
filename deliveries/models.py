@@ -1,4 +1,5 @@
 from django.core.validators import MinValueValidator
+from django.db.models import Q, F
 
 from PIL import Image
 from deliveries.choices import *
@@ -189,7 +190,7 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         unique=True
     )
     instruction = models.TextField(_('Instruction'), blank=True, null=True)
-    delivery_type = models.ForeignKey('DeliveryType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Delivery type'))  # Updated
+    delivery_type = models.ForeignKey('DeliveryType', on_delete=models.CASCADE, blank=True, verbose_name=_('Delivery type'))  # Updated
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -286,11 +287,32 @@ class PackageType(UUIDMixin, TimeStampedMixin):
 
 class DeliveryType(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100, unique=True)
-    price = models.FloatField(_('Price'), validators=[MinValueValidator(0)])
     eta = models.CharField(_('ETA'), blank=True, null=True)
 
     def __str__(self):
         return self.name
+
+
+class DeliveryPriceRange(UUIDMixin, TimeStampedMixin):
+    delivery_type = models.ForeignKey(
+        DeliveryType, on_delete=models.CASCADE, related_name='price_ranges'
+    )
+
+    min_density = models.FloatField(_('Minimum Weight (kg)'), validators=[MinValueValidator(0)])
+    max_density = models.FloatField(_('Maximum Weight (kg)'), validators=[MinValueValidator(0)])
+
+    price_per_kg = models.FloatField(_('Price per kg'), validators=[MinValueValidator(0)])
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(min_density__lt=F('max_density')),
+                name='check_valid_density_range',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.delivery_type.name} {self.min_density}-{self.max_density} кг: ${self.price_per_kg}/кг"
 
 
 class ConsolidationCode(UUIDMixin, TimeStampedMixin):

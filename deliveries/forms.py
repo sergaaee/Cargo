@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType, DeliveryType
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -435,7 +435,7 @@ class PackageTypeForm(forms.ModelForm):
 class DeliveryTypeForm(forms.ModelForm):
     class Meta:
         model = DeliveryType
-        fields = ['name', 'price', 'eta']
+        fields = ['name', 'eta']
 
     name = forms.CharField(label="Название вида упаковки", required=True,
                            widget=forms.TextInput(
@@ -443,13 +443,35 @@ class DeliveryTypeForm(forms.ModelForm):
                            error_messages={
                                'required': 'Пожалуйста, введите название.',
                            }, )
-    price = forms.FloatField(label="Цена", initial=1, required=True,
-                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+
     eta = forms.CharField(
         label="Примерное время доставки",
         widget=forms.TextInput(
             attrs={'class': 'form-control'}, ),
     )
 
+
+DeliveryPriceRangeFormSet = inlineformset_factory(
+    DeliveryType,
+    DeliveryPriceRange,
+    fields=['min_density', 'max_density', 'price_per_kg'],
+    extra=1,
+    can_delete=True,
+    widgets={
+        'min_density': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        'max_density': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        'price_per_kg': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+    },
+    labels={
+        'min_density': 'Минимальная плотность',
+        'max_density': 'Максимальная плотность',
+        'price_per_kg': 'Цена за кг ($)',
+    },
+    error_messages={
+        'min_density': {'required': 'Пожалуйста, введите минимальнаю плотность.'},
+        'max_density': {'required': 'Пожалуйста, введите максимальную плотность.'},
+        'price_per_kg': {'required': 'Пожалуйста, введите цену за кг.'},
+    }
+)
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)
