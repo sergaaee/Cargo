@@ -856,10 +856,11 @@ def package_new(request, pk):
                     total_volume += float(volume)
                     total_weight += float(weight)
 
+            total_density = total_weight / total_volume
             tariff = DeliveryPriceRange.objects.filter(
                 delivery_type=consolidation.delivery_type,
-                min_density__lte=total_volume,
-                max_density__gte=total_volume
+                min_density__lte=total_density,
+                max_density__gte=total_density
             ).first()
 
             consolidation.price += float(tariff.price_per_kg) * total_weight
