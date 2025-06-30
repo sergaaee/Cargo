@@ -94,6 +94,34 @@
                         <ul class="menu-sub">
 
                             <li class="menu-item">
+                                <a href="{% url 'deliveries:generate-inventory-numbers' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Генерация инвентарников</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-delivery-type' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Виды доставок</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-package-type' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Упаковки</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:create-location' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Добавить локацию</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
                                 <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
                                     <div data-i18n="Incoming new">Поступление</div>
@@ -141,9 +169,9 @@
                                 </a>
                             </li>
                             <li class="menu-item">
-                                <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
+                                <a href="{% url 'deliveries:packaged-list' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
-                                    <div data-i18n="Delivered">Доставленные</div>
+                                    <div data-i18n="Delivered">Упакованные</div>
                                 </a>
                             </li>
                         </ul>

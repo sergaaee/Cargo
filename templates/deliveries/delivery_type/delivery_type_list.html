@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Все виды доставок{% endblock %}
+{% block content %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchInput = document.querySelector('input[name="q"]'); // Поле поиска
+            const tableRows = document.querySelectorAll("tbody tr"); // Все строки таблицы
+
+            searchInput.addEventListener("input", function () {
+                const query = this.value.toLowerCase().trim();
+
+                tableRows.forEach(row => {
+                    const rowText = row.innerText.toLowerCase();
+                    row.style.display = rowText.includes(query) ? "" : "none";
+                });
+            });
+        });
+    </script>
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Виды доставок/</span>Все</h4>
+        <!-- Форма поиска -->
+        <form method="GET" action="">
+            <div class="input-group mb-3">
+                <input type="text" name="q" class="form-control"
+                       aria-label="Поиск по имени"
+                       placeholder="Поиск по имени"
+                       value="{{ query|default_if_none:''|escape }}">
+                <a href="{% url 'deliveries:create-delivery-type' %}" class="btn btn-primary">Добавить</a>
+            </div>
+        </form>
+        <div class="card-datatable table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                <tr>
+                    {% for column, label in columns %}
+                        <th>
+                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                                {{ label }}
+                            </a>
+                        </th>
+                    {% endfor %}
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for delivery_type in page_obj %}
+                    <tr>
+                        <td>{{ delivery_type.name|default_if_none:"-" }}</td>
+                        <td>{{ delivery_type.price|default_if_none:"-" }}</td>
+                        <td>{{ delivery_type.eta|default_if_none:"-" }}</td>
+                        <td>
+                            <a href="{% url 'deliveries:edit-delivery' delivery_type.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-delivery' delivery_type.id %}">Удалить</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8">Нет данных для отображения.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination-container">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+            {% endif %}
+            <span class="current">
+                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+            </span>
+            {% if page_obj.has_next %}
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+            {% endif %}
+        </span>
+        </div>
+    </div>
+{% endblock %}

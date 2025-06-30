@@ -4,11 +4,19 @@
 {% block title %}Упаковка{% endblock %}
 
 {% block content %}
-    {{ package_types|json_script:"packageTypesJson" }}
-    {{ incomings_data|json_script:"incomingsJson" }}
-    {{ initial_incomings_data|json_script:"initialIncomingsJson" }}
-
+    {{ consolidation_inventory_numbers|json_script:"inventory-numbers" }}
+    {{ places_data|json_script:"placesData" }}
+    {{ package_types|json_script:"packageTypes" }}
     <div class="container-xxl flex-grow-1 container-p-y">
+        {% if messages %}
+            <div id="alert-box" class="mb-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Упаковка</h4>
         <div class="card mb-4">
             <div class="card-header sticky-element bg-label-secondary d-flex justify-content-sm-between align-items-sm-center flex-column flex-sm-row">
@@ -28,7 +36,7 @@
             </div>
             <div class="card-body">
                 <h6>1. Основные детали</h6>
-                <form id="consolidation-form" method="POST">
+                <form id="consolidation-form" method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
 
                     <input type="hidden" name="selected_incomings" id="selected-incomings">
@@ -52,147 +60,14 @@
                     </div>
                     <hr class="my-4 mx-n4">
                     <h6>2. Детали отправления</h6>
+                    <div id="all-inventory-numbers" class="mb-3">
+                        <strong>Доступные инвентарные номера:</strong>
+                        <span id="inventory-numbers-pool"></span>
+                    </div>
                     <div class="row g-4">
                         <div class="col-12">
-                            <h6>Выбранные поступления</h6>
                             <ul id="consolidation-list" class="list-group">
-                                {% for selected_incoming in consolidation.incomings.all %}
-                                    <li class="list-group-item">
-                                        <div class="row">
-                                            <input type="hidden" name="incoming_id" value="{{ selected_incoming.id }}">
-                                            <div class="col-md-3">
-                                                <label for="inventory-input-{{ selected_incoming.id }}">
-                                                    Инвентарные номера (нужно {{ selected_incoming.places_count }})
-                                                </label>
-                                                <input id="inventory-input-{{ selected_incoming.id }}"
-                                                       class="form-control inventory-input"
-                                                       data-incoming-id="{{ selected_incoming.id }}"
-                                                       placeholder="Введите номер и нажмите Enter">
-
-                                                <!-- Скрытое поле для передачи номеров на сервер -->
-                                                <input type="hidden" name="inventory_numbers_{{ selected_incoming.id }}"
-                                                       id="hidden-inventory-numbers-{{ selected_incoming.id }}"
-                                                       value="">
-
-                                                <!-- Динамически отображаемые номера -->
-                                                <div id="inventory-numbers-list-{{ selected_incoming.id }}"
-                                                     class="mt-2">
-                                                    <!-- Здесь будут отображаться введённые номера -->
-                                                </div>
-                                            </div>
-
-                                            <!-- Поле для веса -->
-                                            <div class="col-md-3">
-                                                <label for="weight_{{ selected_incoming.id }}">Вес</label>
-                                                <input type="number"
-                                                       name="weight_consolidated"
-                                                       class="form-control"
-                                                       min="1"
-                                                       value="1"
-                                                       data-bs-toggle="tooltip"
-                                                >
-                                            </div>
-
-                                            <!-- Поле для объема-->
-                                            <div class="col-md-3">
-                                                <label for="volume_{{ selected_incoming.id }}">Объем (м^3)</label>
-                                                <input type="number"
-                                                       name="volume_consolidated"
-                                                       class="form-control"
-                                                       min="1"
-                                                       value="1"
-                                                       data-bs-toggle="tooltip"
-                                                >
-                                            </div>
-
-                                            <!-- Кнопки действий -->
-                                            <div class="col-md-3 d-flex align-items-center">
-                                                <!-- Кнопка открытия модального окна -->
-                                                <button type="button" class="btn btn-icon btn-outline-info me-3"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#incomingDetailModal{{ selected_incoming.id }}">
-                                                    <span class="bi bi-zoom-in me-2"></span>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <!-- Модальное окно для отображения деталей поступления -->
-                                        <div class="modal fade" id="incomingDetailModal{{ selected_incoming.id }}"
-                                             tabindex="-1"
-                                             aria-labelledby="incomingDetailModalLabel{{ selected_incoming.id }}"
-                                             aria-hidden="true">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title"
-                                                            id="incomingDetailModalLabel{{ selected_incoming.id }}">
-                                                            Детали поступления #{{ selected_incoming.id }}</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                                aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <!-- Данные поступления -->
-                                                        <ul class="list-group list-group-flush">
-                                                            <li class="list-group-item"><strong>Трек-коды:</strong>
-                                                                <ul>
-                                                                    {% for tracker in selected_incoming.tracker.all %}
-                                                                        {% for code in tracker.tracking_codes.all %}
-                                                                            <li>{{ code.code }}</li>
-                                                                        {% endfor %}
-                                                                    {% empty %}
-                                                                        <li>Коды не найдены</li>
-                                                                    {% endfor %}
-                                                                </ul>
-                                                            </li>
-                                                            <li class="list-group-item"><strong>Инвентарные
-                                                                номера:</strong>
-                                                                <ul>
-                                                                    {% for inventory_number in selected_incoming.inventory_numbers.all %}
-                                                                        <li>{{ inventory_number.number }}</li>
-                                                                    {% endfor %}
-                                                                </ul>
-                                                            </li>
-                                                            <li class="list-group-item"><strong>Количество
-                                                                мест:</strong> {{ selected_incoming.places_count }}</li>
-                                                            <li class="list-group-item"><strong>Дата
-                                                                прибытия:</strong> {{ selected_incoming.arrival_date }}
-                                                            </li>
-                                                            <li class="list-group-item">
-                                                                <strong>Размер:</strong> {{ selected_incoming.size|default:"-" }}
-                                                            </li>
-                                                            <li class="list-group-item">
-                                                                <strong>Вес:</strong> {{ selected_incoming.weight }} кг
-                                                            </li>
-                                                            <li class="list-group-item">
-                                                                <strong>Статус:</strong> {{ selected_incoming.get_status_display }}
-                                                            </li>
-                                                            <li class="list-group-item"><strong>Фото:</strong>
-                                                                <div class="row">
-                                                                    {% if selected_incoming.images_set.all %}
-                                                                        {% for photo in selected_incoming.images_set.all %}
-                                                                            <div class="col-md-4">
-                                                                                <img src="{{ photo.photo.url }}"
-                                                                                     class="img-fluid"
-                                                                                     alt="Фото поступления">
-                                                                            </div>
-                                                                        {% endfor %}
-                                                                    {% else %}
-                                                                        <p>Нет изображений</p>
-                                                                    {% endif %}
-                                                                </div>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary"
-                                                                data-bs-dismiss="modal">Закрыть
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </li>
-                                {% endfor %}
+                                <!-- Начальные строки будут добавлены через JavaScript -->
                             </ul>
                         </div>
                     </div>
@@ -207,131 +82,533 @@
                 </form>
             </div>
         </div>
-    </div>
-
-    <!-- Модальное окно для выбора поступлений -->
-    <div class="modal fade" id="consolidationModal" tabindex="-1" aria-labelledby="consolidationModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="consolidationModalLabel">Выбор поступлений для консолидации</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="card-datatable table-responsive">
-                        <table id="selection-table" class="table table-bordered">
-                            <thead>
-                            <tr>
-                                <th><input class="form-check-input" type="checkbox" id="modal-select-all"></th>
-                                <th>Трек-номер</th>
-                                <th>Инвентарные номера</th>
-                                <th>Дата прибытия</th>
-                                <th>Тег</th>
-                                <th>Клиент</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {% for incoming in incomings %}
-                                <tr>
-                                    <td><input type="checkbox" class="form-check-input" name="selected_incoming"
-                                               value="{{ incoming.id }}"></td>
-                                    <td>
-                                        <!-- Выводим трек-коды через трекеры -->
-                                        <ul>
-                                            {% for tracker in incoming.tracker.all %}
-                                                {% for code in tracker.tracking_codes.all %}
-                                                    <li>{{ code.code }}</li>
-                                                {% endfor %}
-                                            {% endfor %}
-                                        </ul>
-                                    </td>
-                                    <td>
-                                        <!-- Выводим инвентарные номера -->
-                                        <ul>
-                                            {% for inventory_number in incoming.inventory_numbers.all %}
-                                                <li>{{ inventory_number.number }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </td>
-                                    <td>{{ incoming.arrival_date }}</td>
-                                    <td>{{ incoming.tag.name }}</td>
-                                    <td>{{ incoming.client.profile.phone_number }}</td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
+        <!-- Модальное окно для подтверждения удаления -->
+        <div class="modal fade" id="deleteConfirmationModal" tabindex="-1"
+             aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteConfirmationModalLabel">Подтверждение удаления</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary" name="consolidation-button"
-                            form="consolidation-selection-form">Консолидация
-                    </button>
+                    <div class="modal-body">
+                        Вы уверены, что хотите удалить эту строку?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelDeleteBtn">
+                            Отмена
+                        </button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="{% static 'js/auto-local-datetime-consolidation.js' %}"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const inventoryInputs = document.querySelectorAll(".inventory-input");
+            // Извлекаем данные из тегов, созданных json_script
+            const inventoryNumbersElement = document.getElementById("inventory-numbers");
+            const allInventoryNumbers = inventoryNumbersElement ? JSON.parse(inventoryNumbersElement.textContent) : [];
+            const placesData = JSON.parse(document.getElementById("placesData").textContent || "[]");
+            const packageTypes = JSON.parse(document.getElementById("packageTypes").textContent);
+            const inventoryPool = document.getElementById("inventory-numbers-pool");
             const form = document.getElementById("consolidation-form");
+            const consolidationList = document.getElementById("consolidation-list");
+            let itemToDelete = null;
 
-            inventoryInputs.forEach(input => {
+            // Получаем трек-код
+            const trackCodeInput = document.querySelector('input[name="track_code"]');
+            const trackCode = trackCodeInput ? trackCodeInput.value : '';
+
+            // Инициализация пула номеров
+            let availableNumbers = new Set(allInventoryNumbers);
+
+            // Функция установки кода места
+            function setPlaceCode(item, index) {
+                const placeInput = item.querySelector('input[name^="place_consolidated_"]');
+                if (placeInput && trackCode) {
+                    placeInput.value = `${trackCode}-${index + 1}`;
+                }
+            }
+
+            // Обновление отображения пула номеров
+            function updateInventoryPool() {
+                inventoryPool.innerHTML = Array.from(availableNumbers)
+                    .map(num => `<span class="badge bg-secondary me-1">${num}</span>`)
+                    .join('');
+            }
+
+            // Функция показа сообщения об ошибке
+            function showError(message) {
+                let alertBox = document.getElementById("custom-alert-box");
+                if (!alertBox) {
+                    alertBox = document.createElement("div");
+                    alertBox.id = "custom-alert-box";
+                    alertBox.className = "alert alert-danger mt-3";
+                    alertBox.style.position = "fixed";
+                    alertBox.style.top = "20px";
+                    alertBox.style.right = "20px";
+                    alertBox.style.zIndex = "1050";
+                    document.body.appendChild(alertBox);
+                }
+                alertBox.innerHTML = message;
+                alertBox.style.display = "block";
+
+                setTimeout(() => {
+                    alertBox.style.display = "none";
+                }, 5000);
+            }
+
+            // Функция создания новой строки
+            function createNewItem(index, place = null) {
+                const newItem = document.createElement("li");
+                newItem.className = "list-group-item consolidation-item";
+                newItem.dataset.itemIndex = index;
+
+                const deleteButtonHtml = index > 0 ? `
+                <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="${index}">
+                    <span class="bi bi-trash me-2"></span>
+                </button>
+            ` : '';
+
+                newItem.innerHTML = `
+                <div class="row">
+                    <div class="col-md-2">
+                        <label for="inventory-input-${index}">
+                            Инвентарные номера
+                        </label>
+                        <input id="inventory-input-${index}"
+                               class="form-control inventory-input"
+                               data-item-index="${index}"
+                               placeholder="Введите номер">
+
+                        <!-- Скрытое поле для передачи номеров на сервер -->
+                        <input type="hidden"
+                               name="inventory_numbers_${index}"
+                               id="hidden-inventory-numbers-${index}"
+                               value="">
+
+                        <!-- Динамически отображаемые номера -->
+                        <div id="inventory-numbers-list-${index}" class="mt-2"></div>
+                    </div>
+
+                    <!-- Поле для веса -->
+                    <div class="col-md-2">
+                        <label for="weight_${index}">Вес</label>
+                        <input type="number"
+                               name="weight_consolidated_${index}"
+                               class="form-control"
+                               min="1"
+                               step="0.001"
+                               value="1"
+                               data-bs-toggle="tooltip">
+                    </div>
+
+                    <!-- Поле для объема -->
+                    <div class="col-md-2">
+                        <label for="volume_${index}">Объем (м^3)</label>
+                        <input type="number"
+                               name="volume_consolidated_${index}"
+                               class="form-control"
+                               min="1"
+                               step="0.001"
+                               value="1"
+                               data-bs-toggle="tooltip">
+                    </div>
+
+                    <!-- Поле для кода места -->
+                    <div class="col-md-2">
+                        <label for="place_${index}">Код места</label>
+                        <input type="text"
+                               name="place_consolidated_${index}"
+                               class="form-control"
+                               value=""
+                               readonly>
+                    </div>
+
+                    <!-- Поле для типа упаковки -->
+                    <div class="col-md-2">
+                        <label for="package_type_${index}">Тип упаковки</label>
+                        <select name="package_type_${index}" class="form-control">
+                            ${packageTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Поле для загрузки фотографий -->
+                    <div class="col-md-2">
+                        <label for="photos_${index}">Фотографии</label>
+                        <input type="file" name="photos_${index}" multiple class="form-control" accept="image/*">
+                        <div id="photo-preview-${index}" class="mt-2"></div>
+                    </div>
+
+                    <!-- Кнопки действий -->
+                    <div class="col-md-2 d-flex align-items-center">
+                        ${deleteButtonHtml}
+                    </div>
+                </div>
+                <div class="mt-3"></div> <!-- Место для кнопки "Добавить" -->
+            `;
+
+                setPlaceCode(newItem, index);
+
+                if (place) {
+                    const placeInput = newItem.querySelector('input[name^="place_consolidated_"]');
+                    placeInput.value = place.place_code;
+                    const weightInput = newItem.querySelector('input[name^="weight_consolidated_"]');
+                    weightInput.value = place.weight;
+                    const volumeInput = newItem.querySelector('input[name^="volume_consolidated_"]');
+                    volumeInput.value = place.volume;
+                    const packageTypeSelect = newItem.querySelector('select[name^="package_type_"]');
+                    packageTypeSelect.value = place.package_type;
+                    const hiddenInput = newItem.querySelector('input[name^="inventory_numbers_"]');
+                    hiddenInput.value = place.inventory_numbers.join(',');
+                    const listContainer = newItem.querySelector(`#inventory-numbers-list-${index}`);
+                    place.inventory_numbers.forEach(number => {
+                        const numberBadge = document.createElement("span");
+                        numberBadge.className = "badge bg-primary me-1";
+                        numberBadge.textContent = number;
+                        numberBadge.dataset.number = number;
+                        const removeBtn = document.createElement("span");
+                        removeBtn.className = "ms-2 text-white cursor-pointer";
+                        removeBtn.innerHTML = "×";
+                        removeBtn.addEventListener("click", function () {
+                            const currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            const updatedNumbers = currentNumbers.filter(n => n !== number);
+                            hiddenInput.value = updatedNumbers.join(",");
+                            numberBadge.remove();
+                            availableNumbers.add(number);
+                            updateInventoryPool();
+                        });
+                        numberBadge.appendChild(removeBtn);
+                        listContainer.appendChild(numberBadge);
+                    });
+
+                    // Отображение существующих фотографий
+                    const photoPreview = newItem.querySelector(`#photo-preview-${index}`);
+                    if (place.photos && place.photos.length > 0) {
+                        place.photos.forEach(photo => {
+                            const img = document.createElement("img");
+                            img.src = photo.photo.url;
+                            img.alt = "Фото места";
+                            img.style.maxWidth = "50px";
+                            img.style.marginRight = "5px";
+                            photoPreview.appendChild(img);
+                        });
+                    }
+                }
+
+                // Предпросмотр загружаемых фотографий
+                const photoInput = newItem.querySelector(`input[name="photos_${index}"]`);
+                const photoPreview = newItem.querySelector(`#photo-preview-${index}`);
+                photoInput.addEventListener("change", function () {
+                    photoPreview.innerHTML = ""; // Очищаем текущий предпросмотр
+                    const files = photoInput.files;
+                    for (let i = 0; i < files.length; i++) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(files[i]);
+                        img.alt = "Предпросмотр фото";
+                        img.style.maxWidth = "50px";
+                        img.style.marginRight = "5px";
+                        photoPreview.appendChild(img);
+                    }
+                });
+
+                return newItem;
+            }
+
+            // Обработка ввода инвентарных номеров
+            function setupInventoryInput(input) {
                 input.addEventListener("keydown", function (event) {
                     if (event.key === "Enter") {
                         event.preventDefault();
-
-                        const incomingId = input.dataset.incomingId;
-                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}`);
-                        const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}`);
+                        const itemIndex = input.dataset.itemIndex;
+                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
 
                         const number = input.value.trim();
                         if (number) {
-                            // Обновляем скрытое поле
-                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
-                            if (!currentNumbers.includes(number)) {
-                                currentNumbers.push(number);
-                                hiddenInput.value = currentNumbers.join(",");
+                            if (!allInventoryNumbers.includes(number)) {
+                                showError(`Инвентарный номер ${number} не принадлежит данной консолидации.`);
+                                input.value = "";
+                                return;
                             }
 
-                            // Добавляем номер в UI
-                            const numberBadge = document.createElement("span");
-                            numberBadge.className = "badge bg-primary me-1";
-                            numberBadge.textContent = number;
+                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            if (!currentNumbers.includes(number)) {
+                                const allUsedNumbers = new Set();
+                                document.querySelectorAll('input[name^="inventory_numbers_"]').forEach(otherHiddenInput => {
+                                    if (otherHiddenInput !== hiddenInput) {
+                                        const otherNumbers = otherHiddenInput.value.split(",").filter(Boolean);
+                                        otherNumbers.forEach(num => allUsedNumbers.add(num));
+                                    }
+                                });
 
-                            const removeBtn = document.createElement("span");
-                            removeBtn.className = "ms-2 text-white cursor-pointer";
-                            removeBtn.innerHTML = "&times;";
-                            removeBtn.addEventListener("click", function () {
-                                currentNumbers = currentNumbers.filter(n => n !== number);
+                                if (allUsedNumbers.has(number)) {
+                                    showError(`Инвентарный номер ${number} уже используется в другом месте.`);
+                                    input.value = "";
+                                    return;
+                                }
+
+                                currentNumbers.push(number);
                                 hiddenInput.value = currentNumbers.join(",");
-                                numberBadge.remove();
-                            });
+                                availableNumbers.delete(number);
+                                updateInventoryPool();
 
-                            numberBadge.appendChild(removeBtn);
-                            listContainer.appendChild(numberBadge);
+                                const numberBadge = document.createElement("span");
+                                numberBadge.className = "badge bg-primary me-1";
+                                numberBadge.textContent = number;
+                                numberBadge.dataset.number = number;
 
-                            input.value = ""; // Очищаем поле ввода
+                                const removeBtn = document.createElement("span");
+                                removeBtn.className = "ms-2 text-white cursor-pointer";
+                                removeBtn.innerHTML = "×";
+                                removeBtn.addEventListener("click", function () {
+                                    currentNumbers = currentNumbers.filter(n => n !== number);
+                                    hiddenInput.value = currentNumbers.join(",");
+                                    numberBadge.remove();
+                                    availableNumbers.add(number);
+                                    updateInventoryPool();
+                                });
+
+                                numberBadge.appendChild(removeBtn);
+                                listContainer.appendChild(numberBadge);
+                                input.value = "";
+                            }
                         }
                     }
                 });
+            }
+
+            // Инициализация существующих мест
+            let assignedNumbers = [];
+            if (placesData && placesData.length > 0) {
+                placesData.forEach((place, index) => {
+                    const newItem = createNewItem(index, place);
+                    consolidationList.appendChild(newItem);
+                    const inventoryInput = newItem.querySelector(".inventory-input");
+                    setupInventoryInput(inventoryInput);
+                    assignedNumbers = assignedNumbers.concat(place.inventory_numbers);
+                });
+
+                const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                const addButtonDiv = document.createElement("div");
+                addButtonDiv.className = "mt-3";
+                addButtonDiv.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                        <span class="bi bi-plus-circle me-2"></span>Добавить
+                    </button>
+                `;
+                lastItem.appendChild(addButtonDiv);
+            } else {
+                const initialItem = createNewItem(0);
+                consolidationList.appendChild(initialItem);
+                const initialInventoryInput = initialItem.querySelector(".inventory-input");
+                setupInventoryInput(initialInventoryInput);
+                const addButtonDiv = document.createElement("div");
+                addButtonDiv.className = "mt-3";
+                addButtonDiv.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                        <span class="bi bi-plus-circle me-2"></span>Добавить
+                    </button>
+                `;
+                initialItem.appendChild(addButtonDiv);
+            }
+
+            availableNumbers = new Set(allInventoryNumbers.filter(num => !assignedNumbers.includes(num)));
+            updateInventoryPool();
+
+            // Обработка добавления и удаления строк
+            consolidationList.addEventListener("click", function (event) {
+                const addBtn = event.target.closest(".add-item-btn");
+                const deleteBtn = event.target.closest(".delete-item-btn");
+
+                if (addBtn) {
+                    const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                    const lastIndex = parseInt(lastItem.dataset.itemIndex);
+                    const newIndex = lastIndex + 1;
+
+                    const newItem = createNewItem(newIndex);
+                    const oldAddButton = lastItem.querySelector(".add-item-btn");
+                    if (oldAddButton) oldAddButton.parentElement.remove();
+
+                    consolidationList.appendChild(newItem);
+                    const newInventoryInput = newItem.querySelector(".inventory-input");
+                    setupInventoryInput(newInventoryInput);
+                }
+
+                if (deleteBtn) {
+                    itemToDelete = deleteBtn.closest(".consolidation-item");
+                    const modal = new bootstrap.Modal(document.getElementById("deleteConfirmationModal"));
+                    modal.show();
+                }
             });
 
-            // Перед отправкой формы обновляем все скрытые поля
-            form.addEventListener("submit", function () {
-                inventoryInputs.forEach(input => {
-                    const incomingId = input.dataset.incomingId;
-                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${incomingId}`);
-                    const listContainer = document.getElementById(`inventory-numbers-list-${incomingId}`);
+            // Обработка удаления строки
+            document.getElementById("confirmDeleteBtn").addEventListener("click", function () {
+                if (itemToDelete) {
+                    const hiddenInput = itemToDelete.querySelector('input[name^="inventory_numbers_"]');
+                    if (hiddenInput) {
+                        const numbersToReturn = hiddenInput.value.split(",").filter(Boolean);
+                        numbersToReturn.forEach(num => availableNumbers.add(num));
+                        updateInventoryPool();
+                    }
 
+                    itemToDelete.remove();
+                    const modalElement = document.getElementById("deleteConfirmationModal");
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    modal.hide();
+
+                    modalElement.addEventListener("hidden.bs.modal", function handler() {
+                        const backdrops = document.querySelectorAll(".modal-backdrop");
+                        backdrops.forEach(backdrop => backdrop.remove());
+
+                        document.body.classList.remove("modal-open");
+                        document.body.style.overflow = "auto";
+                        document.body.style.paddingRight = "";
+
+                        const remainingItems = consolidationList.querySelectorAll(".consolidation-item");
+                        remainingItems.forEach((item, index) => {
+                            item.dataset.itemIndex = index;
+                            setPlaceCode(item, index);
+
+                            const inventoryInput = item.querySelector(".inventory-input");
+                            inventoryInput.id = `inventory-input-${index}`;
+                            inventoryInput.dataset.itemIndex = index;
+
+                            const hiddenInput = item.querySelector(`input[name^="inventory_numbers_"]`);
+                            hiddenInput.id = `hidden-inventory-numbers-${index}`;
+                            hiddenInput.name = `inventory_numbers_${index}`;
+
+                            const listContainer = item.querySelector(`div[id^="inventory-numbers-list-"]`);
+                            listContainer.id = `inventory-numbers-list-${index}`;
+
+                            const weightInput = item.querySelector(`input[name^="weight_consolidated_"]`);
+                            weightInput.name = `weight_consolidated_${index}`;
+                            weightInput.id = `weight_${index}`;
+
+                            const volumeInput = item.querySelector(`input[name^="volume_consolidated_"]`);
+                            volumeInput.name = `volume_consolidated_${index}`;
+                            volumeInput.id = `volume_${index}`;
+
+                            const placeInput = item.querySelector(`input[name^="place_consolidated_"]`);
+                            placeInput.name = `place_consolidated_${index}`;
+                            placeInput.id = `place_${index}`;
+
+                            const packageTypeSelect = item.querySelector(`select[name^="package_type_"]`);
+                            packageTypeSelect.name = `package_type_${index}`;
+                            packageTypeSelect.id = `package_type_${index}`;
+
+                            const photoInput = item.querySelector(`input[name^="photos_"]`);
+                            photoInput.name = `photos_${index}`;
+                            photoInput.id = `photos_${index}`;
+
+                            const photoPreview = item.querySelector(`div[id^="photo-preview-"]`);
+                            photoPreview.id = `photo-preview-${index}`;
+
+                            const deleteBtn = item.querySelector(".delete-item-btn");
+                            if (deleteBtn) {
+                                deleteBtn.dataset.itemIndex = index;
+                            }
+                        });
+
+                        const lastItem = consolidationList.querySelector(".consolidation-item:last-child");
+                        if (lastItem && !lastItem.querySelector(".add-item-btn")) {
+                            const addButtonDiv = document.createElement("div");
+                            addButtonDiv.className = "mt-3";
+                            addButtonDiv.innerHTML = `
+                            <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                <span class="bi bi-plus-circle me-2"></span>Добавить
+                            </button>
+                        `;
+                            lastItem.appendChild(addButtonDiv);
+                        }
+
+                        itemToDelete = null;
+                        modalElement.removeEventListener("hidden.bs.modal", handler);
+                    }, {once: true});
+                }
+            });
+
+            // Валидация перед отправкой формы
+            form.addEventListener("submit", function (event) {
+                const allUsedNumbers = new Set();
+                const placeNumberMap = new Map();
+
+                document.querySelectorAll(".consolidation-item").forEach(item => {
+                    const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
+                    const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
+                    const numbers = hiddenInput.value.split(",").filter(Boolean);
+
+                    placeNumberMap.set(placeCode, numbers);
+                    numbers.forEach(num => allUsedNumbers.add(num));
+                });
+
+                const invalidNumbers = [];
+                allUsedNumbers.forEach(num => {
+                    if (!allInventoryNumbers.includes(num)) {
+                        invalidNumbers.push(num);
+                    }
+                });
+
+                if (invalidNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(`Эти номера не принадлежат консолидации: ${invalidNumbers.join(", ")}.`);
+                    return;
+                }
+
+                const numberToPlaces = new Map();
+                placeNumberMap.forEach((numbers, placeCode) => {
+                    numbers.forEach(num => {
+                        if (!numberToPlaces.has(num)) {
+                            numberToPlaces.set(num, []);
+                        }
+                        numberToPlaces.get(num).push(placeCode);
+                    });
+                });
+
+                const duplicateNumbers = [];
+                numberToPlaces.forEach((places, num) => {
+                    if (places.length > 1) {
+                        duplicateNumbers.push(`Инвентарный номер ${num} используется в местах: ${places.join(", ")}.`);
+                    }
+                });
+
+                if (duplicateNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(duplicateNumbers.join("<br>"));
+                    return;
+                }
+
+                const unusedNumbers = allInventoryNumbers.filter(num => !allUsedNumbers.has(num));
+                if (unusedNumbers.length > 0) {
+                    event.preventDefault();
+                    showError(`Следующие инвентарные номера не привязаны ни к одному месту: ${unusedNumbers.join(", ")}.`);
+                    return;
+                }
+
+                const allInventoryInputs = document.querySelectorAll(".inventory-input");
+                allInventoryInputs.forEach(input => {
+                    const itemIndex = input.dataset.itemIndex;
+                    const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                    const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
                     const badges = listContainer.querySelectorAll(".badge");
-                    const numbers = Array.from(badges).map(badge => badge.textContent.trim());
+                    const numbers = Array.from(badges).map(badge => badge.dataset.number.trim());
                     hiddenInput.value = numbers.join(",");
                 });
             });
         });
-
+    </script>
+    <script>
+        window.addEventListener('beforeunload', function () {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('incoming_')) {
+                    localStorage.removeItem(key);
+                }
+            }
+        });
     </script>
 
 {% endblock %}

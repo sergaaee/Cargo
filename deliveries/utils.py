@@ -96,6 +96,16 @@ def prepare_incoming_data(incoming_queryset):
                 for tracker in incoming.tracker.all()
                 for track_code in tracker.tracking_codes.all()
             ],
+            "track_inv_map": [
+                {
+                    "code": track_code.code,
+                    "inventory_numbers": [
+                        inv.number for inv in track_code.inventory_numbers.all()
+                    ]
+                }
+                for tracker in incoming.tracker.all()
+                for track_code in tracker.tracking_codes.all()
+            ],
             "tag": incoming.tag.name if incoming.tag else None,
             "client_phone": incoming.client.profile.phone_number if incoming.client and incoming.client.profile else None,
         }
@@ -156,6 +166,18 @@ def consolidation_columns():
         ('track_code__code', 'Трек-код'),
         ('created_at', 'Дата'),
         ('client', 'Клиент'),
+        ('delivery_type', 'Доставка'),
+        ('status', 'Статус')
+    ]
+
+
+def packaged_columns():
+    return [
+        ('created_at', 'Дата отправки'),
+        ('client', 'Клиент'),
+        ('places__count', 'Мест'),
+        ('places__weight__sum', 'Вес'),
+        ('price', 'Цена'),
         ('delivery_type', 'Доставка'),
         ('status', 'Статус')
     ]

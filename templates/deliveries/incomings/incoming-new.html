@@ -194,6 +194,67 @@
                         </div>
                     </div>
                 </div>
+                <!-- Пятая строка: Размещение на локации -->
+                <div class="card accordion-item">
+                    <h2 class="accordion-header" id="headingLocationIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseLocationIncoming" aria-expanded="false"
+                                aria-controls="collapseLocationIncoming">
+                            5. Размещение на локации
+                        </button>
+                    </h2>
+                    <div id="collapseLocationIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
+                        <div class="accordion-body">
+                            <div class="mb-2">
+                                <strong>Доступные инвентарные номера:</strong>
+                                <div id="available-inventory-numbers-for-location-container"
+                                     class="mt-2"></div>
+                            </div>
+                            <div class="row g-3" id="location-selection">
+                                <div class="col-12 location-item" data-item-index="0">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="inventory-input-0">Инвентарные номера</label>
+                                                <input id="inventory-input-0" class="form-control inventory-input"
+                                                       data-item-index="0" placeholder="Введите номер и нажмите Enter">
+                                                <input type="hidden" name="inventory_numbers_0"
+                                                       id="hidden-inventory-numbers-0">
+                                                <div id="inventory-numbers-list-0" class="mt-2"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="location-0">Локация</label>
+                                                <select name="location_0" class="form-control" id="location-0">
+                                                    <option value="">Выберите локацию</option>
+                                                    {% for location in locations %}
+                                                        <option value="{{ location.id }}">{{ location.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group mt-4">
+                                                <button type="button"
+                                                        class="btn btn-icon btn-outline-danger delete-item-btn"
+                                                        data-item-index="0">
+                                                    <span class="bi bi-trash"></span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                                    <span class="bi bi-plus-circle me-2"></span>Добавить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Скрытое поле для передачи выбранных инвентарных номеров -->
                 <input type="hidden" id="selected-inventory-input" name="inventory_numbers">
                 <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
@@ -250,6 +311,211 @@
         window.addEventListener("beforeunload", function () {
             // Удаляем только данные, связанные с трекерами и инвентарниками
             localStorage.removeItem('trackerInventoryMap');
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const locationSelection = document.getElementById("location-selection");
+            const addItemBtn = document.querySelector(".add-item-btn");
+            let itemIndex = 0;
+
+            // Функция для проверки наличия номера в localStorage
+            function isInventoryNumberInLocalStorage(number) {
+                let trackerInventoryMap = {};
+                try {
+                    const storedData = localStorage.getItem('trackerInventoryMap');
+                    if (storedData) {
+                        trackerInventoryMap = JSON.parse(storedData);
+                    }
+                    if (typeof trackerInventoryMap !== 'object' || trackerInventoryMap === null) {
+                        trackerInventoryMap = {};
+                    }
+                } catch (e) {
+                    console.error("Ошибка при разборе trackerInventoryMap из localStorage:", e);
+                    trackerInventoryMap = {};
+                }
+
+                return Object.values(trackerInventoryMap).some(array => {
+                    return Array.isArray(array) && array.includes(number);
+                });
+            }
+
+            // Функция создания новой пары (поле для номеров + селектор локации)
+            function createNewItem(index) {
+                const newItem = document.createElement("div");
+                newItem.className = "col-12 location-item";
+                newItem.dataset.itemIndex = index;
+                newItem.innerHTML = `
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="inventory-input-${index}">Инвентарные номера</label>
+                        <input id="inventory-input-${index}" class="form-control inventory-input" data-item-index="${index}" placeholder="Введите номер и нажмите Enter">
+                        <input type="hidden" name="inventory_numbers_${index}" id="hidden-inventory-numbers-${index}">
+                        <div id="inventory-numbers-list-${index}" class="mt-2"></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="location-${index}">Локация</label>
+                        <select name="location_${index}" class="form-control" id="location-${index}">
+                            <option value="">Выберите локацию</option>
+                            {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mt-4">
+                        <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="${index}">
+                            <span class="bi bi-trash"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+                locationSelection.appendChild(newItem);
+                setupInventoryInput(document.getElementById(`inventory-input-${index}`));
+            }
+
+            // Обработка ввода инвентарных номеров
+            function setupInventoryInput(input) {
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        const itemIndex = input.dataset.itemIndex;
+                        const hiddenInput = document.getElementById(`hidden-inventory-numbers-${itemIndex}`);
+                        const listContainer = document.getElementById(`inventory-numbers-list-${itemIndex}`);
+                        const number = input.value.trim();
+
+                        if (number) {
+                            let currentNumbers = hiddenInput.value.split(",").filter(Boolean);
+                            if (!currentNumbers.includes(number)) {
+                                if (isInventoryNumberInLocalStorage(number)) {
+                                    currentNumbers.push(number);
+                                    hiddenInput.value = currentNumbers.join(",");
+                                    const numberBadge = document.createElement("span");
+                                    numberBadge.className = "badge bg-primary me-1";
+                                    numberBadge.textContent = number;
+                                    numberBadge.dataset.number = number;
+
+                                    const removeBtn = document.createElement("span");
+                                    removeBtn.className = "ms-2 text-white cursor-pointer";
+                                    removeBtn.innerHTML = "×";
+                                    removeBtn.addEventListener("click", function () {
+                                        currentNumbers = currentNumbers.filter(n => n !== number);
+                                        hiddenInput.value = currentNumbers.join(",");
+                                        numberBadge.remove();
+                                        updateSelectedInventoryInput();
+                                    });
+
+                                    numberBadge.appendChild(removeBtn);
+                                    listContainer.appendChild(numberBadge);
+                                    input.value = "";
+
+                                    const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
+                                    console.log('HGERE', availableContainer);
+                                    if (availableContainer) {
+                                        console.log('nubmer:', number)
+                                        const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
+                                        badges.forEach(badge => badge.remove());
+                                    }
+
+                                    updateSelectedInventoryInput();
+                                } else {
+                                    alert("Нет такого инвентарного номера.");
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Обновление скрытого поля inventory_numbers
+            function updateSelectedInventoryInput() {
+                const allHiddenInputs = document.querySelectorAll('input[name^="inventory_numbers_"]');
+                const allNumbers = [];
+                allHiddenInputs.forEach(input => {
+                    const numbers = input.value.split(",").filter(Boolean);
+                    allNumbers.push(...numbers);
+                });
+                document.getElementById("selected-inventory-input").value = allNumbers.join(",");
+            }
+
+            // Инициализация первого поля
+            setupInventoryInput(document.getElementById("inventory-input-0"));
+
+            // Добавление новой пары
+            addItemBtn.addEventListener("click", function () {
+                itemIndex++;
+                createNewItem(itemIndex);
+            });
+
+            // Удаление пары
+            locationSelection.addEventListener("click", function (event) {
+                const deleteBtn = event.target.closest(".delete-item-btn");
+                if (deleteBtn) {
+                    const itemIndex = deleteBtn.dataset.itemIndex;
+                    const item = document.querySelector(`.location-item[data-item-index="${itemIndex}"]`);
+                    if (item) {
+                        item.remove();
+                        updateSelectedInventoryInput();
+                    }
+                }
+            });
+
+            // Синхронизация с модальным окном
+            document.getElementById("inventory-input").addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const number = this.value.trim();
+                    if (number && !document.querySelector(`#selected-inventory-numbers .badge:has('${number}')`)) {
+                        const firstHiddenInput = document.getElementById("hidden-inventory-numbers-0");
+                        const firstListContainer = document.getElementById("inventory-numbers-list-0");
+                        let currentNumbers = firstHiddenInput.value.split(",").filter(Boolean);
+                        if (!currentNumbers.includes(number)) {
+                            if (isInventoryNumberInLocalStorage(number)) {
+                                const badge = document.createElement("span");
+                                badge.className = "badge bg-primary me-1";
+                                badge.textContent = number;
+                                document.getElementById("selected-inventory-numbers").appendChild(badge);
+
+                                currentNumbers.push(number);
+                                firstHiddenInput.value = currentNumbers.join(",");
+                                const numberBadge = document.createElement("span");
+                                numberBadge.className = "badge bg-primary me-1";
+                                numberBadge.textContent = number;
+                                numberBadge.dataset.number = number;
+                                const removeBtn = document.createElement("span");
+                                removeBtn.className = "ms-2 text-white cursor-pointer";
+                                removeBtn.innerHTML = "×";
+                                removeBtn.addEventListener("click", function () {
+                                    currentNumbers = currentNumbers.filter(n => n !== number);
+                                    firstHiddenInput.value = currentNumbers.join(",");
+                                    numberBadge.remove();
+                                    updateSelectedInventoryInput();
+                                });
+                                numberBadge.appendChild(removeBtn);
+                                firstListContainer.appendChild(numberBadge);
+
+                                const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
+                                if (availableContainer) {
+                                    console.log('nubmer:', number)
+                                    const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
+                                    badges.forEach(badge => badge.remove());
+                                }
+
+                                updateSelectedInventoryInput();
+
+                            } else {
+                                alert("Нет такого инвентарного номера.");
+                            }
+                        }
+                        this.value = "";
+                    }
+                }
+            });
         });
     </script>
 {% endblock %}

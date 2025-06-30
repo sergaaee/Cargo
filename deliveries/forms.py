@@ -1,10 +1,10 @@
 from django import forms
 from django.forms.models import inlineformset_factory
 from django.core.exceptions import ValidationError
-import json
 
 from user_profile.models import UserProfile
-from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode
+from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -96,8 +96,8 @@ class BaseIncomingForm(forms.ModelForm):
         }
 
     places_count = forms.IntegerField(initial=1, widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    weight = forms.IntegerField(initial=1, required=False,
-                                widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    weight = forms.FloatField(initial=1, required=False,
+                              widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
 
     inventory_numbers = forms.CharField(required=True,
                                         widget=forms.TextInput(
@@ -207,8 +207,10 @@ class IncomingForm(BaseIncomingForm):
 
         if tracker_obj:
             existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
+            existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+
             if existing_incoming:
-                raise forms.ValidationError("Этот трекер уже привязан к другому поступлению.")
+                raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         # Если трекер не найден, создаем новый
         if not tracker_obj:
@@ -234,6 +236,13 @@ class IncomingEditForm(BaseIncomingForm):
 
         code_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
         tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
+
+        if tracker_obj:
+            existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
+            existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+
+            if existing_incoming:
+                raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         if not tracker_obj:
             tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list))
@@ -341,43 +350,128 @@ class PackageForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        self.incomings_data = kwargs.pop('incomings_data', {})
-        super().__init__(*args, **kwargs)
-
     def clean(self):
         cleaned_data = super().clean()
 
-        # Проверяем инвентарные номера для каждого поступления
+        places_data = {}
+        for key, value in self.data.items():
+            if key.startswith('inventory_numbers_'):
+                place_index = key.split('_')[-1]
+                inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                weight = self.data.get(f'weight_consolidated_{place_index}', 0)
+                volume = self.data.get(f'volume_consolidated_{place_index}', 0)
+                place_code = self.data.get(f'place_consolidated_{place_index}', '')
+                package_type = self.data.get(f'package_type_{place_index}', '')
+                places_data[place_index] = {
+                    'inventory_numbers': inventory_numbers,
+                    'weight': float(weight) if weight else 0,
+                    'volume': float(volume) if volume else 0,
+                    'place_code': place_code,
+                    'package_type': package_type,
+                }
+
+        if 'in_work' in self.data and not places_data:
+            raise ValidationError('Должно быть указано хотя бы одно место для отправки в работу.')
+
+        place_codes = [place_data['place_code'] for place_data in places_data.values()]
+        if len(place_codes) != len(set(place_codes)):
+            raise ValidationError('Коды мест должны быть уникальными.')
+
+        valid_numbers = list(ConsolidationInventory.objects.filter(
+            consolidation_incoming__consolidation=self.instance
+        ).values_list('inventory_number__number', flat=True).distinct())
+
+        all_inventory_numbers = []
         errors = []
-        index = 0
-        for incoming_id, incoming in self.incomings_data.items():
-            index += 1
-            field_name = f'inventory_numbers_{incoming_id}'
-            inventory_numbers_raw = self.data.get(field_name, '')
+        for place_index, place_data in places_data.items():
+            inventory_numbers = place_data['inventory_numbers']
+            place_code = place_data['place_code']
 
-            # Разделяем номера
-            inventory_numbers = [num.strip() for num in inventory_numbers_raw.split(',') if num.strip()]
+            if not inventory_numbers:
+                errors.append(f'Для места {place_code} не указаны инвентарные номера.')
+                continue
 
-            # Проверяем количество номеров
-            if len(inventory_numbers) != incoming.places_count:
-                errors.append(
-                    f'Для {index}-го поступления необходимо указать {incoming.places_count} номера(-ов), '
-                    f'но введено {len(inventory_numbers)}.'
-                )
-
-            # Проверяем валидность номеров
-            valid_numbers = list(incoming.inventory_numbers.values_list('number', flat=True))
-            invalid_numbers = [num for num in inventory_numbers if num not in valid_numbers]
-            if invalid_numbers:
-                errors.append(
-                    f'Следующие номера не принадлежат {index}(-ому/-ему) поступлению: {", ".join(invalid_numbers)}.'
-                )
+            if place_data['weight'] <= 0:
+                errors.append(f'Вес для места {place_code} должен быть больше 0.')
+            if place_data['volume'] <= 0:
+                errors.append(f'Объём для места {place_code} должен быть больше 0.')
+            if not place_data['package_type']:
+                errors.append(f'Для места {place_code} не указан тип упаковки.')
 
         if errors:
             raise ValidationError(errors)
 
         return cleaned_data
 
+
+class GenerateInventoryNumbersForm(forms.Form):
+    count = forms.IntegerField(min_value=1, label="Количество инвентарных номеров для генерации")
+
+
+class NewLocationForm(forms.Form):
+    name = forms.CharField(label="Название локации")
+
+
+class PackageTypeForm(forms.ModelForm):
+    class Meta:
+        model = PackageType
+        fields = ['name', 'price', 'description']
+
+    name = forms.CharField(label="Название вида упаковки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+    price = forms.FloatField(label="Цена", initial=1, required=True,
+                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
+    description = forms.CharField(
+        label="Описание упаковки",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control'}, ),
+    )
+
+
+class DeliveryTypeForm(forms.ModelForm):
+    class Meta:
+        model = DeliveryType
+        fields = ['name', 'eta']
+
+    name = forms.CharField(label="Название вида упаковки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+
+    eta = forms.CharField(
+        label="Примерное время доставки",
+        widget=forms.TextInput(
+            attrs={'class': 'form-control'}, ),
+    )
+
+
+DeliveryPriceRangeFormSet = inlineformset_factory(
+    DeliveryType,
+    DeliveryPriceRange,
+    fields=['min_density', 'max_density', 'price_per_kg'],
+    extra=1,
+    can_delete=True,
+    widgets={
+        'min_density': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        'max_density': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        'price_per_kg': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+    },
+    labels={
+        'min_density': 'Минимальная плотность',
+        'max_density': 'Максимальная плотность',
+        'price_per_kg': 'Цена за кг ($)',
+    },
+    error_messages={
+        'min_density': {'required': 'Пожалуйста, введите минимальнаю плотность.'},
+        'max_density': {'required': 'Пожалуйста, введите максимальную плотность.'},
+        'price_per_kg': {'required': 'Пожалуйста, введите цену за кг.'},
+    }
+)
 
 PhotoFormSet = inlineformset_factory(Incoming, Photo, form=PhotoForm, fields=('photo',), extra=1, can_delete=True)

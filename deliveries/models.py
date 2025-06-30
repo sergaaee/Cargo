@@ -1,4 +1,5 @@
 from django.core.validators import MinValueValidator
+from django.db.models import Q, F
 
 from PIL import Image
 from deliveries.choices import *
@@ -8,7 +9,8 @@ from django.conf import settings
 
 
 class Photo(UUIDMixin, TimeStampedMixin):
-    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set')
+    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set', blank=True, null=True)
+    place = models.ForeignKey('Place', on_delete=models.CASCADE, related_name='images_set_place', blank=True, null=True)
     photo = models.ImageField(upload_to='images/')
 
     # resizing the image, you can change parameters like size and quality.
@@ -25,6 +27,8 @@ class InventoryNumber(UUIDMixin, TimeStampedMixin):
     is_occupied = models.BooleanField(default=False)
     tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE, null=True, blank=True,
                                      related_name='inventory_numbers_tracker_code')
+    location = models.ForeignKey('Location', on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='inventory_numbers')
 
     def __str__(self):
         return self.number
@@ -107,15 +111,14 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     places_count = models.IntegerField(_('Places count'), default=0, validators=[MinValueValidator(1)])
     arrival_date = models.DateTimeField(_('Arrival date'), blank=True, null=True)
     size = models.CharField(_('Size (LxHxW)'), blank=True, null=True)
-    weight = models.IntegerField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
+    weight = models.FloatField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
     state = models.CharField(_('State'), choices=StateType.choices, default=StateType.PERFECT, max_length=100)
     package_type = models.CharField(_('Package type'), choices=PackageType.choices, default=PackageType.CARTOON_BOX,
                                     max_length=100)
     status = models.CharField(_('Status'), choices=PackageStatus.choices, default=PackageStatus.UNDECIDED,
                               max_length=100)
 
-    volume = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(1)])
-
+    volume = models.FloatField(blank=True, null=True, validators=[MinValueValidator(1)])
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -133,7 +136,6 @@ class Incoming(UUIDMixin, TimeStampedMixin):
         verbose_name=_('Manager')
     )
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, blank=True, null=True)
-
     images = models.ManyToManyField(Photo, through='PhotoIncoming', related_name='incoming_images', blank=True)
     tracker = models.ManyToManyField(Tracker, through='TrackerIncoming', blank=True, verbose_name=_('Tracker'))
     inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberIncoming',
@@ -154,15 +156,26 @@ class ConsolidationIncoming(UUIDMixin):
     consolidation = models.ForeignKey('Consolidation', on_delete=models.CASCADE)
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
     places_consolidated = models.IntegerField(_('Places to consolidate'), validators=[MinValueValidator(1)])
-    volume_consolidated = models.IntegerField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
-    weight_consolidated = models.IntegerField(_('Weight (kg)'), blank=True, null=True,
-                                              validators=[MinValueValidator(0)])
+    volume_consolidated = models.FloatField(_('Volume'), validators=[MinValueValidator(1)], blank=True, null=True)
+    weight_consolidated = models.FloatField(_('Weight (kg)'), blank=True, null=True,
+                                            validators=[MinValueValidator(0)])
 
     class Meta:
         unique_together = (
-        'consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
+            'consolidation', 'incoming')  # Чтобы каждое поступление могло участвовать в консолидации только один раз
         indexes = [
             models.Index(fields=['consolidation', 'incoming'], name='consolidation_incoming_idx'),
+        ]
+
+
+class ConsolidationInventory(UUIDMixin, TimeStampedMixin):
+    consolidation_incoming = models.ForeignKey(ConsolidationIncoming, on_delete=models.CASCADE)
+    inventory_number = models.ForeignKey(InventoryNumber, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('consolidation_incoming', 'inventory_number')
+        indexes = [
+            models.Index(fields=['consolidation_incoming', 'inventory_number'], name='consolidation_inventory_idx'),
         ]
 
 
@@ -177,9 +190,7 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         unique=True
     )
     instruction = models.TextField(_('Instruction'), blank=True, null=True)
-    delivery_type = models.CharField(
-        _('Delivery type'), choices=DeliveryType.choices, default=DeliveryType.AVIA, max_length=100
-    )
+    delivery_type = models.ForeignKey('DeliveryType', on_delete=models.CASCADE, blank=True, verbose_name=_('Delivery type'))  # Updated
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -194,11 +205,114 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         related_name='consolidation_manager',
         verbose_name=_('Manager')
     )
-
     status = models.CharField(blank=True, null=True, max_length=100, default="Template")
+    price = models.FloatField(blank=True, null=True, validators=[MinValueValidator(0)])
 
     def __str__(self):
         return f'{self.incomings} ({self.track_code})'
+
+
+class Place(UUIDMixin, TimeStampedMixin):
+    consolidation = models.ForeignKey(
+        'Consolidation',
+        on_delete=models.CASCADE,
+        related_name='places',
+        verbose_name=_('Consolidation')
+    )
+    place_code = models.CharField(
+        _('Place Code'),
+        max_length=100,
+        help_text=_('Unique code for the place, e.g., ST28-1')
+    )
+    weight = models.FloatField(
+        _('Weight (kg)'),
+        validators=[MinValueValidator(0)],
+        help_text=_('Weight of the place in kilograms'),
+        null=True, blank=True
+    )
+    volume = models.FloatField(
+        _('Volume (m^3)'),
+        validators=[MinValueValidator(1)],
+        help_text=_('Volume of the place in cubic meters'),
+        null=True, blank=True
+    )
+    inventory_numbers = models.ManyToManyField(
+        'InventoryNumber',
+        through='PlaceInventory',
+        related_name='place_inventory_numbers',
+        verbose_name=_('Inventory Numbers')
+    )
+    package_type = models.ForeignKey('PackageType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Package type'))  # Updated
+    images = models.ManyToManyField(Photo, through='PhotoPlace', related_name='place_images', blank=True)
+
+    def __str__(self):
+        return f"Place {self.place_code} for Consolidation {self.consolidation.track_code}"
+
+    class Meta:
+        unique_together = ('consolidation', 'place_code')
+        indexes = [
+            models.Index(fields=['consolidation', 'place_code'], name='place_consolidation_idx'),
+        ]
+
+
+class PlaceInventory(UUIDMixin, TimeStampedMixin):
+    place = models.ForeignKey(
+        'Place',
+        on_delete=models.CASCADE,
+        related_name='place_inventories',
+        verbose_name=_('Place')
+    )
+    inventory_number = models.ForeignKey(
+        'InventoryNumber',
+        on_delete=models.CASCADE,
+        related_name='place_inventory',
+        verbose_name=_('Inventory Number')
+    )
+
+    class Meta:
+        unique_together = ('place', 'inventory_number')
+        indexes = [
+            models.Index(fields=['place', 'inventory_number'], name='place_inventory_idx'),
+        ]
+
+
+class PackageType(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=100, unique=True)
+    price = models.FloatField(_('Price'), validators=[MinValueValidator(0)])
+    description = models.TextField(_('Description'), blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class DeliveryType(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=100, unique=True)
+    eta = models.CharField(_('ETA'), blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class DeliveryPriceRange(UUIDMixin, TimeStampedMixin):
+    delivery_type = models.ForeignKey(
+        DeliveryType, on_delete=models.CASCADE, related_name='price_ranges'
+    )
+
+    min_density = models.FloatField(_('Minimum Weight (kg)'), validators=[MinValueValidator(0)])
+    max_density = models.FloatField(_('Maximum Weight (kg)'), validators=[MinValueValidator(0)])
+
+    price_per_kg = models.FloatField(_('Price per kg'), validators=[MinValueValidator(0)])
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(min_density__lt=F('max_density')),
+                name='check_valid_density_range',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.delivery_type.name} {self.min_density}-{self.max_density} кг: ${self.price_per_kg}/кг"
 
 
 class ConsolidationCode(UUIDMixin, TimeStampedMixin):
@@ -250,3 +364,20 @@ class PhotoIncoming(UUIDMixin):
         indexes = [
             models.Index(fields=['incoming_id', 'photo_id'], name='photo_incoming_idx'),
         ]
+
+
+class PhotoPlace(UUIDMixin):
+    place = models.ForeignKey('Place', on_delete=models.CASCADE)
+    photo = models.ForeignKey('Photo', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['place_id', 'photo_id'], name='photo_place_idx'),
+        ]
+
+
+class Location(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=150, unique=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   null=True)

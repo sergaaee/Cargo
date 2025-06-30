@@ -3,10 +3,8 @@ import json
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.urls import reverse
-
-from .choices import PackageType  # Импортируем PackageType
 
 from django.contrib.auth.models import User
 
@@ -15,12 +13,19 @@ from django.shortcuts import render, redirect, get_object_or_404
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
-    update_inventory_and_trackers
+    update_inventory_and_trackers, packaged_columns
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm
+from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
+    GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming
-from django.http import JsonResponse
+    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
+    Location, PackageType, DeliveryType, DeliveryPriceRange
+import re
+from datetime import datetime
+from django.http import HttpResponse, JsonResponse
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.graphics.barcode import code128
 
 
 @staff_and_login_required
@@ -36,55 +41,22 @@ def delete_photo(request, pk):
 def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
-        formset = PhotoFormSet(request.POST, request.FILES)
-
         client_phone = request.POST.get("client", "").strip()
-
-        if 'save_draft' in request.POST:
-            tag, created = Tag.objects.get_or_create(name=request.POST.get('tag')) if request.POST.get(
-                'tag') else None, None
-
-            incoming = Incoming(
-                manager=request.user,
-                status='Template',
-                tag=tag[0] if tag else None,
-                arrival_date=request.POST.get('arrival_date'),
-                places_count=request.POST.get('places_count', 1),
-                size=request.POST.get('size'),
-                weight=request.POST.get('weight', 1),
-                state=request.POST.get('state', 'PERFECT'),
-                package_type=request.POST.get('package_type', 'CARTOON_BOX'),
-            )
-
-            if client_phone:
-                try:
-                    client_profile = UserProfile.objects.get(phone_number=client_phone)
-                    incoming.client = client_profile.user
-                except UserProfile.DoesNotExist:
-                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-
-
-            incoming.save()
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
 
         if form.is_valid():
             incoming = form.save(commit=False)
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
-
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-            # 🔹 Если клиент введён вручную, проверяем его
+            # Client logic
             if client_phone:
                 try:
                     client_profile = UserProfile.objects.get(phone_number=client_phone)
                     incoming.client = client_profile.user
                 except UserProfile.DoesNotExist:
                     return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-
-
             else:
-                # 🔹 Используем стандартную логику
                 if tracker.created_by:
                     incoming.client = tracker.created_by
                 elif incoming.tag and incoming.tag.created_by:
@@ -93,24 +65,70 @@ def incoming_new(request):
                     incoming.status = 'Unidentified'
                     incoming.client = None
 
-            # 🔹 Проверка трек-кодов и тегов на владельца
+            # Tracker and tag ownership checks
             conflicting_items = []
-
-            # Проверяем, не принадлежат ли трек-коды другому клиенту
             for tracker_code in tracker_codes:
                 tracker_code_obj = TrackerCode.objects.filter(code=tracker_code).first()
                 if tracker_code_obj and tracker_code_obj.created_by and tracker_code_obj.created_by != incoming.client:
                     conflicting_items.append(f'❌ Трек-код {tracker_code} принадлежит другому клиенту!')
-
-            # Проверяем, не принадлежит ли метка другому клиенту
             if incoming.tag and incoming.tag.created_by and incoming.tag.created_by != incoming.client:
                 conflicting_items.append(f'❌ Метка "{incoming.tag.name}" принадлежит другому клиенту!')
-
-            # Если есть конфликты, не сохраняем и показываем ошибку
             if conflicting_items:
                 return JsonResponse({'success': False, 'errors': conflicting_items})
 
+            # Validate inventory numbers and locations before any saves
+            all_inventory_numbers = set(form.cleaned_data['inventory_numbers'])  # All inventory numbers from form
+            assigned_inventory_numbers = set()  # Track inventory numbers with valid locations
+            location_assignments = []  # Store valid assignments for later processing
+
+            for key in request.POST:
+                if key.startswith('inventory_numbers_'):
+                    index = key.split('_')[-1]
+                    inventory_numbers_str = request.POST[key]
+                    location_id = request.POST.get(f'location_{index}')
+                    inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+
+                    if not location_id:
+                        return JsonResponse(
+                            {'success': False,
+                             'errors': f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inventory_numbers)}'}
+                        )
+
+                    try:
+                        location = Location.objects.get(id=location_id)
+                    except Location.DoesNotExist:
+                        return JsonResponse(
+                            {'success': False,
+                             'errors': f'Локация с ID {location_id} не существует для инвентарных номеров: {", ".join(inventory_numbers)}'}
+                        )
+
+                    for number in inventory_numbers:
+                        try:
+                            inventory_obj = InventoryNumber.objects.get(number=number)
+                            assigned_inventory_numbers.add(inventory_obj)
+                            location_assignments.append((inventory_obj, location))  # Store for later saving
+                        except InventoryNumber.DoesNotExist:
+                            return JsonResponse(
+                                {'success': False,
+                                 'errors': f'Инвентарный номер {number} не существует в базе данных.'}
+                            )
+
+            # Check if all inventory numbers have been assigned a location
+            unassigned_inventory_numbers = all_inventory_numbers - assigned_inventory_numbers
+            if unassigned_inventory_numbers:
+                return JsonResponse(
+                    {'success': False,
+                     'errors': [
+                         f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inv.number for inv in sorted(unassigned_inventory_numbers, key=lambda x: x.number))}']}
+                )
+
+            # All validations passed, now proceed with saving
+            if 'save_draft' in request.POST:
+                incoming.status = 'Template'
+
             incoming.save()
+
+            # Associate tracker codes and inventory numbers
             tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
             for tracker_code, inventory_numbers in tracker_inventory_map.items():
                 tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
@@ -125,28 +143,41 @@ def incoming_new(request):
                         inventory_number=inventory_number_obj
                     )
 
-            # Активируем трек-коды
+            # Activate tracker codes
             for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(code=tracker_code,
-                                                                              defaults={'status': 'Active'})
+                tracker_code_obj, created = TrackerCode.objects.get_or_create(
+                    code=tracker_code,
+                    defaults={'status': 'Active'}
+                )
                 tracker_code_obj.status = 'Active'
                 tracker_code_obj.save()
 
-            # Привязываем трекер
-            incoming.tracker.add(tracker)
 
+            incoming.tracker.add(tracker)
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
 
-            # Сохраняем фотографии
+            # Save photos
             for file in request.FILES.getlist('photo'):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
+            # Update tracker status
             if tracker.tracking_codes.filter(status='Inactive').count() == 0:
                 tracker.status = 'Completed'
                 tracker.save()
 
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+            # Save locations for inventory numbers
+            for inventory_obj, location in location_assignments:
+                inventory_obj.location = location
+                inventory_obj.save()
+
+            # Redirect based on status
+            if incoming.status == 'Template':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
+            elif incoming.status == 'Unidentified':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
+            else:
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
         else:
             errors = []
             for field, error_list in form.errors.items():
@@ -156,18 +187,19 @@ def incoming_new(request):
     else:
         form = IncomingForm()
         formset = PhotoFormSet()
+        trackers = Tracker.objects.exclude(status="Completed")
+        tags = Tag.objects.all()
+        available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+        locations = Location.objects.all()
 
-    trackers = Tracker.objects.exclude(status="Completed")
-    tags = Tag.objects.all()
-    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-
-    return render(request, 'deliveries/incomings/incoming-new.html', {
-        'form': form,
-        'formset': formset,
-        'tags': tags,
-        'trackers': trackers,
-        'available_inventory_numbers': available_inventory_numbers,
-    })
+        return render(request, 'deliveries/incomings/incoming-new.html', {
+            'form': form,
+            'formset': formset,
+            'tags': tags,
+            'trackers': trackers,
+            'available_inventory_numbers': available_inventory_numbers,
+            'locations': locations,
+        })
 
 
 @staff_and_login_required
@@ -199,6 +231,12 @@ def incoming_edit(request, pk):
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
 
+            if not incoming.client:
+                incoming.status = 'Unidentified'
+
+            if 'save_draft' in request.POST:
+                incoming.status = 'Template'
+
             incoming.save()
             form.save_m2m()
 
@@ -207,7 +245,35 @@ def incoming_edit(request, pk):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+            # Внутри POST-обработки
+            for key in request.POST:
+                if key.startswith('inventory_numbers_'):
+                    index = key.split('_')[-1]
+                    inventory_numbers_str = request.POST[key]
+                    location_id = request.POST.get(f'location_{index}')
+                    if location_id:
+                        try:
+                            location = Location.objects.get(id=location_id)
+                        except Location.DoesNotExist:
+                            continue
+                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+                        for number in inventory_numbers:
+                            try:
+                                inventory_obj = InventoryNumber.objects.get(number=number)
+                                inventory_obj.location = location
+                                inventory_obj.save()
+                            except InventoryNumber.DoesNotExist:
+                                pass
+                    else:
+                        return JsonResponse(
+                            {'success': False, 'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
+
+            if incoming.status == 'Template':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
+            elif incoming.status == 'Unidentified':
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
+            else:
+                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
 
         else:
             errors = []
@@ -235,7 +301,23 @@ def incoming_edit(request, pk):
 
         codes_nums_map[code] = inventory_numbers
 
+    # Locations - inv numbers map
+    locs_num_map = {}
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        locs_num_map[str(loc_id)] = list(inventory_numbers)
+
+    # Группировка для шаблона
+    location_inventory_groups = []
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        location_inventory_groups.append({
+            'location_id': loc_id,
+            'inventory_numbers': list(inventory_numbers)
+        })
+
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+    locations = Location.objects.all()  # Fetch all locations
 
     # ✅ Если НЕ AJAX, рендерим HTML
     return render(request, 'deliveries/incomings/incoming-edit.html', {
@@ -243,6 +325,9 @@ def incoming_edit(request, pk):
         'incoming': incoming,
         'available_inventory_numbers': available_inventory_numbers,
         'codes_nums_map': json.dumps(codes_nums_map),
+        'locs_num_map': json.dumps(locs_num_map),
+        'locations': locations,
+        'location_inventory_groups': location_inventory_groups,
     })
 
 
@@ -525,8 +610,8 @@ def tracker_new(request):
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
 
-@login_required
-@transaction.atomic  # Используем транзакцию для обеспечения целостности данных
+@staff_and_login_required
+@transaction.atomic
 def new_consolidation(request):
     if request.method == 'POST':
         if 'in_work' in request.POST:
@@ -534,8 +619,6 @@ def new_consolidation(request):
         else:
             selected_incomings_ids = request.POST.getlist('selected_incomings')
         selected_incomings = []
-
-        # 🔹 Проверяем, выбраны ли поступления
         if selected_incomings_ids and selected_incomings_ids[0] != '':
             for incoming_id in selected_incomings_ids:
                 incoming = get_object_or_404(Incoming, pk=incoming_id)
@@ -555,32 +638,66 @@ def new_consolidation(request):
                 consolidation.status = 'Error'
 
             consolidation.save()
-            form.save_m2m()  # Сохраняем ManyToMany отношения
+            form.save_m2m()
 
-            # 🔹 Если это не черновик, связываем инкаминги
             if consolidation.status != 'Template':
-                instruction_text = ""
-                count = 1
                 for incoming in selected_incomings:
-                    ConsolidationIncoming.objects.create(
+                    incoming_id = str(incoming.pk)
+                    consolidation_incoming = ConsolidationIncoming.objects.create(
                         consolidation=consolidation,
                         incoming=incoming,
                         places_consolidated=incoming.places_count
                     )
                     incoming.status = "Consolidated"
-                    inventory_numbers_str = ", ".join(incoming.inventory_numbers.values_list("number", flat=True))
-                    instruction_text += f"Инвентарные номера для {count}: {inventory_numbers_str}\n"
-                    count += 1
+
+                    inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
+                    inventory_numbers = inventory_data.get(incoming_id, [])
+                    for inventory_number in inventory_numbers:
+                        inventory_obj = InventoryNumber.objects.get(number=inventory_number)
+                        ConsolidationInventory.objects.create(
+                            consolidation_incoming=consolidation_incoming,
+                            inventory_number=inventory_obj
+                        )
                     incoming.save()
 
-                consolidation.instruction = instruction_text + consolidation.instruction
+                # Обработка мест
+                places_data = {}
+                for key, value in request.POST.items():
+                    if key.startswith('inventory_numbers_'):
+                        place_index = key.split('_')[-1]
+                        inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                        weight = request.POST.get(f'weight_consolidated_{place_index}', 0)
+                        volume = request.POST.get(f'volume_consolidated_{place_index}', 0)
+                        place_code = request.POST.get(f'place_consolidated_{place_index}', '')
+                        package_type = request.POST.get(f'package_type_{place_index}', '')
+                        places_data[place_index] = {
+                            'inventory_numbers': inventory_numbers,
+                            'weight': float(weight) if weight else 0,
+                            'volume': float(volume) if volume else 0,
+                            'place_code': place_code,
+                            'package_type': package_type,
+                        }
+
+                consolidation_price = 0
+                for place_data in places_data.values():
+                    package_type = PackageType.objects.get(name=place_data['package_type'])
+                    consolidation_price += package_type.price
+                    place = Place.objects.create(
+                        consolidation=consolidation,
+                        place_code=place_data['place_code'],
+                        package_type=package_type,
+                    )
+                    inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                    place.inventory_numbers.set(inventory_objs)
+
+                consolidation.price = consolidation_price
                 consolidation.save()
                 consolidation.incomings.set(selected_incomings)
 
             return redirect('deliveries:list-consolidation')
 
         else:
-            messages.error(request, "Ошибка при создании консолидации. Проверьте данные.")
+            messages.error(request, form.errors)
 
     else:
         form = ConsolidationForm()
@@ -607,8 +724,7 @@ def new_consolidation(request):
 
     incomings_data = prepare_incoming_data(incomings)
     initial_incomings_data = prepare_incoming_data(selected_incomings)
-
-    package_types = PackageType.choices
+    package_types = list(PackageType.objects.values_list('name', flat=True))
 
     return render(request, 'deliveries/outcomings/consolidation-new.html', {
         'form': form,
@@ -691,73 +807,315 @@ def consolidation_list(request):
     })
 
 
+def packaged_list(request):
+    consolidations = Consolidation.objects.filter(status='Packaged').annotate(
+        total_weight=Sum('places__weight')
+    )
+
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
+
+    columns = packaged_columns()
+
+    return render(request, 'deliveries/outcomings/packaged-list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
 @staff_and_login_required
 def package_new(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
 
     if request.method == 'POST':
-        incomings_data = {incoming.id: incoming for incoming in consolidation.incomings.all()}
-        form = PackageForm(request.POST, instance=consolidation, incomings_data=incomings_data)
+        form = PackageForm(request.POST, instance=consolidation)
 
         if form.is_valid():
-            consolidation = form.save()
+            consolidation = form.save(commit=False)
 
-            incoming_ids = request.POST.getlist('incoming_id')
-            weights = request.POST.getlist('weight_consolidated')
-            volumes = request.POST.getlist('volume_consolidated')
+            # Получаем данные о местах из формы
+            places_data = {}
+            total_volume = 0
+            total_weight = 0
+            for key, value in request.POST.items():
+                if key.startswith('inventory_numbers_'):
+                    place_index = key.split('_')[-1]
+                    inventory_numbers = [num.strip() for num in value.split(',') if num.strip()]
+                    weight = request.POST.get(f'weight_consolidated_{place_index}', 0)
+                    volume = request.POST.get(f'volume_consolidated_{place_index}', 0)
+                    place_code = request.POST.get(f'place_consolidated_{place_index}', '')
+                    package_type = request.POST.get(f'package_type_{place_index}', '')
+                    places_data[place_index] = {
+                        'inventory_numbers': inventory_numbers,
+                        'weight': float(weight) if weight else 0,
+                        'volume': float(volume) if volume else 0,
+                        'place_code': place_code,
+                        'package_type': package_type,
+                    }
+                    total_volume += float(volume)
+                    total_weight += float(weight)
 
-            for incoming_id, weight, volume in zip(incoming_ids, weights, volumes):
-                incoming = Incoming.objects.get(pk=incoming_id)
-                consolidation_incoming = ConsolidationIncoming.objects.get(
-                    consolidation=consolidation,
-                    incoming=incoming,
-                )
-                consolidation_incoming.weight_consolidated = weight
-                consolidation_incoming.volume_consolidated = volume
+            total_density = total_weight / total_volume
+            tariff = DeliveryPriceRange.objects.filter(
+                delivery_type=consolidation.delivery_type,
+                min_density__lte=total_density,
+                max_density__gte=total_density
+            ).first()
 
-                consolidation_incoming.save()
+            consolidation.price += float(tariff.price_per_kg) * total_weight
 
-            consolidation.status = "Packaged"
+            # Сохраняем места
+            with transaction.atomic():
+                # Удаляем существующие места
+                consolidation.places.all().delete()
+
+                # Создаём новые места
+                for place_index, place_data in places_data.items():
+                    package_type = PackageType.objects.get(name=place_data['package_type'])
+                    place = Place.objects.create(
+                        consolidation=consolidation,
+                        place_code=place_data['place_code'],
+                        weight=place_data['weight'],
+                        volume=place_data['volume'],
+                        package_type=package_type,
+                    )
+                    # Привязываем инвентарные номера
+                    inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                    place.inventory_numbers.set(inventory_objs)
+
+                    # Обработка загруженных фотографий для этого места
+                    photo_files = request.FILES.getlist(f'photos_{place_index}')
+                    for photo_file in photo_files:
+                        photo = Photo(photo=photo_file, place=place)
+                        photo.save()
+
+            # Обновляем статус консолидации
+            if 'in_work' in request.POST:
+                consolidation.status = "Packaged"
+            else:
+                consolidation.status = "Draft"
+
             consolidation.save()
-
             messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')
+        else:
+            # Если форма не валидна, передаём ошибки в шаблон
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = PackageForm(instance=consolidation)
 
-    incomings = consolidation.incomings.all()
+    # Получаем допустимые инвентарные номера для отображения в шаблоне
+    valid_numbers = list(ConsolidationInventory.objects.filter(
+        consolidation_incoming__consolidation=consolidation
+    ).values_list('inventory_number__number', flat=True).distinct())
+
+    # Получаем существующие места для автозаполнения
+    places = consolidation.places.all()
+    places_data = []
+    for place in places:
+        inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        photos = list(place.images_set_place.all())  # Получаем фотографии для места
+        places_data.append({
+            'place_code': place.place_code,
+            'weight': place.weight,
+            'volume': place.volume,
+            'package_type': place.package_type.name,
+            'inventory_numbers': inventory_numbers,
+            'photos': photos,
+        })
+
+    package_types = list(PackageType.objects.values_list('name', flat=True))
+
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
-        'incomings': incomings,
+        'consolidation_inventory_numbers': valid_numbers,
+        'places_data': places_data,
+        'package_types': package_types,
     })
 
 
 @staff_and_login_required
+@transaction.atomic
 def consolidation_edit(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
-
     if request.method == 'POST':
         form = ConsolidationForm(request.POST, instance=consolidation)
         if form.is_valid():
+            consolidation = form.save(commit=False)
+            consolidation.manager = request.user
+
+            # Обработка выбранных поступлений
+            selected_incomings_ids = request.POST.get('selected_incomings', '').split(',')
+            selected_incomings_ids = [id for id in selected_incomings_ids if id]  # Удаляем пустые ID
+            selected_incomings = Incoming.objects.filter(id__in=selected_incomings_ids)
+
+            # Обработка инвентарных номеров
+            try:
+                inventory_data = json.loads(request.POST.get("selected_inventory", "{}"))
+                places_data = json.loads(request.POST.get("places_data", "[]"))
+            except json.JSONDecodeError:
+                messages.error(request, "Ошибка в данных инвентарных номеров или мест. Пожалуйста, проверьте выбор.")
+                return redirect('deliveries:consolidation-edit', pk=pk)
+
+            # Установка статуса консолидации
             if 'save_draft' in request.POST:
                 consolidation.status = 'Template'
             elif 'in_work' in request.POST:
                 consolidation.status = 'Packaging'
 
-            form.save()
-            messages.success(request, 'Консолидация успешно отредактирована!')
+            consolidation.save()
+            form.save_m2m()
+
+            # Очистка старых связей ConsolidationIncoming
+            ConsolidationIncoming.objects.filter(consolidation=consolidation).delete()
+
+            # Создание новых связей с поступлениями
+            for incoming in selected_incomings:
+                incoming_id = str(incoming.id)
+                inventory_numbers = inventory_data.get(incoming_id, [])
+                places_consolidated = len(inventory_numbers) if inventory_numbers else 0
+
+                if places_consolidated == 0:
+                    messages.error(request, f'Для поступления #{incoming_id} не выбраны инвентарные номера.')
+                    return redirect('deliveries:consolidation-edit', pk=pk)
+
+                consolidation_incoming = ConsolidationIncoming.objects.create(
+                    consolidation=consolidation,
+                    incoming=incoming,
+                    places_consolidated=places_consolidated
+                )
+
+                for inventory_number in inventory_numbers:
+                    inventory_obj = InventoryNumber.objects.get(number=inventory_number)
+                    ConsolidationInventory.objects.create(
+                        consolidation_incoming=consolidation_incoming,
+                        inventory_number=inventory_obj
+                    )
+
+                incoming.status = "Consolidated"
+                incoming.save()
+
+            # Обработка мест
+            consolidation.places.all().delete()
+            consolidation_price = 0
+            for place_data in places_data:
+                package_type = PackageType.objects.get(name=place_data['package_type'])
+                consolidation_price += package_type.price
+                place = Place.objects.create(
+                    consolidation=consolidation,
+                    place_code=place_data['place_code'],
+                    package_type=package_type,
+                )
+                inventory_objs = InventoryNumber.objects.filter(number__in=place_data['inventory_numbers'])
+                place.inventory_numbers.set(inventory_objs)
+
+            # Обновление связи консолидации с поступлениями
+            consolidation.price = consolidation_price
+            consolidation.save()
+            consolidation.incomings.set(selected_incomings)
+
+            messages.success(request, 'Консолидация успешно обновлена.')
             return redirect('deliveries:list-consolidation')
+        else:
+            messages.error(request, 'Ошибка при редактировании консолидации. Проверьте данные.')
     else:
         form = ConsolidationForm(instance=consolidation)
 
-    package_types = PackageType.choices
+    # Подготовка данных для шаблона
+    selected_incomings = consolidation.incomings.all()
+    incomings = Incoming.objects.exclude(
+        Q(id__in=selected_incomings.values_list('id', flat=True)) |
+        Q(status='Unidentified') |
+        Q(status='Template') |
+        Q(status='Consolidated')
+    )
+    incomings_data = prepare_incoming_data(incomings)
+    initial_incomings_data = prepare_incoming_data(selected_incomings)
+    package_types = list(PackageType.objects.values_list('name', flat=True))
+
+    # Подготовка данных об инвентарных номерах
+    initial_inventory_data = {}
+    for incoming in selected_incomings:
+        inventory_numbers = ConsolidationInventory.objects.filter(
+            consolidation_incoming__consolidation=consolidation,
+            consolidation_incoming__incoming=incoming
+        ).values_list('inventory_number__number', flat=True)
+        initial_inventory_data[str(incoming.id)] = list(inventory_numbers)
+
+    # Подготовка данных о местах
+    places = consolidation.places.all()
+    places_data = []
+    for place in places:
+        inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        places_data.append({
+            'place_code': place.place_code,
+            'package_type': place.package_type.name,
+            'inventory_numbers': inventory_numbers,
+        })
 
     return render(request, 'deliveries/outcomings/consolidation-edit.html', {
         'form': form,
         'consolidation': consolidation,
+        'incomings': incomings,
+        'incomings_data': incomings_data,
+        'initial_incomings_data': initial_incomings_data,
         'package_types': package_types,
+        'initial_inventory_data': initial_inventory_data,
+        'places_data': places_data,
     })
+
+
+@staff_and_login_required
+def generate_inventory_numbers(request):
+    if request.method == 'POST':
+        form = GenerateInventoryNumbersForm(request.POST)
+        if form.is_valid():
+            count = form.cleaned_data['count']
+            # Найти последний инвентарный номер
+            last_number = InventoryNumber.objects.order_by('-number').first()
+            if last_number:
+                match = re.match(r'INV(\d+)', last_number.number)
+                if match:
+                    num = int(match.group(1))
+                else:
+                    num = 0
+            else:
+                num = 0
+            # Генерировать новые номера
+            new_numbers = []
+            for i in range(1, count + 1):
+                next_num = num + i
+                next_number = f'INV{next_num}'  # Формат без padding: INV1, INV2 и т.д.
+                new_numbers.append(next_number)
+            # Сохранить новые инвентарные номера
+            for number in new_numbers:
+                InventoryNumber.objects.create(number=number, is_occupied=False)
+            # Генерировать PDF с измененными размерами
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="inventory_numbers.pdf"'
+            p = canvas.Canvas(response, pagesize=(3.5 * inch, 2.0 * inch))  # Увеличена ширина, уменьшена высота
+            for number in new_numbers:
+                # Нарисовать дату в правом верхнем углу
+                p.setFont("Helvetica", 8)
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                p.drawRightString(3.5 * inch - 10, 2.0 * inch - 10, date_str)
+                # Нарисовать штрихкод в центре
+                barcode = code128.Code128(number, barHeight=50)  # Уменьшена высота штрихкода
+                barcode_width = barcode.width
+                x = (3.5 * inch - barcode_width) / 2
+                y = (2.0 * inch - 50) / 2
+                barcode.drawOn(p, x, y)
+                # Нарисовать инвентарный номер внизу
+                p.setFont("Helvetica", 10)
+                p.drawCentredString(3.5 * inch / 2, 10, number)
+                p.showPage()
+            p.save()
+            return response
+    else:
+        form = GenerateInventoryNumbersForm()
+    return render(request, 'deliveries/generate_inventory_numbers.html', {'form': form})
 
 
 @staff_and_login_required
@@ -784,3 +1142,161 @@ def search_users(request):
     ]
 
     return JsonResponse(results, safe=False)
+
+
+def location_new(request):
+    if request.method == 'POST':
+        form = NewLocationForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            Location.objects.create(name=name, created_by=request.user)
+            return redirect('deliveries:list-incoming')
+    else:
+        form = NewLocationForm()
+    return render(request, 'deliveries/create_location.html', {'form': form})
+
+
+def delivery_type_new(request):
+    if request.method == 'POST':
+        form = DeliveryTypeForm(request.POST)
+        formset = DeliveryPriceRangeFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            delivery_type = form.save()
+            formset.instance = delivery_type
+            formset.save()
+            return redirect('deliveries:list-delivery-type')
+    else:
+        form = DeliveryTypeForm()
+        formset = DeliveryPriceRangeFormSet()
+    return render(request, 'deliveries/delivery_type/create_delivery_type.html', {'form': form, 'formset': formset})
+
+
+def package_type_new(request):
+    if request.method == 'POST':
+        form = PackageTypeForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            price = form.cleaned_data['price']
+            description = form.cleaned_data['description']
+            PackageType.objects.create(name=name, price=price, description=description)
+            return redirect('deliveries:list-package-type')
+    else:
+        form = PackageTypeForm()
+    return render(request, 'deliveries/package_type/create_package_type.html', {'form': form})
+
+
+@staff_and_login_required
+def package_type_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    package_types = PackageType.objects.all()
+
+    package_types = package_types.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(package_types, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('price', 'Цена'),
+        ('description', 'Описание')
+    ]
+
+    return render(request, 'deliveries/package_type/package_type_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def package_type_edit(request, pk):
+    package_type = get_object_or_404(PackageType, pk=pk)
+
+    if request.method == 'POST':
+        form = PackageTypeForm(request.POST, instance=package_type)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-package-type')
+    else:
+        form = PackageTypeForm(instance=package_type)
+
+    return render(request, 'deliveries/package_type/package_type_edit.html',
+                  {'form': form, 'package_type': package_type})
+
+
+@staff_and_login_required
+def package_type_delete(request, pk):
+    package_type = get_object_or_404(PackageType, pk=pk)
+    if request.method == 'POST':
+        package_type.delete()
+        return redirect('deliveries:list-package-type')
+    return render(request, 'deliveries/package_type/package_type_delete.html', {'package_type': package_type})
+
+
+@staff_and_login_required
+def delivery_type_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    delivery_types = DeliveryType.objects.all()
+
+    delivery_types = delivery_types.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(delivery_types, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+        ('eta', 'Примерное время доставки')
+    ]
+
+    return render(request, 'deliveries/delivery_type/delivery_type_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def delivery_type_edit(request, pk):
+    delivery_type = get_object_or_404(DeliveryType, pk=pk)
+
+    if request.method == 'POST':
+        form = DeliveryTypeForm(request.POST, instance=delivery_type)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-delivery-type')
+    else:
+        form = DeliveryTypeForm(instance=delivery_type)
+
+    return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
+                  {'form': form, 'delivery_type': delivery_type})
+
+
+@staff_and_login_required
+def delivery_type_delete(request, pk):
+    delivery_type = get_object_or_404(DeliveryType, pk=pk)
+    if request.method == 'POST':
+        delivery_type.delete()
+        return redirect('deliveries:list-delivery-type')
+    return render(request, 'deliveries/delivery_type/delivery_type_delete.html', {'delivery_type': delivery_type})

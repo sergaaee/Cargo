@@ -1,0 +1,115 @@
+<table class="table table-bordered">
+    <thead>
+    <tr>
+        <th>
+            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=track_code__code&order={% if sort_by == 'track_code__code' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Трек-код
+            </a>
+        </th>
+        <th>
+            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Дата создания
+            </a>
+        </th>
+        <th>
+            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=client&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Клиент
+            </a>
+        </th>
+        <th>
+            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=delivery_type&order={% if sort_by == 'delivery_type' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Тип доставки
+            </a>
+        </th>
+        <th>
+            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Статус
+            </a>
+        </th>
+        <th>Действие</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for consolidation in page_obj %}
+        <tr>
+            <td>{{ consolidation.track_code.code|default_if_none:"-" }}</td>
+            <td>{{ consolidation.created_at|date:"d.m.Y" }}</td>
+            <td>{{ consolidation.client.profile.phone_number|default_if_none:"-" }}</td>
+            {% if consolidation.delivery_type == "Avia" %}
+                <td><span
+                        class="badge rounded-pill bg-label-danger">{{ consolidation.delivery_type }}</span>
+                </td>
+            {% elif consolidation.delivery_type == "Auto" %}
+                <td><span
+                        class="badge rounded-pill bg-label-primary">{{ consolidation.delivery_type }}</span>
+                </td>
+            {% elif consolidation.delivery_type == "Express Train" %}
+                <td><span
+                        class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
+                </td>
+            {% else %}
+                <td><span
+                        class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
+                </td>
+            {% endif %}
+            <td>{{ consolidation.status }}</td>
+            <td>
+                <button type="button" class="btn btn-info" data-bs-toggle="modal"
+                        data-bs-target="#consolidationModal{{ consolidation.id }}">
+                    <span class="bi bi-zoom-in"></span>
+                </button>
+
+                <a class="btn btn-warning"
+                   href="{% url 'deliveries:consolidation-edit' consolidation.id %}">
+                    <span class="bi bi-pencil-square"></span>
+                </a>
+
+                {% if consolidation.status == "Packaging" %}
+                    <a href="{% url 'deliveries:new-package' consolidation.id %}" class="btn btn-success">
+                        <span class="bi bi-box-seam-fill"></span>
+                    </a>
+                {% endif %}
+
+                <!-- Модальное окно -->
+                <div class="modal fade" id="consolidationModal{{ consolidation.id }}" tabindex="-1"
+                     aria-labelledby="consolidationModalLabel{{ consolidation.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"
+                                    id="consolidationModalLabel{{ consolidation.id }}">Подробная
+                                    информация</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Трек-код:</strong> {{ consolidation.track_code.code }}</p>
+                                <p><strong>Дата
+                                    создания:</strong> {{ consolidation.created_at|date:"d.m.Y H:i" }}
+                                </p>
+                                <p>
+                                    <strong>Клиент:</strong> {{ consolidation.client.profile.phone_number|default_if_none:"-" }}
+                                </p>
+                                <p><strong>Тип доставки:</strong> {{ consolidation.delivery_type }}</p>
+                                <p>
+                                    <strong>Инструкция:</strong> {{ consolidation.instruction|default_if_none:"Нет инструкции" }}
+                                </p>
+                                {#                                            <p><strong>Инвентарные номера: {{ consolidation. }}</strong></p>#}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Закрыть
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="5">Нет данных для отображения.</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

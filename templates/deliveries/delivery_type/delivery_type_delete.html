@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Удаление вида доставки{% endblock %}
+
+{% block content %}
+  <div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="py-3 mb-4"><span class="text-muted fw-light">Виды доставок/</span>Удаление вида доставки</h4>
+    <p>Вы действительно хотите удалить вид доставки "{{ delivery_type.name }}"?</p>
+    <form method="POST">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Удалить</button>
+      <a href="{% url 'deliveries:list-delivery-type' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+  </div>
+{% endblock %}

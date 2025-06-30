@@ -4,4 +4,4 @@
 /gunicorn_error.log
 migrations/
 media/
-
+static/jazzmin
