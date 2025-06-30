@@ -4,7 +4,6 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.urls import reverse
 
 from django.contrib.auth.models import User
 
@@ -13,7 +12,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from user_profile.models import ClientManagerRelation, UserProfile
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
-    update_inventory_and_trackers, packaged_columns
+    update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
+    handle_incoming_status_and_redirect
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
     GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
@@ -49,6 +49,19 @@ def incoming_new(request):
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
+            # Если трекер не найден, создаем новый
+            if not tracker:
+                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
+
+                # Привязываем коды к новому трекеру
+                for code in tracker_codes:
+                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
+                                                                              defaults={'status': 'Active', })
+                    tracker_code.tracker = tracker
+                    tracker.tracking_codes.add(tracker_code)
+                    tracker_code.save()
+                tracker.save()
+
             # Client logic
             if client_phone:
                 try:
@@ -61,71 +74,36 @@ def incoming_new(request):
                     incoming.client = tracker.created_by
                 elif incoming.tag and incoming.tag.created_by:
                     incoming.client = incoming.tag.created_by
-                else:
-                    incoming.status = 'Unidentified'
-                    incoming.client = None
 
-            # Tracker and tag ownership checks
-            conflicting_items = []
-            for tracker_code in tracker_codes:
-                tracker_code_obj = TrackerCode.objects.filter(code=tracker_code).first()
-                if tracker_code_obj and tracker_code_obj.created_by and tracker_code_obj.created_by != incoming.client:
-                    conflicting_items.append(f'❌ Трек-код {tracker_code} принадлежит другому клиенту!')
-            if incoming.tag and incoming.tag.created_by and incoming.tag.created_by != incoming.client:
-                conflicting_items.append(f'❌ Метка "{incoming.tag.name}" принадлежит другому клиенту!')
-            if conflicting_items:
-                return JsonResponse({'success': False, 'errors': conflicting_items})
-
-            # Validate inventory numbers and locations before any saves
-            all_inventory_numbers = set(form.cleaned_data['inventory_numbers'])  # All inventory numbers from form
-            assigned_inventory_numbers = set()  # Track inventory numbers with valid locations
-            location_assignments = []  # Store valid assignments for later processing
-
+            # Проверка все ли инвентарные номера имеют локации, если да - сохранить для привязки в будущем
+            location_assignments = []
             for key in request.POST:
                 if key.startswith('inventory_numbers_'):
                     index = key.split('_')[-1]
-                    inventory_numbers_str = request.POST[key]
-                    location_id = request.POST.get(f'location_{index}')
-                    inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
+                    if not (location_id := request.POST.get(f'location_{index}')):
+                        return JsonResponse({
+                            'success': False,
+                            'errors': ['Пожалуйста, выберите локации для всех инвентарных номеров.']
+                        })
+                    location = Location.objects.get(id=location_id)
 
-                    if not location_id:
-                        return JsonResponse(
-                            {'success': False,
-                             'errors': f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inventory_numbers)}'}
-                        )
-
-                    try:
-                        location = Location.objects.get(id=location_id)
-                    except Location.DoesNotExist:
-                        return JsonResponse(
-                            {'success': False,
-                             'errors': f'Локация с ID {location_id} не существует для инвентарных номеров: {", ".join(inventory_numbers)}'}
-                        )
-
+                    inventory_numbers = [num.strip() for num in request.POST[key].split(',') if num.strip()]
                     for number in inventory_numbers:
                         try:
                             inventory_obj = InventoryNumber.objects.get(number=number)
-                            assigned_inventory_numbers.add(inventory_obj)
-                            location_assignments.append((inventory_obj, location))  # Store for later saving
+                            location_assignments.append((inventory_obj, location))
                         except InventoryNumber.DoesNotExist:
                             return JsonResponse(
                                 {'success': False,
-                                 'errors': f'Инвентарный номер {number} не существует в базе данных.'}
+                                 'errors': [f'Инвентарный номер {number} не существует в базе данных.']}
                             )
 
-            # Check if all inventory numbers have been assigned a location
-            unassigned_inventory_numbers = all_inventory_numbers - assigned_inventory_numbers
-            if unassigned_inventory_numbers:
-                return JsonResponse(
-                    {'success': False,
-                     'errors': [
-                         f'Пожалуйста, выберите локацию для следующих инвентарных номеров: {", ".join(inv.number for inv in sorted(unassigned_inventory_numbers, key=lambda x: x.number))}']}
-                )
+            # Save locations for inventory numbers
+            for inventory_obj, location in location_assignments:
+                inventory_obj.location = location
+                inventory_obj.save()
 
             # All validations passed, now proceed with saving
-            if 'save_draft' in request.POST:
-                incoming.status = 'Template'
-
             incoming.save()
 
             # Associate tracker codes and inventory numbers
@@ -152,6 +130,10 @@ def incoming_new(request):
                 tracker_code_obj.status = 'Active'
                 tracker_code_obj.save()
 
+            # Update tracker status
+            if tracker.tracking_codes.filter(status='Inactive').count() == 0:
+                tracker.status = 'Completed'
+                tracker.save()
 
             incoming.tracker.add(tracker)
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
@@ -161,23 +143,7 @@ def incoming_new(request):
                 photo = Photo(photo=file, incoming=incoming)
                 photo.save()
 
-            # Update tracker status
-            if tracker.tracking_codes.filter(status='Inactive').count() == 0:
-                tracker.status = 'Completed'
-                tracker.save()
-
-            # Save locations for inventory numbers
-            for inventory_obj, location in location_assignments:
-                inventory_obj.location = location
-                inventory_obj.save()
-
-            # Redirect based on status
-            if incoming.status == 'Template':
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
-            elif incoming.status == 'Unidentified':
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
-            else:
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
+            return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
             errors = []
             for field, error_list in form.errors.items():
@@ -216,6 +182,19 @@ def incoming_edit(request, pk):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
 
+            tracker, tracker_codes = form.cleaned_data.get('tracker')
+            if not tracker:
+                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
+
+                # Привязываем коды к новому трекеру
+                for code in tracker_codes:
+                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
+                                                                              defaults={'status': 'Active', })
+                    tracker_code.tracker = tracker
+                    tracker.tracking_codes.add(tracker_code)
+                    tracker_code.save()
+                tracker.save()
+
             update_inventory_and_trackers(incoming, form, tracker_inventory_map)
 
             new_client_phone = request.POST.get("client", "").strip()
@@ -230,12 +209,6 @@ def incoming_edit(request, pk):
                     return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
                         else render(request, 'deliveries/incomings/incoming-edit.html',
                                     {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
-
-            if not incoming.client:
-                incoming.status = 'Unidentified'
-
-            if 'save_draft' in request.POST:
-                incoming.status = 'Template'
 
             incoming.save()
             form.save_m2m()
@@ -252,10 +225,7 @@ def incoming_edit(request, pk):
                     inventory_numbers_str = request.POST[key]
                     location_id = request.POST.get(f'location_{index}')
                     if location_id:
-                        try:
-                            location = Location.objects.get(id=location_id)
-                        except Location.DoesNotExist:
-                            continue
+                        location = Location.objects.get(id=location_id)
                         inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
                         for number in inventory_numbers:
                             try:
@@ -266,15 +236,10 @@ def incoming_edit(request, pk):
                                 pass
                     else:
                         return JsonResponse(
-                            {'success': False, 'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
+                            {'success': False,
+                             'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
 
-            if incoming.status == 'Template':
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:templates-incoming')})
-            elif incoming.status == 'Unidentified':
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:unidentified-incoming')})
-            else:
-                return JsonResponse({'success': True, 'redirect_url': reverse('deliveries:list-incoming')})
-
+            return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
             errors = []
             for field, error_list in form.errors.items():
@@ -388,7 +353,6 @@ def goods_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Добавляем колонки с метками для отображения в таблице
     columns = [
         ('tracker', 'Трек-номер'),
         ('tag__name', 'Тег'),
@@ -426,16 +390,13 @@ def tag_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Добавляем колонки с метками для отображения в таблице
-    columns = [
-        ('name', 'Название'),
-    ]
-
     return render(request, 'deliveries/client-side/tag/tag-list.html', {
         'page_obj': page_obj,
         'sort_by': sort_by,
         'order': sort_order,
-        'columns': columns  # Передаем колонки в шаблон
+        'columns': [
+            ('name', 'Название'),
+        ]
     })
 
 
@@ -545,33 +506,9 @@ def goods_detail(request, pk):
 
 @login_required
 def tracker_list(request):
-    sort_by = request.GET.get('sort_by', 'name')
-    sort_order = request.GET.get('order', 'asc')
-    hide_completed = request.GET.get('hide_completed', '')
+    page_obj, sort_by, sort_order, hide_completed = paginated_query_trackers_list(request)
 
-    if sort_order == 'desc':
-        order_prefix = '-'
-    else:
-        order_prefix = ''
-
-    trackers = Tracker.objects.filter(created_by=request.user)
-
-    trackers = trackers.order_by(f'{order_prefix}{sort_by}')
-
-    if hide_completed == 'on':
-        trackers = trackers.exclude(status='Completed')
-
-    paginator = Paginator(trackers, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    # Добавляем колонки с метками для отображения в таблице
-    columns = [
-        ('name', 'Название'),
-        ('tracking_codes', 'Коды'),
-        ('source', 'Источник'),
-        ('status', 'Статус')
-    ]
+    columns = trackers_list_columns()
 
     return render(request, 'deliveries/client-side/tracker/tracker-list.html', {
         'page_obj': page_obj,
@@ -794,8 +731,7 @@ def incoming_delete(request, pk):
 
 @staff_and_login_required
 def consolidation_list(request):
-    consolidations = Consolidation.objects.all()
-    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations=Consolidation.objects.all())
 
     columns = consolidation_columns()
 

@@ -137,14 +137,14 @@ class BaseIncomingForm(forms.ModelForm):
 
             incoming = self.instance
             for inventory_number in inventory_numbers:
-                # Используем get_or_create для поиска или создания инвентарного номера
-                inventory_number_obj, created = InventoryNumber.objects.get_or_create(number=inventory_number)
+                try:
+                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
+                except InventoryNumber.DoesNotExist:
+                    raise forms.ValidationError(f'Инвентарный номер {inventory_number} не существует в базе данных.')
 
-                # Проверяем, занят ли инвентарный номер, если он уже существует и не принадлежит текущему объекту Incoming
                 if inventory_number_obj.is_occupied and inventory_number_obj not in incoming.inventory_numbers.all():
-                    raise forms.ValidationError(f'Inventory number {inventory_number} is already occupied.')
+                    raise forms.ValidationError(f'Инвентарный номер {inventory_number} уже занят.')
 
-                # Добавляем инвентарный номер в список, чтобы вернуть его в cleaned_data
                 inventory_number_objects.append(inventory_number_obj)
 
             return inventory_number_objects
@@ -206,23 +206,12 @@ class IncomingForm(BaseIncomingForm):
         tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
 
         if tracker_obj:
-            existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
-            existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+            existing_incoming = Incoming.objects.filter(tracker=tracker_obj).first()
 
             if existing_incoming:
+                existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
                 raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
-        # Если трекер не найден, создаем новый
-        if not tracker_obj:
-            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list), )
-
-            # Привязываем коды к новому трекеру
-            for code in code_list:
-                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active', })
-                tracker_code.tracker = tracker_obj
-                tracker_obj.tracking_codes.add(tracker_code)
-                tracker_code.save()
-            tracker_obj.save()
         return tracker_obj, code_list
 
 
@@ -244,16 +233,6 @@ class IncomingEditForm(BaseIncomingForm):
             if existing_incoming:
                 raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
-        if not tracker_obj:
-            tracker_obj = Tracker.objects.create(name="Трекер для " + ", ".join(code_list))
-
-            for code in code_list:
-                tracker_code, created = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active'})
-                tracker_code.tracker = tracker_obj
-                tracker_obj.tracking_codes.add(tracker_code)
-                tracker_code.save()
-            tracker_obj.save()
-
         return tracker_obj, code_list
 
     def clean_inventory_numbers(self):
@@ -265,7 +244,10 @@ class IncomingEditForm(BaseIncomingForm):
 
             inventory_number_objects = []
             for inventory_number in inventory_numbers:
-                inventory_number_obj, created = InventoryNumber.objects.get_or_create(number=inventory_number)
+                try:
+                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
+                except InventoryNumber.DoesNotExist:
+                    raise forms.ValidationError(f'Инвентарный номер {inventory_number} не найден в базе данных.')
                 inventory_number_objects.append(inventory_number_obj)
 
             return inventory_number_objects
@@ -288,10 +270,15 @@ class ConsolidationForm(forms.ModelForm):
         fields = ['client', 'delivery_type', 'track_code', 'instruction', 'consolidation_date']
         widgets = {
             'consolidation_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'delivery_type': forms.Select(attrs={'class': 'form-control'}),
             'instruction': forms.Textarea(
                 attrs={'class': 'form-control', 'placeholder': 'Любые инструкции для работника склада'}),
         }
+
+    delivery_type = forms.ModelChoiceField(
+        queryset=DeliveryType.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
 
     client = forms.CharField(required=True,
                              widget=forms.TextInput(
