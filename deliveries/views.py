@@ -16,7 +16,7 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     handle_incoming_status_and_redirect
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm, NewLocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
+    GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
     Location, PackageType, DeliveryType, DeliveryPriceRange
@@ -1083,14 +1083,71 @@ def search_users(request):
 
 def location_new(request):
     if request.method == 'POST':
-        form = NewLocationForm(request.POST)
+        form = LocationForm(request.POST)
         if form.is_valid():
             name = form.cleaned_data['name']
             Location.objects.create(name=name, created_by=request.user)
-            return redirect('deliveries:list-incoming')
+            return redirect('deliveries:list-location')
     else:
-        form = NewLocationForm()
-    return render(request, 'deliveries/create_location.html', {'form': form})
+        form = LocationForm()
+    return render(request, 'deliveries/location/create_location.html', {'form': form})
+
+
+@staff_and_login_required
+def location_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    locations = Location.objects.all()
+
+    locations = locations.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(locations, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+    ]
+
+    return render(request, 'deliveries/location/location_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def location_edit(request, pk):
+    location = get_object_or_404(Location, pk=pk)
+
+    if request.method == 'POST':
+        form = LocationForm(request.POST, instance=location)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-location')
+    else:
+        form = LocationForm(instance=location)
+
+    return render(request, 'deliveries/location/location_edit.html',
+                  {'form': form, 'location': location})
+
+
+@staff_and_login_required
+def location_delete(request, pk):
+    location = get_object_or_404(Location, pk=pk)
+    if request.method == 'POST':
+        location.delete()
+        return redirect('deliveries:list-location')
+    return render(request, 'deliveries/location/location_delete.html', {'location': location})
 
 
 def delivery_type_new(request):

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -395,7 +395,11 @@ class GenerateInventoryNumbersForm(forms.Form):
     count = forms.IntegerField(min_value=1, label="Количество инвентарных номеров для генерации")
 
 
-class NewLocationForm(forms.Form):
+class LocationForm(forms.ModelForm):
+    class Meta:
+        model = Location
+        fields = ['name']
+
     name = forms.CharField(label="Название локации")
 
 
