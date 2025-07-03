@@ -1,10 +1,13 @@
 from functools import wraps
+from typing import Optional
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
+from django.db.models import QuerySet
+from django.http import JsonResponse
 
-from deliveries.models import InventoryNumber, Incoming, InventoryNumberIncoming, TrackerCode, \
-    InventoryNumberTrackerCode
+from deliveries.models import InventoryNumber, InventoryNumberIncoming, TrackerCode, \
+    InventoryNumberTrackerCode, Tracker, Consolidation
 
 
 def staff_and_login_required(view_func):
@@ -16,7 +19,6 @@ def staff_and_login_required(view_func):
 
 
 def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
-    """Обновляет инвентарные номера и трек-коды у поступления с правильной привязкой"""
     new_inventory_numbers = set(num.number for num in form.cleaned_data["inventory_numbers"])
     tracker, tracker_codes = form.cleaned_data["tracker"]
 
@@ -40,7 +42,8 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
         tracker_code_obj, _ = TrackerCode.objects.get_or_create(code=tracker_code, defaults={"status": "Active"})
 
         for inv_num in inventory_numbers:
-            inv_obj, created = InventoryNumber.objects.get_or_create(number=inv_num)
+            inv_obj = InventoryNumber.objects.get(number=inv_num)
+
             InventoryNumberIncoming.objects.get_or_create(incoming=incoming, inventory_number=inv_obj)
             inv_obj.is_occupied = True
             inv_obj.save()
@@ -67,6 +70,8 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
     incoming.save()
     form.save_m2m()
 
+    return
+
 
 def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
     for number in inventory_numbers:
@@ -77,6 +82,23 @@ def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
             incoming.inventory_numbers.add(inventory_number_obj)
         else:
             incoming.inventory_numbers.remove(inventory_number_obj)
+
+
+def handle_incoming_status_and_redirect(incoming, request):
+    from django.urls import reverse
+
+    if 'save_draft' in request.POST:
+        incoming.status = 'Template'
+        redirect_url = reverse('deliveries:templates-incoming')
+    elif not incoming.client:
+        incoming.status = 'Unidentified'
+        redirect_url = reverse('deliveries:unidentified-incoming')
+    else:
+        redirect_url = reverse('deliveries:list-incoming')
+
+    incoming.save()
+    return JsonResponse({'success': True, 'redirect_url': redirect_url})
+
 
 
 # Подготовка данных для JavaScript
@@ -131,7 +153,34 @@ def paginated_query_incoming_list(request, incomings):
     return page_obj, sort_by, sort_order
 
 
-def paginated_query_consolidation_list(request, consolidations):
+def paginated_query_trackers_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+    hide_completed = request.GET.get('hide_completed', '')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    trackers = Tracker.objects.filter(created_by=request.user)
+
+    trackers = trackers.order_by(f'{order_prefix}{sort_by}')
+
+    if hide_completed == 'on':
+        trackers = trackers.exclude(status='Completed')
+
+    paginator = Paginator(trackers, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return page_obj, sort_by, sort_order, hide_completed
+
+
+def paginated_query_consolidation_list(request, consolidations: Optional[QuerySet[Consolidation]]):
+    if consolidations is None:
+        consolidations = Consolidation.objects.all()
+
     sort_by = request.GET.get('sort_by', 'created_at')
     sort_order = request.GET.get('order', 'asc')
 
@@ -179,5 +228,14 @@ def packaged_columns():
         ('places__weight__sum', 'Вес'),
         ('price', 'Цена'),
         ('delivery_type', 'Доставка'),
+        ('status', 'Статус')
+    ]
+
+
+def trackers_list_columns():
+    return [
+        ('name', 'Название'),
+        ('tracking_codes', 'Коды'),
+        ('source', 'Источник'),
         ('status', 'Статус')
     ]

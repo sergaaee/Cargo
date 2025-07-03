@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Все виды доставок{% endblock %}
+{% block title %}Все виды упаковок{% endblock %}
 {% block content %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -18,7 +18,7 @@
         });
     </script>
     <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Виды доставок/</span>Все</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Локации/</span>Все</h4>
         <!-- Форма поиска -->
         <form method="GET" action="">
             <div class="input-group mb-3">
@@ -26,7 +26,7 @@
                        aria-label="Поиск по имени"
                        placeholder="Поиск по имени"
                        value="{{ query|default_if_none:''|escape }}">
-                <a href="{% url 'deliveries:create-delivery-type' %}" class="btn btn-primary">Добавить</a>
+                <a href="{% url 'deliveries:create-location' %}" class="btn btn-primary">Добавить</a>
             </div>
         </form>
         <div class="card-datatable table-responsive">
@@ -44,13 +44,12 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for delivery_type in page_obj %}
+                {% for location in page_obj %}
                     <tr>
-                        <td>{{ delivery_type.name|default_if_none:"-" }}</td>
-                        <td>{{ delivery_type.eta|default_if_none:"-" }}</td>
+                        <td>{{ location.name|default_if_none:"-" }}</td>
                         <td>
-                            <a href="{% url 'deliveries:edit-delivery' delivery_type.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-delivery' delivery_type.id %}">Удалить</a>
+                            <a href="{% url 'deliveries:edit-location' location.id %}">Редактировать</a> |
+                            <a href="{% url 'deliveries:delete-location' location.id %}">Удалить</a>
                         </td>
                     </tr>
                 {% empty %}
