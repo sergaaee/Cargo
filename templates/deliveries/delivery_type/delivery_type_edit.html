@@ -29,6 +29,66 @@
                                 {{ form.eta.label_tag }} {{ form.eta }}
                             </div>
                         </div>
+                        <!-- DeliveryPriceRangeFormSet -->
+                        <h3>Тарифная сетка</h3>
+                        {{ formset.management_form }}
+                        {% if formset.errors %}
+                            <div class="alert alert-danger">
+                                {% for form in formset %}
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                            <p>{{ error }}</p>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                        <p>{{ error }}</p>
+                                    {% endfor %}
+                                    </div>
+                                {% endfor %}
+                        {% endif %}
+                        <div id="price-range-container">
+                            {% for form in formset %}
+                                <div class="col-12 price-range-item" data-item-index="{{ forloop.counter0 }}">
+                                    <div class="row g-4">
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                {{ form.min_density.label_tag }}
+                                                {{ form.min_density }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                {{ form.max_density.label_tag }}
+                                                {{ form.max_density }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group mb-0">
+                                                {{ form.price_per_kg.label_tag }}
+                                                {{ form.price_per_kg }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group mt-4">
+                                                <button type="button"
+                                                        class="btn btn-icon btn-outline-danger delete-price-range-btn"
+                                                        data-item-index="{{ forloop.counter0 }}">
+                                                    <span class="bi bi-trash"></span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{ form.id }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-row mt-3">
+                            <div class="col">
+                                <button type="button" class="btn btn-sm btn-outline-primary add-price-range-btn">
+                                    <span class="bi bi-plus-circle me-2"></span>Добавить ещё диапазон
+                                </button>
+                            </div>
+                        </div
                     </div>
                 </div>
             </div>
@@ -36,7 +96,132 @@
                 {% if delivery_type.id %}Обновить вид доставки{% else %}Создать вид доставки{% endif %}
             </button>
             <a href="{% url 'deliveries:list-delivery-type' %}" class="btn btn-secondary mt-4">Отмена</a>
-        {{ form.errors }}
+            {{ form.errors }}
         </form>
     </div>
+    <script>
+        // Функция для ожидания загрузки элемента
+        function waitForElement(selector, callback, maxAttempts = 50, interval = 100) {
+            let attempts = 0;
+            const checkElement = setInterval(() => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    clearInterval(checkElement);
+                    callback(element);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkElement);
+                    console.error(`Element with selector "${selector}" not found after ${maxAttempts} attempts.`);
+                }
+                attempts++;
+            }, interval);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Ожидаем загрузки totalFormsInput
+            waitForElement("#id_price_ranges-TOTAL_FORMS", function (totalFormsInput) {
+                const priceRangeContainer = document.getElementById("price-range-container");
+                const addPriceRangeBtn = document.querySelector(".add-price-range-btn");
+
+                if (!priceRangeContainer || !addPriceRangeBtn) {
+                    console.error("Required elements not found: priceRangeContainer or addPriceRangeBtn");
+                    return;
+                }
+
+                let formIndex = parseInt(totalFormsInput.value) || 0;
+
+                // Функция для создания нового диапазона цен
+                function createNewPriceRange(index) {
+                    const newItem = document.createElement("div");
+                    newItem.className = "col-12 price-range-item";
+                    newItem.dataset.itemIndex = index;
+                    newItem.innerHTML = `
+                        <div class="row g-4">
+                            <div class="col-md-3">
+                                <div class="form-group mb-0">
+                                    <label for="id_form-${index}-min_density">Минимальная плотность</label>
+                                    <input type="number" name="price_ranges-${index}-min_density" class="form-control" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-0">
+                                    <label for="id_form-${index}-max_density">Максимальная плотность</label>
+                                    <input type="number" name="price_ranges-${index}-max_density" class="form-control" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-0">
+                                    <label for="id_form-${index}-price_per_kg">Цена за кг ($)</label>
+                                    <input type="number" name="price_ranges-${index}-price_per_kg" class="form-control" min="0" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group mt-4">
+                                    <button type="button" class="btn btn-icon btn-outline-danger delete-price-range-btn" data-item-index="${index}">
+                                        <span class="bi bi-trash"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" name="price_ranges-${index}-id" id="id_price_ranges-${index}-id">
+                        </div>
+                    `;
+                    priceRangeContainer.appendChild(newItem);
+                    updateDeleteButtons();
+                }
+
+                // Добавление нового диапазона
+                addPriceRangeBtn.addEventListener("click", function () {
+                    console.log("Add button clicked, creating new form with index:", formIndex);
+                    createNewPriceRange(formIndex);
+                    formIndex++;
+                    totalFormsInput.value = formIndex;
+                });
+
+                // Удаление диапазона
+                priceRangeContainer.addEventListener("click", function (event) {
+                    const deleteBtn = event.target.closest(".delete-price-range-btn");
+                    if (deleteBtn) {
+                        const itemIndex = deleteBtn.dataset.itemIndex;
+                        const item = document.querySelector(`.price-range-item[data-item-index="${itemIndex}"]`);
+                        if (item) {
+                            const idInput = item.querySelector(`input[name="price_ranges-${itemIndex}-id"]`);
+                            if (idInput && idInput.value) {
+                                // Для существующих форм помечаем для удаления
+                                const deleteInput = document.createElement("input");
+                                deleteInput.type = "hidden";
+                                deleteInput.name = `price_ranges-${itemIndex}-DELETE`;
+                                deleteInput.value = "on";
+                                item.appendChild(deleteInput);
+                                item.style.display = "none";
+                            } else {
+                                // Для новых форм удаляем полностью
+                                item.remove();
+                                formIndex = Math.max(formIndex - 1, 1);
+                                totalFormsInput.value = formIndex;
+                            }
+                            updateDeleteButtons();
+                        }
+                    }
+                });
+
+                // Обновление состояния кнопок удаления
+                function updateDeleteButtons() {
+                    const visibleForms = document.querySelectorAll(".price-range-item:not([style*='display: none'])").length;
+                    const deleteButtons = document.querySelectorAll(".delete-price-range-btn");
+                    deleteButtons.forEach(btn => {
+                        btn.disabled = visibleForms <= 1;
+                    });
+
+                    // Если нет видимых форм, добавляем одну
+                    if (visibleForms === 0) {
+                        createNewPriceRange(formIndex);
+                        formIndex++;
+                        totalFormsInput.value = formIndex;
+                    }
+                }
+
+                // Инициализация
+                updateDeleteButtons();
+            });
+        });
+    </script>
 {% endblock %}

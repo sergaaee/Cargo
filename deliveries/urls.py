@@ -4,7 +4,9 @@ from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incomi
     incoming_list, consolidation_edit, package_new, consolidation_list, new_consolidation, goods_list, goods_detail, \
     incoming_unidentified, delete_photo, tracker_delete, tracker_new, tracker_edit, tracker_detail, tracker_list, \
     incoming_templates, packaged_list, generate_inventory_numbers, location_new, delivery_type_new, package_type_new, \
-    package_type_list, package_type_edit, package_type_delete, delivery_type_list, delivery_type_edit, delivery_type_delete
+    package_type_list, package_type_edit, package_type_delete, delivery_type_list, delivery_type_edit, \
+    delivery_type_delete, \
+    location_list, location_edit, location_delete
 
 app_name = "deliveries"
 
@@ -44,4 +46,7 @@ urlpatterns = [
     path('list-package-type', package_type_list, name='list-package-type'),
     path('edit-package/<uuid:pk>/', package_type_edit, name='edit-package'),
     path('delete-package/<uuid:pk>/', package_type_delete, name='delete-package'),
+    path('list-location', location_list, name='list-location'),
+    path('edit-location/<uuid:pk>/', location_edit, name='edit-location'),
+    path('delete-location/<uuid:pk>/', location_delete, name='delete-location'),
 ]
