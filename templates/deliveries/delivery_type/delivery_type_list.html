@@ -47,7 +47,6 @@
                 {% for delivery_type in page_obj %}
                     <tr>
                         <td>{{ delivery_type.name|default_if_none:"-" }}</td>
-                        <td>{{ delivery_type.price|default_if_none:"-" }}</td>
                         <td>{{ delivery_type.eta|default_if_none:"-" }}</td>
                         <td>
                             <a href="{% url 'deliveries:edit-delivery' delivery_type.id %}">Редактировать</a> |

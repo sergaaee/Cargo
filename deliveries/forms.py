@@ -442,7 +442,7 @@ DeliveryPriceRangeFormSet = inlineformset_factory(
     DeliveryType,
     DeliveryPriceRange,
     fields=['min_density', 'max_density', 'price_per_kg'],
-    extra=1,
+    extra=0,
     can_delete=True,
     widgets={
         'min_density': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),

@@ -731,7 +731,8 @@ def incoming_delete(request, pk):
 
 @staff_and_login_required
 def consolidation_list(request):
-    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations=Consolidation.objects.all())
+    page_obj, sort_by, sort_order = paginated_query_consolidation_list(request,
+                                                                       consolidations=Consolidation.objects.all())
 
     columns = consolidation_columns()
 
@@ -1107,6 +1108,26 @@ def delivery_type_new(request):
     return render(request, 'deliveries/delivery_type/create_delivery_type.html', {'form': form, 'formset': formset})
 
 
+@staff_and_login_required
+def delivery_type_edit(request, pk):
+    delivery_type = get_object_or_404(DeliveryType, pk=pk)
+
+    if request.method == 'POST':
+        form = DeliveryTypeForm(request.POST, instance=delivery_type)
+        formset = DeliveryPriceRangeFormSet(request.POST, instance=delivery_type)
+        if form.is_valid() and formset.is_valid():
+            form.save()
+            formset.save()
+
+            return redirect('deliveries:list-delivery-type')
+    else:
+        form = DeliveryTypeForm(instance=delivery_type)
+        formset = DeliveryPriceRangeFormSet(instance=delivery_type)
+
+    return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
+                  {'form': form, 'delivery_type': delivery_type, 'formset': formset})
+
+
 def package_type_new(request):
     if request.method == 'POST':
         form = PackageTypeForm(request.POST)
@@ -1210,23 +1231,6 @@ def delivery_type_list(request):
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон
     })
-
-
-@staff_and_login_required
-def delivery_type_edit(request, pk):
-    delivery_type = get_object_or_404(DeliveryType, pk=pk)
-
-    if request.method == 'POST':
-        form = DeliveryTypeForm(request.POST, instance=delivery_type)
-        if form.is_valid():
-            form.save()
-
-            return redirect('deliveries:list-delivery-type')
-    else:
-        form = DeliveryTypeForm(instance=delivery_type)
-
-    return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
-                  {'form': form, 'delivery_type': delivery_type})
 
 
 @staff_and_login_required
