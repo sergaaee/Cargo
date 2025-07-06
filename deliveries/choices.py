@@ -15,19 +15,18 @@ class PackageType(models.Choices):
     CASE = 'Case'
 
 
-class DeliveryType(models.Choices):
-    AVIA = 'Avia'
-    EXPRESS_TRAIN = 'Express Train'
-    AUTO = 'Auto'
-    AUTO_MEDAL = 'Auto Medal'
-
-
 class PackageStatus(models.Choices):
     RECEIVED = 'Received'
     TEMPLATE = 'Template'
     UNIDENTIFIED = 'Unidentified'
     DECLINED = 'Declined'
     UNDECIDED = 'Undecided'
+
+
+class PackagedStatuses(models.Choices):
+    PACKAGED = 'Packaged'
+    SENT = 'Sent'
+    DELIVERED = 'Delivered'
 
 
 class CodeStatus(models.Choices):

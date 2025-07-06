@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
+from .choices import PackageStatus, PackagedStatuses
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
@@ -745,9 +746,11 @@ def consolidation_list(request):
 
 
 def packaged_list(request):
-    consolidations = Consolidation.objects.filter(status='Packaged').annotate(
+    consolidations = Consolidation.objects.filter(
+        Q(status='Packaged') | Q(status="Sent") | Q(status="Delivered")).annotate(
         total_weight=Sum('places__weight')
     )
+    statuses = PackagedStatuses.choices
 
     page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
 
@@ -757,8 +760,31 @@ def packaged_list(request):
         'page_obj': page_obj,
         'sort_by': sort_by,
         'order': sort_order,
-        'columns': columns  # Передаем колонки в шаблон
+        'columns': columns,
+        'statuses': statuses,
     })
+
+
+@staff_and_login_required
+def update_consolidation_status(request, pk):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            new_status = data.get('status')
+
+            if new_status not in dict(PackagedStatuses.choices).keys():
+                return JsonResponse({'error': 'Invalid status'}, status=400)
+
+            consolidation = get_object_or_404(Consolidation, pk=pk)
+            consolidation.status = new_status
+            consolidation.save()
+
+            return JsonResponse({'status': consolidation.status})
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
 @staff_and_login_required
