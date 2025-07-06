@@ -400,8 +400,12 @@ class LocationForm(forms.ModelForm):
         model = Location
         fields = ['name']
 
-    name = forms.CharField(label="Название локации")
-
+    name = forms.CharField(label="Название локации", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
 
 class PackageTypeForm(forms.ModelForm):
     class Meta:
@@ -422,7 +426,6 @@ class PackageTypeForm(forms.ModelForm):
             attrs={'class': 'form-control'}, ),
     )
 
-
 class DeliveryTypeForm(forms.ModelForm):
     class Meta:
         model = DeliveryType
@@ -440,7 +443,6 @@ class DeliveryTypeForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={'class': 'form-control'}, ),
     )
-
 
 DeliveryPriceRangeFormSet = inlineformset_factory(
     DeliveryType,
