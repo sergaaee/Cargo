@@ -1107,6 +1107,30 @@ def search_users(request):
     return JsonResponse(results, safe=False)
 
 
+@staff_and_login_required
+def get_tariff(request):
+    try:
+        density = float(request.GET.get('density', '').strip())
+        delivery_type_name = request.GET.get('delivery_type', '').strip()
+
+        delivery_type = DeliveryType.objects.get(name=delivery_type_name)
+
+        try:
+            price = DeliveryPriceRange.objects.filter(
+                delivery_type=delivery_type,
+                min_density__lte=density,
+                max_density__gte=density,
+            ).first().price_per_kg
+
+        except AttributeError:
+            price = 0
+
+        return JsonResponse({'price_per_kg': price})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
 def location_new(request):
     if request.method == 'POST':
         form = LocationForm(request.POST)
@@ -1323,3 +1347,32 @@ def delivery_type_delete(request, pk):
         delivery_type.delete()
         return redirect('deliveries:list-delivery-type')
     return render(request, 'deliveries/delivery_type/delivery_type_delete.html', {'delivery_type': delivery_type})
+
+
+def edit_delivery_price(request, pk):
+    consolidation = get_object_or_404(Consolidation, pk=pk)
+
+    if request.method == 'POST':
+        consolidation.price = request.POST.get('total_price')
+        consolidation.save()
+        return redirect('deliveries:packaged-list')
+
+    packages_price = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_price=Sum('package_type__price'))[
+            'total_price']
+    weight = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_weight=Sum('weight'))[
+            'total_weight']
+    volume = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_volume=Sum('volume'))['total_volume']
+    density = weight / volume
+    tariff = DeliveryPriceRange.objects.filter(
+        delivery_type=consolidation.delivery_type,
+        min_density__lte=density,
+        max_density__gte=density,
+    ).first().price_per_kg
+    delivery_types = DeliveryType.objects.all()
+
+    return render(request, 'deliveries/outcomings/edit-delivery-price.html',
+                  {'consolidation': consolidation, 'packages_price': packages_price, 'weight': weight, 'volume': volume,
+                   'density': density, 'delivery_types': delivery_types, 'tariff': tariff})

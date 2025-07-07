@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Упаковка{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h2>Изменение цены отправления</h2>
+        <form method="post">
+            {% csrf_token %}
+            <!-- DeliveryTypeForm -->
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label for="package_price">Стоимость упаковки:</label>
+                        <input type="text" name="package_price" class="form-control" value="{{ packages_price }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Вес:</label>
+                        <input type="text" name="weight" class="form-control" value="{{ weight }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="volume">Объем:</label>
+                        <input type="text" name="volume" class="form-control" value="{{ volume }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="density">Плотность (кг/м3):</label>
+                        <input type="text" name="density" class="form-control" value="{{ density }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="delivery_type">Вид доставки:</label>
+                        <select name="delivery_type" class="form-control">
+                            {% for delivery_type in delivery_types %}
+                                <option value="{{ delivery_type.id }}">{{ delivery_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="price_per_kg">Стоимость доставки за кг ($):</label>
+                        <input type="text" name="price_per_kg" class="form-control" value="{{ tariff }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="constant">Коэффициент:</label>
+                        <input type="text" name="constant" class="form-control" value="1.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="total_price">Итоговая цена ($):</label>
+                        <input type="text" name="total_price" class="form-control" value="{{ consolidation.price }}">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">
+                Обновить цену
+            </button>
+            <a href="{% url 'deliveries:packaged-list' %}" class="btn btn-secondary mt-4">Отмена</a>
+            <button type="button" id="reset-button" class="btn btn-warning mt-4">Сбросить</button>
+        </form>
+    </div>
+    <script src={% static 'js/calculate-density.js' %}></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const weightInput = document.querySelector('input[name="weight"]');
+            const volumeInput = document.querySelector('input[name="volume"]');
+            const densityInput = document.querySelector('input[name="density"]');
+            const deliveryTypeSelect = document.querySelector('select[name="delivery_type"]');
+            const pricePerKgInput = document.querySelector('input[name="price_per_kg"]');
+            const constantInput = document.querySelector('input[name="constant"]');
+            const totalPriceInput = document.querySelector('input[name="total_price"]');
+            const packagePriceInput = document.querySelector('input[name="package_price"]');
+
+            function parseFloatSafe(val) {
+                return parseFloat(val) || 0;
+            }
+
+            function calculateTotalPrice() {
+                const weight = parseFloatSafe(weightInput.value);
+                const pricePerKg = parseFloatSafe(pricePerKgInput.value);
+                const constant = parseFloatSafe(constantInput.value);
+                const packagePrice = parseFloatSafe(packagePriceInput.value)
+                const total = (packagePrice + weight * pricePerKg) * constant;
+                if (!isNaN(total)) {
+                    totalPriceInput.value = total.toFixed(2);
+                }
+            }
+
+            async function updateTariff() {
+                const density = parseFloatSafe(densityInput.value);
+                const deliveryTypeId = deliveryTypeSelect.options[deliveryTypeSelect.selectedIndex].text.trim();
+
+                if (density === null || !deliveryTypeId) {
+                    pricePerKgInput.value = '';
+                    totalPriceInput.value = '';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/incomings/get_tariff?density=${density}&delivery_type=${deliveryTypeId}`);
+                    if (!response.ok) throw new Error('Ошибка сервера');
+                    const data = await response.json();
+                    const price = parseFloatSafe(data.price_per_kg);
+
+                    pricePerKgInput.value = parseFloatSafe(price).toFixed(2);
+                    calculateTotalPrice();
+                } catch (error) {
+                    console.error('Ошибка при получении тарифа:', error);
+                    pricePerKgInput.value = '';
+                    totalPriceInput.value = '';
+                }
+            }
+
+            weightInput.addEventListener('input', () => {
+                updateTariff();
+            });
+
+            volumeInput.addEventListener('input', () => {
+                updateTariff();
+            });
+
+            deliveryTypeSelect.addEventListener('change', () => {
+                updateTariff();
+            });
+
+            packagePriceInput.addEventListener('input', () => {
+                calculateTotalPrice()
+            });
+
+            pricePerKgInput.addEventListener('input', () => {
+                calculateTotalPrice()
+            })
+
+            constantInput.addEventListener('input', () => {
+                calculateTotalPrice();
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const resetButton = document.getElementById('reset-button');
+            const form = document.querySelector('form');
+
+            const initialState = {};
+            form.querySelectorAll('input, select').forEach(el => {
+                initialState[el.name] = el.value;
+            });
+
+            resetButton.addEventListener('click', () => {
+                form.querySelectorAll('input, select').forEach(el => {
+                    if (initialState.hasOwnProperty(el.name)) {
+                        el.value = initialState[el.name];
+                    }
+                });
+
+                const event = new Event('input', {bubbles: true});
+                form.querySelectorAll('input, select').forEach(el => el.dispatchEvent(event));
+            });
+        });
+
+    </script>
+
+{% endblock %}
