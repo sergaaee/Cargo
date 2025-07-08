@@ -8,9 +8,12 @@ from django.db.models import Q, Sum
 from django.contrib.auth.models import User
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.core.exceptions import ValidationError
 
 from user_profile.models import ClientManagerRelation, UserProfile
 from .choices import PackagedStatuses
+from .services.incomings import create_tracker_if_needed, assign_locations_to_inventory, associate_tracker_inventory, \
+    set_tracker_status
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
@@ -39,6 +42,7 @@ def delete_photo(request, pk):
 
 
 @staff_and_login_required
+@transaction.atomic
 def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
@@ -50,18 +54,10 @@ def incoming_new(request):
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
 
-            # Если трекер не найден, создаем новый
+            is_tracker_created_by_manager = False
             if not tracker:
-                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
-
-                # Привязываем коды к новому трекеру
-                for code in tracker_codes:
-                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
-                                                                              defaults={'status': 'Active', })
-                    tracker_code.tracker = tracker
-                    tracker.tracking_codes.add(tracker_code)
-                    tracker_code.save()
-                tracker.save()
+                tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
+                is_tracker_created_by_manager = True
 
             # Client logic
             if client_phone:
@@ -71,64 +67,27 @@ def incoming_new(request):
                 except UserProfile.DoesNotExist:
                     return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
             else:
-                if tracker.created_by:
-                    incoming.client = tracker.created_by
-                elif incoming.tag and incoming.tag.created_by:
-                    incoming.client = incoming.tag.created_by
+                incoming.client = tracker.created_by if not is_tracker_created_by_manager else incoming.tag.created_by if incoming.tag else None
 
-            # Проверка все ли инвентарные номера имеют локации, если да - сохранить для привязки в будущем
-            location_assignments = []
-            for key in request.POST:
-                if key.startswith('inventory_numbers_'):
-                    index = key.split('_')[-1]
-                    if not (location_id := request.POST.get(f'location_{index}')):
-                        return JsonResponse({
-                            'success': False,
-                            'errors': ['Пожалуйста, выберите локации для всех инвентарных номеров.']
-                        })
-                    location = Location.objects.get(id=location_id)
+            # Локации
+            try:
+                assignments = assign_locations_to_inventory(request.POST)
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': [e.message]})
 
-                    inventory_numbers = [num.strip() for num in request.POST[key].split(',') if num.strip()]
-                    for number in inventory_numbers:
-                        inventory_obj = InventoryNumber.objects.get(number=number)
-                        location_assignments.append((inventory_obj, location))
+            for inventory, location in assignments:
+                inventory.location = location
+                inventory.save()
 
-            # Save locations for inventory numbers
-            for inventory_obj, location in location_assignments:
-                inventory_obj.location = location
-                inventory_obj.save()
-
-            # All validations passed, now proceed with saving
             incoming.save()
 
             # Associate tracker codes and inventory numbers
-            tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
-            for tracker_code, inventory_numbers in tracker_inventory_map.items():
-                tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
-                for inventory_number in inventory_numbers:
-                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
-                    InventoryNumberTrackerCode.objects.create(
-                        tracker_code=tracker_code_obj,
-                        inventory_number=inventory_number_obj
-                    )
-                    InventoryNumberIncoming.objects.create(
-                        incoming=incoming,
-                        inventory_number=inventory_number_obj
-                    )
+            associate_tracker_inventory(incoming, json.loads(request.POST['tracker_inventory_map']))
 
-            # Activate tracker codes
-            for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(
-                    code=tracker_code,
-                    defaults={'status': 'Active'}
-                )
-                tracker_code_obj.status = 'Active'
-                tracker_code_obj.save()
+            for code in tracker_codes:
+                TrackerCode.objects.filter(code=code).update(status='Active')
 
-            # Update tracker status
-            if tracker.tracking_codes.filter(status='Inactive').count() == 0:
-                tracker.status = 'Completed'
-                tracker.save()
+            set_tracker_status(tracker)
 
             incoming.tracker.add(tracker)
             update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
