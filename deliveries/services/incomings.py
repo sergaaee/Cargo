@@ -30,6 +30,7 @@ def assign_locations_to_inventory(request_post):
                 inv.save()
     return assignments
 
+
 def assign_locations_to_inventory_in_editing(request_post, inventory_numbers_objs):
     assignments = []
     for key in request_post:
@@ -60,3 +61,34 @@ def set_tracker_status(tracker):
     if tracker.tracking_codes.filter(status='Inactive').count() == 0:
         tracker.status = 'Completed'
         tracker.save()
+
+
+def prepare_incoming_edit_data(incoming):
+    # Обрабатываем инвентарные номера и трек-коды
+    codes_nums_map = {}
+    for code in incoming.tracker.values_list('tracking_codes__code', flat=True):
+        inventory_numbers = list(incoming.tracker.get(tracking_codes__code=code)
+                                 .tracking_codes.get(code=code)
+                                 .inventory_numbers.values_list('number', flat=True))
+
+        codes_nums_map[code] = inventory_numbers
+
+    # Locations - inv numbers map
+    locs_num_map = {}
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        locs_num_map[str(loc_id)] = list(inventory_numbers)
+
+    # Группировка для шаблона
+    location_inventory_groups = []
+    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
+        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
+        location_inventory_groups.append({
+            'location_id': loc_id,
+            'inventory_numbers': list(inventory_numbers)
+        })
+
+    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
+    locations = Location.objects.all()
+
+    return dict(codes_nums_map=codes_nums_map, available_inventory_numbers=available_inventory_numbers, locations=locations, location_inventory_groups=location_inventory_groups, locs_num_map=locs_num_map)

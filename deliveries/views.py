@@ -13,7 +13,7 @@ from django.core.exceptions import ValidationError
 from user_profile.models import ClientManagerRelation, UserProfile
 from .choices import PackagedStatuses
 from .services.incomings import create_tracker_if_needed, assign_locations_to_inventory, associate_tracker_inventory, \
-    set_tracker_status
+    set_tracker_status, prepare_incoming_edit_data
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
@@ -123,6 +123,7 @@ def incoming_new(request):
 
 
 @staff_and_login_required
+@transaction.atomic
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
@@ -179,42 +180,17 @@ def incoming_edit(request, pk):
     else:
         form = IncomingEditForm(instance=incoming)
 
-    # Обрабатываем инвентарные номера и трек-коды
-    codes_nums_map = {}
-    for code in incoming.tracker.values_list('tracking_codes__code', flat=True):
-        inventory_numbers = list(incoming.tracker.get(tracking_codes__code=code)
-                                 .tracking_codes.get(code=code)
-                                 .inventory_numbers.values_list('number', flat=True))
-
-        codes_nums_map[code] = inventory_numbers
-
-    # Locations - inv numbers map
-    locs_num_map = {}
-    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
-        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
-        locs_num_map[str(loc_id)] = list(inventory_numbers)
-
-    # Группировка для шаблона
-    location_inventory_groups = []
-    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
-        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
-        location_inventory_groups.append({
-            'location_id': loc_id,
-            'inventory_numbers': list(inventory_numbers)
-        })
-
-    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-    locations = Location.objects.all()
+    prepared_data = prepare_incoming_edit_data(incoming)
 
     # ✅ Если НЕ AJAX, рендерим HTML
     return render(request, 'deliveries/incomings/incoming-edit.html', {
         'form': form,
         'incoming': incoming,
-        'available_inventory_numbers': available_inventory_numbers,
-        'codes_nums_map': json.dumps(codes_nums_map),
-        'locs_num_map': json.dumps(locs_num_map),
-        'locations': locations,
-        'location_inventory_groups': location_inventory_groups,
+        'available_inventory_numbers': prepared_data["available_inventory_numbers"],
+        'codes_nums_map': json.dumps(prepared_data["codes_nums_map"]),
+        'locs_num_map': json.dumps(prepared_data["locs_num_map"]),
+        'locations': prepared_data["locations"],
+        'location_inventory_groups': prepared_data["location_inventory_groups"],
     })
 
 
