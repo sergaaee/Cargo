@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
 
 from user_profile.models import ClientManagerRelation, UserProfile
-from .choices import PackageStatus, PackagedStatuses
+from .choices import PackagedStatuses
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
     paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
@@ -90,14 +90,8 @@ def incoming_new(request):
 
                     inventory_numbers = [num.strip() for num in request.POST[key].split(',') if num.strip()]
                     for number in inventory_numbers:
-                        try:
-                            inventory_obj = InventoryNumber.objects.get(number=number)
-                            location_assignments.append((inventory_obj, location))
-                        except InventoryNumber.DoesNotExist:
-                            return JsonResponse(
-                                {'success': False,
-                                 'errors': [f'Инвентарный номер {number} не существует в базе данных.']}
-                            )
+                        inventory_obj = InventoryNumber.objects.get(number=number)
+                        location_assignments.append((inventory_obj, location))
 
             # Save locations for inventory numbers
             for inventory_obj, location in location_assignments:
@@ -244,11 +238,11 @@ def incoming_edit(request, pk):
         else:
             errors = []
             for field, error_list in form.errors.items():
-                if field == "__all__":  # 🔥 Обрабатываем ошибки формы отдельно
+                if field == "__all__":
                     for error in error_list:
                         errors.append(f"❌ Ошибка формы: {error}")
                 else:
-                    field_label = form.fields.get(field, field)  # 🔥 Предотвращаем KeyError
+                    field_label = form.fields.get(field, field)
                     field_label = field_label.label if hasattr(field_label, "label") else field
                     for error in error_list:
                         errors.append(f"❌ {field_label}: {error}")
@@ -283,7 +277,7 @@ def incoming_edit(request, pk):
         })
 
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-    locations = Location.objects.all()  # Fetch all locations
+    locations = Location.objects.all()
 
     # ✅ Если НЕ AJAX, рендерим HTML
     return render(request, 'deliveries/incomings/incoming-edit.html', {
@@ -339,7 +333,6 @@ def goods_list(request):
     incomings = Incoming.objects.filter(client=request.user).exclude(status="Template")
 
     if request.user.groups.filter(name='Clients').exists():
-        # Пытаемся получить связь, где текущий пользователь является клиентом
         try:
             relation = ClientManagerRelation.objects.get(client=request.user)
             manager = relation.manager
@@ -479,8 +472,6 @@ def incoming_templates(request):
 @staff_and_login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
-
-    # Получаем только активные трек-коды
     active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
 
     return render(request, 'deliveries/incomings/incoming-detail.html', {
@@ -492,8 +483,6 @@ def incoming_detail(request, pk):
 @login_required
 def goods_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
-
-    # Получаем только активные трек-коды
     active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
 
     if request.user == incoming.client:
@@ -530,7 +519,11 @@ def tracker_new(request):
             tracker.save()
 
             # Получаем список кодов из формы
-            tracking_codes = form.cleaned_data['tracking_codes']
+            code_list = form.cleaned_data['tracking_codes']
+            tracking_codes = []
+            for code in code_list:
+                tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive")
+                tracking_codes.append(tracker_code)
 
             # Создаем объекты TrackerCode и привязываем к трекеру
             for code in tracking_codes:
@@ -860,10 +853,8 @@ def package_new(request, pk):
                 consolidation.status = "Draft"
 
             consolidation.save()
-            messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')
         else:
-            # Если форма не валидна, передаём ошибки в шаблон
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = PackageForm(instance=consolidation)
