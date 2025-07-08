@@ -138,16 +138,7 @@ def incoming_edit(request, pk):
 
             tracker, tracker_codes = form.cleaned_data.get('tracker')
             if not tracker:
-                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
-
-                # Привязываем коды к новому трекеру
-                for code in tracker_codes:
-                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
-                                                                              defaults={'status': 'Active', })
-                    tracker_code.tracker = tracker
-                    tracker.tracking_codes.add(tracker_code)
-                    tracker_code.save()
-                tracker.save()
+                create_tracker_if_needed(tracker_codes, created_by=request.user)
 
             update_inventory_and_trackers(incoming, form, tracker_inventory_map)
 
@@ -173,41 +164,18 @@ def incoming_edit(request, pk):
                 photo.save()
 
             # Внутри POST-обработки
-            for key in request.POST:
-                if key.startswith('inventory_numbers_'):
-                    index = key.split('_')[-1]
-                    inventory_numbers_str = request.POST[key]
-                    location_id = request.POST.get(f'location_{index}')
-                    if location_id:
-                        location = Location.objects.get(id=location_id)
-                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
-                        for number in inventory_numbers:
-                            try:
-                                inventory_obj = InventoryNumber.objects.get(number=number)
-                                inventory_obj.location = location
-                                inventory_obj.save()
-                            except InventoryNumber.DoesNotExist:
-                                pass
-                    else:
-                        return JsonResponse(
-                            {'success': False,
-                             'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
+            try:
+                assign_locations_to_inventory(request.POST)
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': [e.message]})
 
             return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
             errors = []
             for field, error_list in form.errors.items():
-                if field == "__all__":
-                    for error in error_list:
-                        errors.append(f"❌ Ошибка формы: {error}")
-                else:
-                    field_label = form.fields.get(field, field)
-                    field_label = field_label.label if hasattr(field_label, "label") else field
-                    for error in error_list:
-                        errors.append(f"❌ {field_label}: {error}")
-
+                for error in error_list:
+                    errors.append(f'{field}: {error}')
             return JsonResponse({'success': False, 'errors': errors})
-
     else:
         form = IncomingEditForm(instance=incoming)
 

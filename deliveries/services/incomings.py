@@ -26,6 +26,22 @@ def assign_locations_to_inventory(request_post):
             inventory_numbers = [num.strip() for num in request_post[key].split(',') if num.strip()]
             for number in inventory_numbers:
                 inv = InventoryNumber.objects.get(number=number)
+                inv.location = location
+                inv.save()
+    return assignments
+
+def assign_locations_to_inventory_in_editing(request_post, inventory_numbers_objs):
+    assignments = []
+    for key in request_post:
+        if key.startswith('inventory_numbers_'):
+            index = key.split('_')[-1]
+            location_id = request_post.get(f'location_{index}')
+            if not location_id:
+                raise ValidationError('Пожалуйста, выберите локации для всех инвентарных номеров.')
+            location = Location.objects.get(id=location_id)
+            inventory_numbers = [num.strip() for num in request_post[key].split(',') if num.strip()]
+            for number in inventory_numbers:
+                inv = InventoryNumber.objects.get(number=number)
                 assignments.append((inv, location))
     return assignments
 

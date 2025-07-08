@@ -8,6 +8,7 @@ from django.http import JsonResponse
 
 from deliveries.models import InventoryNumber, InventoryNumberIncoming, TrackerCode, \
     InventoryNumberTrackerCode, Tracker, Consolidation
+from deliveries.services.incomings import set_tracker_status
 
 
 def staff_and_login_required(view_func):
@@ -22,7 +23,6 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
     new_inventory_numbers = set(num.number for num in form.cleaned_data["inventory_numbers"])
     tracker, tracker_codes = form.cleaned_data["tracker"]
 
-    # 📌 Получаем текущие связанные объекты
     existing_trackers = set(incoming.tracker.all())  # Все связанные трекеры
     existing_tracker_codes = set(
         TrackerCode.objects.filter(tracker__in=existing_trackers).values_list("code", flat=True)
@@ -63,10 +63,10 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
         tracker_code, created = TrackerCode.objects.get_or_create(code=new_code, defaults={"status": "Active"})
         tracker.tracking_codes.add(tracker_code)
 
-    # ✅ Обновляем связь incoming ↔ tracker
+    # Обновляем связь incoming ↔ tracker
     incoming.tracker.set([tracker])  # Полностью заменяем все трекеры
+    set_tracker_status(tracker)
 
-    # ✅ Сохраняем изменения
     incoming.save()
     form.save_m2m()
 
@@ -87,7 +87,7 @@ def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
 def handle_incoming_status_and_redirect(incoming, request):
     from django.urls import reverse
 
-    if 'save_draft' in request.POST:
+    if 'save_draft' in request.POST or incoming.status == 'Template':
         incoming.status = 'Template'
         redirect_url = reverse('deliveries:templates-incoming')
     elif not incoming.client:
