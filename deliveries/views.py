@@ -8,13 +8,17 @@ from django.db.models import Q, Sum
 from django.contrib.auth.models import User
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.core.exceptions import ValidationError
 
 from user_profile.models import ClientManagerRelation, UserProfile
-from .choices import PackageStatus, PackagedStatuses
+from .choices import PackagedStatuses
+from .services.incomings import create_tracker_if_needed, assign_locations_to_inventory, associate_tracker_inventory, \
+    set_tracker_status, prepare_incoming_edit_data, save_photos_incoming, create_incoming
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
-    paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
+    paginated_query_incoming_list, prepare_incomings_data_for_consolidation, consolidation_columns, \
+    paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
-    handle_incoming_status_and_redirect
+    handle_incoming_status_and_redirect, prepare_incoming_data
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
     GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
@@ -39,6 +43,7 @@ def delete_photo(request, pk):
 
 
 @staff_and_login_required
+@transaction.atomic
 def incoming_new(request):
     if request.method == 'POST':
         form = IncomingForm(request.POST, request.FILES)
@@ -49,127 +54,47 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
+            tracker_inventory_map = json.loads(request.POST['tracker_inventory_map'])
+            inventory_numbers = form.cleaned_data['inventory_numbers']
+            photos = request.FILES.getlist('photo')
 
-            # Если трекер не найден, создаем новый
-            if not tracker:
-                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
+            try:
+                incoming = create_incoming(tracker, client_phone, tracker_codes, request, incoming)
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': [e.message]})
 
-                # Привязываем коды к новому трекеру
-                for code in tracker_codes:
-                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
-                                                                              defaults={'status': 'Active', })
-                    tracker_code.tracker = tracker
-                    tracker.tracking_codes.add(tracker_code)
-                    tracker_code.save()
-                tracker.save()
+            associate_tracker_inventory(incoming, tracker_inventory_map)
 
-            # Client logic
-            if client_phone:
-                try:
-                    client_profile = UserProfile.objects.get(phone_number=client_phone)
-                    incoming.client = client_profile.user
-                except UserProfile.DoesNotExist:
-                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-            else:
-                if tracker.created_by:
-                    incoming.client = tracker.created_by
-                elif incoming.tag and incoming.tag.created_by:
-                    incoming.client = incoming.tag.created_by
+            for code in tracker_codes:
+                TrackerCode.objects.filter(code=code).update(status='Active')
 
-            # Проверка все ли инвентарные номера имеют локации, если да - сохранить для привязки в будущем
-            location_assignments = []
-            for key in request.POST:
-                if key.startswith('inventory_numbers_'):
-                    index = key.split('_')[-1]
-                    if not (location_id := request.POST.get(f'location_{index}')):
-                        return JsonResponse({
-                            'success': False,
-                            'errors': ['Пожалуйста, выберите локации для всех инвентарных номеров.']
-                        })
-                    location = Location.objects.get(id=location_id)
-
-                    inventory_numbers = [num.strip() for num in request.POST[key].split(',') if num.strip()]
-                    for number in inventory_numbers:
-                        try:
-                            inventory_obj = InventoryNumber.objects.get(number=number)
-                            location_assignments.append((inventory_obj, location))
-                        except InventoryNumber.DoesNotExist:
-                            return JsonResponse(
-                                {'success': False,
-                                 'errors': [f'Инвентарный номер {number} не существует в базе данных.']}
-                            )
-
-            # Save locations for inventory numbers
-            for inventory_obj, location in location_assignments:
-                inventory_obj.location = location
-                inventory_obj.save()
-
-            # All validations passed, now proceed with saving
-            incoming.save()
-
-            # Associate tracker codes and inventory numbers
-            tracker_inventory_map = json.loads(request.POST.get('tracker_inventory_map'))
-            for tracker_code, inventory_numbers in tracker_inventory_map.items():
-                tracker_code_obj = TrackerCode.objects.get(code=tracker_code)
-                for inventory_number in inventory_numbers:
-                    inventory_number_obj = InventoryNumber.objects.get(number=inventory_number)
-                    InventoryNumberTrackerCode.objects.create(
-                        tracker_code=tracker_code_obj,
-                        inventory_number=inventory_number_obj
-                    )
-                    InventoryNumberIncoming.objects.create(
-                        incoming=incoming,
-                        inventory_number=inventory_number_obj
-                    )
-
-            # Activate tracker codes
-            for tracker_code in tracker_codes:
-                tracker_code_obj, created = TrackerCode.objects.get_or_create(
-                    code=tracker_code,
-                    defaults={'status': 'Active'}
-                )
-                tracker_code_obj.status = 'Active'
-                tracker_code_obj.save()
-
-            # Update tracker status
-            if tracker.tracking_codes.filter(status='Inactive').count() == 0:
-                tracker.status = 'Completed'
-                tracker.save()
-
+            set_tracker_status(tracker)
             incoming.tracker.add(tracker)
-            update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
 
-            # Save photos
-            for file in request.FILES.getlist('photo'):
-                photo = Photo(photo=file, incoming=incoming)
-                photo.save()
+            update_inventory_numbers(inventory_numbers, incoming, occupied=True)
+
+            save_photos_incoming(photos, incoming)
 
             return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
-            errors = []
-            for field, error_list in form.errors.items():
-                for error in error_list:
-                    errors.append(f'{field}: {error}')
+            errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
+                      error_list]
             return JsonResponse({'success': False, 'errors': errors})
     else:
-        form = IncomingForm()
-        formset = PhotoFormSet()
-        trackers = Tracker.objects.exclude(status="Completed")
-        tags = Tag.objects.all()
-        available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-        locations = Location.objects.all()
+        prepared_data = prepare_incoming_data()
 
         return render(request, 'deliveries/incomings/incoming-new.html', {
-            'form': form,
-            'formset': formset,
-            'tags': tags,
-            'trackers': trackers,
-            'available_inventory_numbers': available_inventory_numbers,
-            'locations': locations,
+            'form': prepared_data["form"],
+            'formset': prepared_data["formset"],
+            'tags': prepared_data["tags"],
+            'trackers': prepared_data["trackers"],
+            'available_inventory_numbers': prepared_data["available_inventory_numbers"],
+            'locations': prepared_data["locations"],
         })
 
 
 @staff_and_login_required
+@transaction.atomic
 def incoming_edit(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
 
@@ -185,16 +110,7 @@ def incoming_edit(request, pk):
 
             tracker, tracker_codes = form.cleaned_data.get('tracker')
             if not tracker:
-                tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), )
-
-                # Привязываем коды к новому трекеру
-                for code in tracker_codes:
-                    tracker_code, created = TrackerCode.objects.get_or_create(code=code,
-                                                                              defaults={'status': 'Active', })
-                    tracker_code.tracker = tracker
-                    tracker.tracking_codes.add(tracker_code)
-                    tracker_code.save()
-                tracker.save()
+                create_tracker_if_needed(tracker_codes, created_by=request.user)
 
             update_inventory_and_trackers(incoming, form, tracker_inventory_map)
 
@@ -206,94 +122,36 @@ def incoming_edit(request, pk):
                     if incoming.status == 'Unidentified':
                         incoming.status = 'Received'
                 except UserProfile.DoesNotExist:
-                    response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
-                    return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
-                        else render(request, 'deliveries/incomings/incoming-edit.html',
-                                    {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
+                    return JsonResponse(
+                        {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']})
 
             incoming.save()
             form.save_m2m()
 
-            # Сохраняем фото
-            for file in request.FILES.getlist('photo'):
-                photo = Photo(photo=file, incoming=incoming)
-                photo.save()
+            save_photos_incoming(request.FILES.getlist('photo'), incoming)
 
-            # Внутри POST-обработки
-            for key in request.POST:
-                if key.startswith('inventory_numbers_'):
-                    index = key.split('_')[-1]
-                    inventory_numbers_str = request.POST[key]
-                    location_id = request.POST.get(f'location_{index}')
-                    if location_id:
-                        location = Location.objects.get(id=location_id)
-                        inventory_numbers = [num.strip() for num in inventory_numbers_str.split(',') if num.strip()]
-                        for number in inventory_numbers:
-                            try:
-                                inventory_obj = InventoryNumber.objects.get(number=number)
-                                inventory_obj.location = location
-                                inventory_obj.save()
-                            except InventoryNumber.DoesNotExist:
-                                pass
-                    else:
-                        return JsonResponse(
-                            {'success': False,
-                             'errors': ['Пожалуйста, выберите локацию для следующих инвентарных номеров {numbers}.']})
+            try:
+                assign_locations_to_inventory(request.POST)
+            except ValidationError as e:
+                return JsonResponse({'success': False, 'errors': [e.message]})
 
             return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
-            errors = []
-            for field, error_list in form.errors.items():
-                if field == "__all__":  # 🔥 Обрабатываем ошибки формы отдельно
-                    for error in error_list:
-                        errors.append(f"❌ Ошибка формы: {error}")
-                else:
-                    field_label = form.fields.get(field, field)  # 🔥 Предотвращаем KeyError
-                    field_label = field_label.label if hasattr(field_label, "label") else field
-                    for error in error_list:
-                        errors.append(f"❌ {field_label}: {error}")
-
+            errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
+                      error_list]
             return JsonResponse({'success': False, 'errors': errors})
-
     else:
         form = IncomingEditForm(instance=incoming)
 
-    # Обрабатываем инвентарные номера и трек-коды
-    codes_nums_map = {}
-    for code in incoming.tracker.values_list('tracking_codes__code', flat=True):
-        inventory_numbers = list(incoming.tracker.get(tracking_codes__code=code)
-                                 .tracking_codes.get(code=code)
-                                 .inventory_numbers.values_list('number', flat=True))
-
-        codes_nums_map[code] = inventory_numbers
-
-    # Locations - inv numbers map
-    locs_num_map = {}
-    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
-        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
-        locs_num_map[str(loc_id)] = list(inventory_numbers)
-
-    # Группировка для шаблона
-    location_inventory_groups = []
-    for loc_id in incoming.inventory_numbers.values_list('location__id', flat=True).distinct():
-        inventory_numbers = incoming.inventory_numbers.filter(location__id=loc_id).values_list('number', flat=True)
-        location_inventory_groups.append({
-            'location_id': loc_id,
-            'inventory_numbers': list(inventory_numbers)
-        })
-
-    available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-    locations = Location.objects.all()  # Fetch all locations
-
-    # ✅ Если НЕ AJAX, рендерим HTML
+    prepared_data = prepare_incoming_edit_data(incoming)
     return render(request, 'deliveries/incomings/incoming-edit.html', {
         'form': form,
         'incoming': incoming,
-        'available_inventory_numbers': available_inventory_numbers,
-        'codes_nums_map': json.dumps(codes_nums_map),
-        'locs_num_map': json.dumps(locs_num_map),
-        'locations': locations,
-        'location_inventory_groups': location_inventory_groups,
+        'available_inventory_numbers': prepared_data["available_inventory_numbers"],
+        'codes_nums_map': json.dumps(prepared_data["codes_nums_map"]),
+        'locs_num_map': json.dumps(prepared_data["locs_num_map"]),
+        'locations': prepared_data["locations"],
+        'location_inventory_groups': prepared_data["location_inventory_groups"],
     })
 
 
@@ -339,7 +197,6 @@ def goods_list(request):
     incomings = Incoming.objects.filter(client=request.user).exclude(status="Template")
 
     if request.user.groups.filter(name='Clients').exists():
-        # Пытаемся получить связь, где текущий пользователь является клиентом
         try:
             relation = ClientManagerRelation.objects.get(client=request.user)
             manager = relation.manager
@@ -479,8 +336,6 @@ def incoming_templates(request):
 @staff_and_login_required
 def incoming_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
-
-    # Получаем только активные трек-коды
     active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
 
     return render(request, 'deliveries/incomings/incoming-detail.html', {
@@ -492,8 +347,6 @@ def incoming_detail(request, pk):
 @login_required
 def goods_detail(request, pk):
     incoming = get_object_or_404(Incoming, pk=pk)
-
-    # Получаем только активные трек-коды
     active_tracker_codes = TrackerCode.objects.filter(tracker__incoming=incoming, status='Active')
 
     if request.user == incoming.client:
@@ -530,7 +383,11 @@ def tracker_new(request):
             tracker.save()
 
             # Получаем список кодов из формы
-            tracking_codes = form.cleaned_data['tracking_codes']
+            code_list = form.cleaned_data['tracking_codes']
+            tracking_codes = []
+            for code in code_list:
+                tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive")
+                tracking_codes.append(tracker_code)
 
             # Создаем объекты TrackerCode и привязываем к трекеру
             for code in tracking_codes:
@@ -660,8 +517,8 @@ def new_consolidation(request):
     except UnboundLocalError:
         selected_incomings = []
 
-    incomings_data = prepare_incoming_data(incomings)
-    initial_incomings_data = prepare_incoming_data(selected_incomings)
+    incomings_data = prepare_incomings_data_for_consolidation(incomings)
+    initial_incomings_data = prepare_incomings_data_for_consolidation(selected_incomings)
     package_types = list(PackageType.objects.values_list('name', flat=True))
 
     return render(request, 'deliveries/outcomings/consolidation-new.html', {
@@ -860,10 +717,8 @@ def package_new(request, pk):
                 consolidation.status = "Draft"
 
             consolidation.save()
-            messages.success(request, 'Данные упаковки успешно обновлены!')
             return redirect('deliveries:list-consolidation')
         else:
-            # Если форма не валидна, передаём ошибки в шаблон
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = PackageForm(instance=consolidation)
@@ -994,8 +849,8 @@ def consolidation_edit(request, pk):
         Q(status='Template') |
         Q(status='Consolidated')
     )
-    incomings_data = prepare_incoming_data(incomings)
-    initial_incomings_data = prepare_incoming_data(selected_incomings)
+    incomings_data = prepare_incomings_data_for_consolidation(incomings)
+    initial_incomings_data = prepare_incomings_data_for_consolidation(selected_incomings)
     package_types = list(PackageType.objects.values_list('name', flat=True))
 
     # Подготовка данных об инвентарных номерах
@@ -1105,6 +960,30 @@ def search_users(request):
     ]
 
     return JsonResponse(results, safe=False)
+
+
+@staff_and_login_required
+def get_tariff(request):
+    try:
+        density = float(request.GET.get('density', '').strip())
+        delivery_type_name = request.GET.get('delivery_type', '').strip()
+
+        delivery_type = DeliveryType.objects.get(name=delivery_type_name)
+
+        try:
+            price = DeliveryPriceRange.objects.filter(
+                delivery_type=delivery_type,
+                min_density__lte=density,
+                max_density__gte=density,
+            ).first().price_per_kg
+
+        except AttributeError:
+            price = 0
+
+        return JsonResponse({'price_per_kg': price})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 
 def location_new(request):
@@ -1323,3 +1202,32 @@ def delivery_type_delete(request, pk):
         delivery_type.delete()
         return redirect('deliveries:list-delivery-type')
     return render(request, 'deliveries/delivery_type/delivery_type_delete.html', {'delivery_type': delivery_type})
+
+
+def edit_delivery_price(request, pk):
+    consolidation = get_object_or_404(Consolidation, pk=pk)
+
+    if request.method == 'POST':
+        consolidation.price = request.POST.get('total_price')
+        consolidation.save()
+        return redirect('deliveries:packaged-list')
+
+    packages_price = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_price=Sum('package_type__price'))[
+            'total_price']
+    weight = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_weight=Sum('weight'))[
+            'total_weight']
+    volume = \
+        Place.objects.filter(consolidation=consolidation).aggregate(total_volume=Sum('volume'))['total_volume']
+    density = weight / volume
+    tariff = DeliveryPriceRange.objects.filter(
+        delivery_type=consolidation.delivery_type,
+        min_density__lte=density,
+        max_density__gte=density,
+    ).first().price_per_kg
+    delivery_types = DeliveryType.objects.all()
+
+    return render(request, 'deliveries/outcomings/edit-delivery-price.html',
+                  {'consolidation': consolidation, 'packages_price': packages_price, 'weight': weight, 'volume': volume,
+                   'density': density, 'delivery_types': delivery_types, 'tariff': tariff})

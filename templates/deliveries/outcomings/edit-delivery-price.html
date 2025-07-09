@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Упаковка{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h2>Изменение цены отправления</h2>
+        <form method="post">
+            {% csrf_token %}
+            <!-- DeliveryTypeForm -->
+            {% include 'deliveries/components/edit-delivery-price-columns.html' %}
+            <button type="submit" class="btn btn-primary mt-4">
+                Обновить цену
+            </button>
+            <a href="{% url 'deliveries:packaged-list' %}" class="btn btn-secondary mt-4">Отмена</a>
+            <button type="button" id="reset-button" class="btn btn-warning mt-4">Сбросить</button>
+        </form>
+    </div>
+    <script src={% static 'js/calculate-density.js' %}></script>
+    <script src="{% static 'js/get-tariff-and-calculate-total-price.js' %}"></script>
+    <script src="{% static 'js/reset-data-editing-price.js' %}"></script>
+
+{% endblock %}

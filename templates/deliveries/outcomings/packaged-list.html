@@ -101,7 +101,7 @@
                             </select>
                         </td>
                         <td>
-                            <!-- Действия остаются без изменений -->
+                            <a href="{% url 'deliveries:edit-delivery-price' consolidation.id %}"><i class="bi bi-currency-dollar"></i></a> |
                         </td>
                     </tr>
                 {% endfor %}
