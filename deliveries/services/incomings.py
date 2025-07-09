@@ -1,34 +1,34 @@
 from django.core.exceptions import ValidationError
+
 from deliveries.models import Tracker, TrackerCode, InventoryNumber, Location, InventoryNumberTrackerCode, \
-    InventoryNumberIncoming
+    InventoryNumberIncoming, Photo, TrackerCodeTracker
+from user_profile.models import UserProfile
 
 
 def create_tracker_if_needed(tracker_codes, created_by=None):
     tracker = Tracker.objects.create(name="Трекер для " + ", ".join(tracker_codes), created_by=created_by)
     for code in tracker_codes:
         tracker_code, _ = TrackerCode.objects.get_or_create(code=code, defaults={'status': 'Active'})
-        tracker_code.tracker = tracker
         tracker_code.save()
-        tracker.tracking_codes.add(tracker_code)
+        TrackerCodeTracker.objects.create(tracker=tracker, tracker_code=tracker_code)
     tracker.save()
     return tracker
 
 
 def assign_locations_to_inventory(request_post):
-    assignments = []
     for key in request_post:
         if key.startswith('inventory_numbers_'):
             index = key.split('_')[-1]
             location_id = request_post.get(f'location_{index}')
             if not location_id:
                 raise ValidationError('Пожалуйста, выберите локации для всех инвентарных номеров.')
+
             location = Location.objects.get(id=location_id)
             inventory_numbers = [num.strip() for num in request_post[key].split(',') if num.strip()]
             for number in inventory_numbers:
                 inv = InventoryNumber.objects.get(number=number)
                 inv.location = location
                 inv.save()
-    return assignments
 
 
 def assign_locations_to_inventory_in_editing(request_post, inventory_numbers_objs):
@@ -91,4 +91,36 @@ def prepare_incoming_edit_data(incoming):
     available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
     locations = Location.objects.all()
 
-    return dict(codes_nums_map=codes_nums_map, available_inventory_numbers=available_inventory_numbers, locations=locations, location_inventory_groups=location_inventory_groups, locs_num_map=locs_num_map)
+    return dict(codes_nums_map=codes_nums_map, available_inventory_numbers=available_inventory_numbers,
+                locations=locations, location_inventory_groups=location_inventory_groups, locs_num_map=locs_num_map)
+
+
+def save_photos_incoming(files, incoming):
+    for file in files:
+        photo = Photo(photo=file, incoming=incoming)
+        photo.save()
+
+
+def create_incoming(tracker, client_phone, tracker_codes, request, incoming):
+    is_tracker_created_by_manager = False
+    if not tracker:
+        tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
+        is_tracker_created_by_manager = True
+
+    # Client logic
+    if client_phone:
+        try:
+            client_profile = UserProfile.objects.get(phone_number=client_phone)
+            incoming.client = client_profile.user
+        except UserProfile.DoesNotExist:
+            raise ValidationError(f"❌ Клиент с номером {client_phone} не найден!")
+    else:
+        incoming.client = tracker.created_by if not is_tracker_created_by_manager else incoming.tag.created_by if incoming.tag else None
+
+    try:
+        assign_locations_to_inventory(request.POST)
+    except ValidationError as e:
+        raise ValidationError(e.message)
+
+    incoming.save()
+    return incoming

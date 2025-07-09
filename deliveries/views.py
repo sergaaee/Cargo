@@ -13,11 +13,12 @@ from django.core.exceptions import ValidationError
 from user_profile.models import ClientManagerRelation, UserProfile
 from .choices import PackagedStatuses
 from .services.incomings import create_tracker_if_needed, assign_locations_to_inventory, associate_tracker_inventory, \
-    set_tracker_status, prepare_incoming_edit_data
+    set_tracker_status, prepare_incoming_edit_data, save_photos_incoming, create_incoming
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
-    paginated_query_incoming_list, prepare_incoming_data, consolidation_columns, paginated_query_consolidation_list, \
+    paginated_query_incoming_list, prepare_incomings_data_for_consolidation, consolidation_columns, \
+    paginated_query_consolidation_list, \
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
-    handle_incoming_status_and_redirect
+    handle_incoming_status_and_redirect, prepare_incoming_data
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
     GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
@@ -53,72 +54,42 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
+            tracker_inventory_map = json.loads(request.POST['tracker_inventory_map'])
+            inventory_numbers = form.cleaned_data['inventory_numbers']
+            photos = request.FILES.getlist('photo')
 
-            is_tracker_created_by_manager = False
-            if not tracker:
-                tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
-                is_tracker_created_by_manager = True
-
-            # Client logic
-            if client_phone:
-                try:
-                    client_profile = UserProfile.objects.get(phone_number=client_phone)
-                    incoming.client = client_profile.user
-                except UserProfile.DoesNotExist:
-                    return JsonResponse({'success': False, 'errors': [f'❌ Клиент с номером {client_phone} не найден!']})
-            else:
-                incoming.client = tracker.created_by if not is_tracker_created_by_manager else incoming.tag.created_by if incoming.tag else None
-
-            # Локации
             try:
-                assignments = assign_locations_to_inventory(request.POST)
+                incoming = create_incoming(tracker, client_phone, tracker_codes, request, incoming)
             except ValidationError as e:
                 return JsonResponse({'success': False, 'errors': [e.message]})
 
-            for inventory, location in assignments:
-                inventory.location = location
-                inventory.save()
-
-            incoming.save()
-
-            # Associate tracker codes and inventory numbers
-            associate_tracker_inventory(incoming, json.loads(request.POST['tracker_inventory_map']))
+            associate_tracker_inventory(incoming, tracker_inventory_map)
 
             for code in tracker_codes:
                 TrackerCode.objects.filter(code=code).update(status='Active')
 
             set_tracker_status(tracker)
-
             incoming.tracker.add(tracker)
-            update_inventory_numbers(form.cleaned_data['inventory_numbers'], incoming, occupied=True)
 
-            # Save photos
-            for file in request.FILES.getlist('photo'):
-                photo = Photo(photo=file, incoming=incoming)
-                photo.save()
+            update_inventory_numbers(inventory_numbers, incoming, occupied=True)
+
+            save_photos_incoming(photos, incoming)
 
             return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
-            errors = []
-            for field, error_list in form.errors.items():
-                for error in error_list:
-                    errors.append(f'{field}: {error}')
+            errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
+                      error_list]
             return JsonResponse({'success': False, 'errors': errors})
     else:
-        form = IncomingForm()
-        formset = PhotoFormSet()
-        trackers = Tracker.objects.exclude(status="Completed")
-        tags = Tag.objects.all()
-        available_inventory_numbers = InventoryNumber.objects.filter(is_occupied=False)
-        locations = Location.objects.all()
+        prepared_data = prepare_incoming_data()
 
         return render(request, 'deliveries/incomings/incoming-new.html', {
-            'form': form,
-            'formset': formset,
-            'tags': tags,
-            'trackers': trackers,
-            'available_inventory_numbers': available_inventory_numbers,
-            'locations': locations,
+            'form': prepared_data["form"],
+            'formset': prepared_data["formset"],
+            'tags': prepared_data["tags"],
+            'trackers': prepared_data["trackers"],
+            'available_inventory_numbers': prepared_data["available_inventory_numbers"],
+            'locations': prepared_data["locations"],
         })
 
 
@@ -151,20 +122,14 @@ def incoming_edit(request, pk):
                     if incoming.status == 'Unidentified':
                         incoming.status = 'Received'
                 except UserProfile.DoesNotExist:
-                    response_data = {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']}
-                    return JsonResponse(response_data) if request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
-                        else render(request, 'deliveries/incomings/incoming-edit.html',
-                                    {'form': form, 'incoming': incoming, 'errors': response_data['errors']})
+                    return JsonResponse(
+                        {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']})
 
             incoming.save()
             form.save_m2m()
 
-            # Сохраняем фото
-            for file in request.FILES.getlist('photo'):
-                photo = Photo(photo=file, incoming=incoming)
-                photo.save()
+            save_photos_incoming(request.FILES.getlist('photo'), incoming)
 
-            # Внутри POST-обработки
             try:
                 assign_locations_to_inventory(request.POST)
             except ValidationError as e:
@@ -172,17 +137,13 @@ def incoming_edit(request, pk):
 
             return handle_incoming_status_and_redirect(incoming=incoming, request=request)
         else:
-            errors = []
-            for field, error_list in form.errors.items():
-                for error in error_list:
-                    errors.append(f'{field}: {error}')
+            errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
+                      error_list]
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = IncomingEditForm(instance=incoming)
 
     prepared_data = prepare_incoming_edit_data(incoming)
-
-    # ✅ Если НЕ AJAX, рендерим HTML
     return render(request, 'deliveries/incomings/incoming-edit.html', {
         'form': form,
         'incoming': incoming,
@@ -556,8 +517,8 @@ def new_consolidation(request):
     except UnboundLocalError:
         selected_incomings = []
 
-    incomings_data = prepare_incoming_data(incomings)
-    initial_incomings_data = prepare_incoming_data(selected_incomings)
+    incomings_data = prepare_incomings_data_for_consolidation(incomings)
+    initial_incomings_data = prepare_incomings_data_for_consolidation(selected_incomings)
     package_types = list(PackageType.objects.values_list('name', flat=True))
 
     return render(request, 'deliveries/outcomings/consolidation-new.html', {
@@ -888,8 +849,8 @@ def consolidation_edit(request, pk):
         Q(status='Template') |
         Q(status='Consolidated')
     )
-    incomings_data = prepare_incoming_data(incomings)
-    initial_incomings_data = prepare_incoming_data(selected_incomings)
+    incomings_data = prepare_incomings_data_for_consolidation(incomings)
+    initial_incomings_data = prepare_incomings_data_for_consolidation(selected_incomings)
     package_types = list(PackageType.objects.values_list('name', flat=True))
 
     # Подготовка данных об инвентарных номерах

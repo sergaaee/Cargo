@@ -6,8 +6,9 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import JsonResponse
 
+from deliveries.forms import IncomingForm, PhotoFormSet
 from deliveries.models import InventoryNumber, InventoryNumberIncoming, TrackerCode, \
-    InventoryNumberTrackerCode, Tracker, Consolidation
+    InventoryNumberTrackerCode, Tracker, Consolidation, Tag, Location
 from deliveries.services.incomings import set_tracker_status
 
 
@@ -100,9 +101,8 @@ def handle_incoming_status_and_redirect(incoming, request):
     return JsonResponse({'success': True, 'redirect_url': redirect_url})
 
 
-
 # Подготовка данных для JavaScript
-def prepare_incoming_data(incoming_queryset):
+def prepare_incomings_data_for_consolidation(incoming_queryset):
     return [
         {
             "id": incoming.id,
@@ -133,6 +133,18 @@ def prepare_incoming_data(incoming_queryset):
         }
         for incoming in incoming_queryset
     ]
+
+
+def prepare_incoming_data():
+    prepared_data = dict()
+    prepared_data["form"] = IncomingForm()
+    prepared_data["formset"] = PhotoFormSet()
+    prepared_data["trackers"] = Tracker.objects.exclude(status="Completed")
+    prepared_data["tags"] = Tag.objects.all()
+    prepared_data["available_inventory_numbers"] = InventoryNumber.objects.filter(is_occupied=False)
+    prepared_data["locations"] = Location.objects.all()
+
+    return prepared_data
 
 
 def paginated_query_incoming_list(request, incomings):
