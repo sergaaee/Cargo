@@ -8,7 +8,7 @@ from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode,
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
-    allow_multiple_selected = True  # Поддержка множественного выбора
+    allow_multiple_selected = True
 
     def __init__(self, attrs=None):
         super().__init__(attrs)
@@ -66,12 +66,7 @@ class TrackerForm(forms.ModelForm):
         if not code_list:
             raise forms.ValidationError("Необходимо ввести хотя бы один трекинг-код.")
 
-        tracker_codes = []
-        for code in code_list:
-            tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive")
-            tracker_codes.append(tracker_code)
-
-        return tracker_codes
+        return code_list
 
 
 class BaseIncomingForm(forms.ModelForm):
@@ -148,17 +143,6 @@ class BaseIncomingForm(forms.ModelForm):
                 inventory_number_objects.append(inventory_number_obj)
 
             return inventory_number_objects
-
-        return None
-
-    def clean_client(self):
-        client_phone_number = self.cleaned_data.get('client')
-        if client_phone_number:
-            try:
-                user_profile = UserProfile.objects.get(phone_number=client_phone_number)
-                return user_profile.user
-            except UserProfile.DoesNotExist:
-                raise forms.ValidationError(f"❌ Клиент с номером {client_phone_number} не найден!")
 
         return None
 
@@ -317,11 +301,7 @@ class ConsolidationForm(forms.ModelForm):
     def clean_track_code(self):
         track_code = self.cleaned_data.get('track_code')
         if track_code:
-            try:
-                consolidation_code = ConsolidationCode.objects.get(code=track_code)
-            except ConsolidationCode.DoesNotExist:
-                consolidation_code = ConsolidationCode.objects.create(code=track_code)
-
+            consolidation_code, created = ConsolidationCode.objects.get_or_create(code=track_code)
             return consolidation_code
         else:
             raise forms.ValidationError("Пожалуйста, введите трек-код.")
@@ -364,11 +344,6 @@ class PackageForm(forms.ModelForm):
         if len(place_codes) != len(set(place_codes)):
             raise ValidationError('Коды мест должны быть уникальными.')
 
-        valid_numbers = list(ConsolidationInventory.objects.filter(
-            consolidation_incoming__consolidation=self.instance
-        ).values_list('inventory_number__number', flat=True).distinct())
-
-        all_inventory_numbers = []
         errors = []
         for place_index, place_data in places_data.items():
             inventory_numbers = place_data['inventory_numbers']
@@ -407,6 +382,7 @@ class LocationForm(forms.ModelForm):
                                'required': 'Пожалуйста, введите название.',
                            }, )
 
+
 class PackageTypeForm(forms.ModelForm):
     class Meta:
         model = PackageType
@@ -426,6 +402,7 @@ class PackageTypeForm(forms.ModelForm):
             attrs={'class': 'form-control'}, ),
     )
 
+
 class DeliveryTypeForm(forms.ModelForm):
     class Meta:
         model = DeliveryType
@@ -443,6 +420,7 @@ class DeliveryTypeForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={'class': 'form-control'}, ),
     )
+
 
 DeliveryPriceRangeFormSet = inlineformset_factory(
     DeliveryType,

@@ -1,0 +1,40 @@
+<div class="row g-3">
+    <div class="col-md-12">
+        <div class="form-group">
+            <label for="package_price">Стоимость упаковки:</label>
+            <input type="text" name="package_price" class="form-control" value="{{ packages_price }}">
+        </div>
+        <div class="form-group">
+            <label for="weight">Вес:</label>
+            <input type="text" name="weight" class="form-control" value="{{ weight }}">
+        </div>
+        <div class="form-group">
+            <label for="volume">Объем:</label>
+            <input type="text" name="volume" class="form-control" value="{{ volume }}">
+        </div>
+        <div class="form-group">
+            <label for="density">Плотность (кг/м3):</label>
+            <input type="text" name="density" class="form-control" value="{{ density }}" disabled>
+        </div>
+        <div class="form-group">
+            <label for="delivery_type">Вид доставки:</label>
+            <select name="delivery_type" class="form-control">
+                {% for delivery_type in delivery_types %}
+                    <option value="{{ delivery_type.id }}">{{ delivery_type.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="price_per_kg">Стоимость доставки за кг ($):</label>
+            <input type="text" name="price_per_kg" class="form-control" value="{{ tariff }}">
+        </div>
+        <div class="form-group">
+            <label for="constant">Коэффициент:</label>
+            <input type="text" name="constant" class="form-control" value="1.0">
+        </div>
+        <div class="form-group">
+            <label for="total_price">Итоговая цена ($):</label>
+            <input type="text" name="total_price" class="form-control" value="{{ consolidation.price }}">
+        </div>
+    </div>
+</div>

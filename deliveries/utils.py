@@ -6,8 +6,10 @@ from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import JsonResponse
 
+from deliveries.forms import IncomingForm, PhotoFormSet
 from deliveries.models import InventoryNumber, InventoryNumberIncoming, TrackerCode, \
-    InventoryNumberTrackerCode, Tracker, Consolidation
+    InventoryNumberTrackerCode, Tracker, Consolidation, Tag, Location
+from deliveries.services.incomings import set_tracker_status
 
 
 def staff_and_login_required(view_func):
@@ -22,7 +24,6 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
     new_inventory_numbers = set(num.number for num in form.cleaned_data["inventory_numbers"])
     tracker, tracker_codes = form.cleaned_data["tracker"]
 
-    # 📌 Получаем текущие связанные объекты
     existing_trackers = set(incoming.tracker.all())  # Все связанные трекеры
     existing_tracker_codes = set(
         TrackerCode.objects.filter(tracker__in=existing_trackers).values_list("code", flat=True)
@@ -63,10 +64,10 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
         tracker_code, created = TrackerCode.objects.get_or_create(code=new_code, defaults={"status": "Active"})
         tracker.tracking_codes.add(tracker_code)
 
-    # ✅ Обновляем связь incoming ↔ tracker
+    # Обновляем связь incoming ↔ tracker
     incoming.tracker.set([tracker])  # Полностью заменяем все трекеры
+    set_tracker_status(tracker)
 
-    # ✅ Сохраняем изменения
     incoming.save()
     form.save_m2m()
 
@@ -87,7 +88,7 @@ def update_inventory_numbers(inventory_numbers, incoming, occupied=True):
 def handle_incoming_status_and_redirect(incoming, request):
     from django.urls import reverse
 
-    if 'save_draft' in request.POST:
+    if 'save_draft' in request.POST or incoming.status == 'Template':
         incoming.status = 'Template'
         redirect_url = reverse('deliveries:templates-incoming')
     elif not incoming.client:
@@ -100,9 +101,8 @@ def handle_incoming_status_and_redirect(incoming, request):
     return JsonResponse({'success': True, 'redirect_url': redirect_url})
 
 
-
 # Подготовка данных для JavaScript
-def prepare_incoming_data(incoming_queryset):
+def prepare_incomings_data_for_consolidation(incoming_queryset):
     return [
         {
             "id": incoming.id,
@@ -133,6 +133,18 @@ def prepare_incoming_data(incoming_queryset):
         }
         for incoming in incoming_queryset
     ]
+
+
+def prepare_incoming_data():
+    prepared_data = dict()
+    prepared_data["form"] = IncomingForm()
+    prepared_data["formset"] = PhotoFormSet()
+    prepared_data["trackers"] = Tracker.objects.exclude(status="Completed")
+    prepared_data["tags"] = Tag.objects.all()
+    prepared_data["available_inventory_numbers"] = InventoryNumber.objects.filter(is_occupied=False)
+    prepared_data["locations"] = Location.objects.all()
+
+    return prepared_data
 
 
 def paginated_query_incoming_list(request, incomings):
