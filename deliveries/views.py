@@ -11,7 +11,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
 
 from user_profile.models import ClientManagerRelation, UserProfile
-from .choices import PackagedStatuses
 from .services.incomings import create_tracker_if_needed, assign_locations_to_inventory, associate_tracker_inventory, \
     set_tracker_status, prepare_incoming_edit_data, save_photos_incoming, create_incoming
 from .utils import staff_and_login_required, login_required, update_inventory_numbers, incoming_columns, \
@@ -21,10 +20,10 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     handle_incoming_status_and_redirect, prepare_incoming_data
 
 from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet
+    GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet, DeliveryStatusForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
-    Location, PackageType, DeliveryType, DeliveryPriceRange
+    Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -54,6 +53,9 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
+            if not tracker:
+                tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
+
             tracker_inventory_map = json.loads(request.POST['tracker_inventory_map'])
             inventory_numbers = form.cleaned_data['inventory_numbers']
             photos = request.FILES.getlist('photo')
@@ -428,14 +430,14 @@ def new_consolidation(request):
             consolidation.track_code = form.cleaned_data['track_code']
 
             if 'in_work' in request.POST:
-                consolidation.status = 'Packaging'
+                consolidation.status = DeliveryStatus.objects.get(name='Packaging')
             else:
-                consolidation.status = 'Error'
+                consolidation.status = DeliveryStatus.objects.get(name='Error')
 
             consolidation.save()
             form.save_m2m()
 
-            if consolidation.status != 'Template':
+            if consolidation.status.name != 'Template':
                 for incoming in selected_incomings:
                     incoming_id = str(incoming.pk)
                     consolidation_incoming = ConsolidationIncoming.objects.create(
@@ -452,7 +454,7 @@ def new_consolidation(request):
                         ConsolidationInventory.objects.create(
                             consolidation_incoming=consolidation_incoming,
                             inventory_number=inventory_obj
-                        )
+                        ).save()
                     incoming.save()
 
                 # Обработка мест
@@ -604,10 +606,10 @@ def consolidation_list(request):
 
 def packaged_list(request):
     consolidations = Consolidation.objects.filter(
-        Q(status='Packaged') | Q(status="Sent") | Q(status="Delivered")).annotate(
+        Q(status__name='Packaged') | Q(status__name="Sent") | Q(status__name="Delivered")).annotate(
         total_weight=Sum('places__weight')
     )
-    statuses = PackagedStatuses.choices
+    statuses = DeliveryStatus.objects.all().values_list('name', flat=True)
 
     page_obj, sort_by, sort_order = paginated_query_consolidation_list(request, consolidations)
 
@@ -629,14 +631,14 @@ def update_consolidation_status(request, pk):
             data = json.loads(request.body)
             new_status = data.get('status')
 
-            if new_status not in dict(PackagedStatuses.choices).keys():
+            if new_status not in DeliveryStatus.objects.all().values_list('name', flat=True):
                 return JsonResponse({'error': 'Invalid status'}, status=400)
 
             consolidation = get_object_or_404(Consolidation, pk=pk)
-            consolidation.status = new_status
+            consolidation.status = DeliveryStatus.objects.get(name=new_status)
             consolidation.save()
 
-            return JsonResponse({'status': consolidation.status})
+            return JsonResponse({'status': consolidation.status.name})
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -683,7 +685,10 @@ def package_new(request, pk):
                 max_density__gte=total_density
             ).first()
 
-            consolidation.price += float(tariff.price_per_kg) * total_weight
+            if not tariff:
+                consolidation.price += -10000
+            else:
+                consolidation.price += float(tariff.price_per_kg) * total_weight
 
             # Сохраняем места
             with transaction.atomic():
@@ -712,9 +717,9 @@ def package_new(request, pk):
 
             # Обновляем статус консолидации
             if 'in_work' in request.POST:
-                consolidation.status = "Packaged"
+                consolidation.status = DeliveryStatus.objects.get(name='Packaged')
             else:
-                consolidation.status = "Draft"
+                consolidation.status = DeliveryStatus.objects.get(name='Template')
 
             consolidation.save()
             return redirect('deliveries:list-consolidation')
@@ -722,11 +727,6 @@ def package_new(request, pk):
             messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
     else:
         form = PackageForm(instance=consolidation)
-
-    # Получаем допустимые инвентарные номера для отображения в шаблоне
-    valid_numbers = list(ConsolidationInventory.objects.filter(
-        consolidation_incoming__consolidation=consolidation
-    ).values_list('inventory_number__number', flat=True).distinct())
 
     # Получаем существующие места для автозаполнения
     places = consolidation.places.all()
@@ -748,7 +748,7 @@ def package_new(request, pk):
     return render(request, 'deliveries/outcomings/package.html', {
         'form': form,
         'consolidation': consolidation,
-        'consolidation_inventory_numbers': valid_numbers,
+        'consolidation_inventory_numbers': inventory_numbers,
         'places_data': places_data,
         'package_types': package_types,
     })
@@ -779,9 +779,9 @@ def consolidation_edit(request, pk):
 
             # Установка статуса консолидации
             if 'save_draft' in request.POST:
-                consolidation.status = 'Template'
+                consolidation.status = DeliveryStatus.objects.get(name="Template")
             elif 'in_work' in request.POST:
-                consolidation.status = 'Packaging'
+                consolidation.status = DeliveryStatus.objects.get(name="Packaging")
 
             consolidation.save()
             form.save_m2m()
@@ -1088,6 +1088,74 @@ def delivery_type_edit(request, pk):
 
     return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
                   {'form': form, 'delivery_type': delivery_type, 'formset': formset})
+
+
+def delivery_status_new(request):
+    if request.method == 'POST':
+        form = DeliveryStatusForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('deliveries:list-delivery-status')
+    else:
+        form = DeliveryStatusForm()
+    return render(request, 'deliveries/delivery_status/create_delivery_status.html', {'form': form})
+
+
+@staff_and_login_required
+def delivery_status_list(request):
+    sort_by = request.GET.get('sort_by', 'name')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    delivery_status = DeliveryStatus.objects.all()
+
+    delivery_status = delivery_status.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(delivery_status, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Добавляем колонки с метками для отображения в таблице
+    columns = [
+        ('name', 'Название'),
+    ]
+
+    return render(request, 'deliveries/delivery_status/delivery_status_list.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns  # Передаем колонки в шаблон
+    })
+
+
+@staff_and_login_required
+def delivery_status_edit(request, pk):
+    delivery_status = get_object_or_404(DeliveryStatus, pk=pk)
+
+    if request.method == 'POST':
+        form = DeliveryStatusForm(request.POST, instance=delivery_status)
+        if form.is_valid():
+            form.save()
+
+            return redirect('deliveries:list-delivery-status')
+    else:
+        form = DeliveryStatusForm(instance=delivery_status)
+
+    return render(request, 'deliveries/delivery_status/delivery_status_edit.html',
+                  {'form': form, 'delivery_status': delivery_status})
+
+
+@staff_and_login_required
+def delivery_status_delete(request, pk):
+    delivery_status = get_object_or_404(DeliveryStatus, pk=pk)
+    if request.method == 'POST':
+        delivery_status.delete()
+        return redirect('deliveries:list-delivery-status')
+    return render(request, 'deliveries/delivery_status/delivery_status_delete.html', {'delivery_status': delivery_status})
 
 
 def package_type_new(request):
