@@ -4,18 +4,31 @@
 {% block content %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const searchInput = document.querySelector('input[name="q"]'); // Поле поиска
-            const tableRows = document.querySelectorAll("tbody tr"); // Все строки таблицы
+            const searchInput = document.querySelector('input[name="q"]');
+            const tableRows = document.querySelectorAll("tbody tr");
 
             searchInput.addEventListener("input", function () {
                 const query = this.value.toLowerCase().trim();
-
                 tableRows.forEach(row => {
                     const rowText = row.innerText.toLowerCase();
                     row.style.display = rowText.includes(query) ? "" : "none";
                 });
             });
         });
+
+        // Функция получения CSRF-токена
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(cookie => {
+                    const trimmed = cookie.trim();
+                    if (trimmed.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                    }
+                });
+            }
+            return cookieValue;
+        }
     </script>
 
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -92,23 +105,48 @@
                             {% endif %}
                         </td>
                         <td>
-                            <select class="status-select form-select" data-id="{{ consolidation.id }}">
+                            <a href="#" data-bs-toggle="modal" data-bs-target="#statusModal{{ consolidation.id }}">
                                 {% for key, label in statuses %}
-                                    <option value="{{ key }}" {% if consolidation.status == key %}selected{% endif %}>
+                                    {% if consolidation.status == key %}
                                         {{ label }}
-                                    </option>
+                                    {% endif %}
                                 {% endfor %}
-                            </select>
+                            </a>
                         </td>
                         <td>
                             <a href="{% url 'deliveries:edit-delivery-price' consolidation.id %}"><i class="bi bi-currency-dollar"></i></a> |
                         </td>
                     </tr>
+
+                    <!-- Modal for status change -->
+                    <div class="modal fade" id="statusModal{{ consolidation.id }}" tabindex="-1" aria-labelledby="statusModalLabel{{ consolidation.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="statusModalLabel{{ consolidation.id }}">Изменение статуса</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="statusSelect{{ consolidation.id }}" class="form-label">Выберите новый статус:</label>
+                                    <select id="statusSelect{{ consolidation.id }}" class="status-select form-select" data-id="{{ consolidation.id }}">
+                                        {% for key, label in statuses %}
+                                            <option value="{{ key }}" {% if consolidation.status == key %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="button" class="btn btn-primary" onclick="updateStatus(`{{ consolidation.id }}`)">Сохранить</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
-
 
         <!-- Pagination -->
         <div class="pagination-container">
@@ -129,47 +167,32 @@
     </div>
 
     <script>
-        document.querySelectorAll('.status-select').forEach(select => {
-            select.addEventListener('change', function () {
-                const consolidationId = this.dataset.id;
-                const newStatus = this.value;
+        function updateStatus(consolidationId) {
+            const select = document.querySelector(`#statusSelect${consolidationId}`);
+            const newStatus = select.value;
 
-                fetch(`/incomings/update-status/${consolidationId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken'),
-                    },
-                    body: JSON.stringify({status: newStatus})
-                })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Ошибка при обновлении статуса');
-                        return response.json();
-                    })
-                    .then(data => {
-                        alert('Статус обновлён: ' + data.status);
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        alert('Ошибка обновления');
-                    });
+            fetch(`/incomings/update-status/${consolidationId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({status: newStatus})
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Ошибка при обновлении статуса');
+                return response.json();
+            })
+            .then(data => {
+                alert('Статус обновлён: ' + data.status);
+                const modal = bootstrap.Modal.getInstance(document.querySelector(`#statusModal${consolidationId}`));
+                modal.hide();
+                window.location.reload(); // Refresh to update status display
+            })
+            .catch(error => {
+                console.error(error);
+                alert('Ошибка обновления');
             });
-        });
-
-        // Функция получения CSRF-токена
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                document.cookie.split(';').forEach(cookie => {
-                    const trimmed = cookie.trim();
-                    if (trimmed.startsWith(name + '=')) {
-                        cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
-                    }
-                });
-            }
-            return cookieValue;
         }
     </script>
-
-
 {% endblock %}
