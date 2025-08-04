@@ -157,6 +157,12 @@
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
+                                <a href="{% url 'deliveries:list-delivery-status' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Incoming new">Статусы</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
                                 <a href="{% url 'deliveries:consolidation' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
                                     <div data-i18n="Depart">Отправка</div>
@@ -266,6 +272,12 @@
                                 <a href="{% url 'orders:new-production' %}" class="menu-link">
                                     <i class="menu-icon tf-icons mdi mdi-table-large"></i>
                                     <div data-i18n="Production">Производство</div>
+                                </a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'orders:new-delivery' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <div data-i18n="Delivery">Доставка</div>
                                 </a>
                             </li>
                             <li class="menu-item">

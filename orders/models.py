@@ -3,7 +3,6 @@ from deliveries.choices import *
 from deliveries.mixins import UUIDMixin, TimeStampedMixin
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from .choices import OrderStatus
 
 
 class PhotoForOrder(UUIDMixin, TimeStampedMixin):
@@ -29,13 +28,40 @@ class PhotoOrder(UUIDMixin):
         ]
 
 
+class OrderStatus(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=100, unique=True)
+    description = models.TextField(_('Description'), blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Order status')
+        verbose_name_plural = _('Order statuses')
+        indexes = [
+            models.Index(fields=['id'], name='order_status_pkey'),
+            models.Index(fields=['name'], name='order_status_idx')
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Order(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100)
     description = models.TextField(_('Description'), blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
                                    blank=True)
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='order_managers',
+        verbose_name=_('Manager')
+    )
     order_type = models.CharField(_('Type'), max_length=100, default='Searching')
-    status = models.CharField(_('Status'), max_length=100, default='Under review', choices=OrderStatus.choices, null=True, blank=True)
+    status = models.ForeignKey('OrderStatus', on_delete=models.CASCADE, blank=True, null=True,
+                               verbose_name=_('Order status'))
     images = models.ManyToManyField(PhotoForOrder, through='PhotoOrder', related_name='order_images', blank=True)
 
     def __str__(self):

@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
@@ -33,7 +34,7 @@ def order_new_searching(request):
                 photo = PhotoForOrder(photo=file, order=order)
                 photo.save()
 
-            return redirect('index')
+            return redirect('orders:list-orders')
 
     else:
         form = OrderForm()
@@ -62,13 +63,40 @@ def order_new_production(request):
                 photo = PhotoForOrder(photo=file, order=order)
                 photo.save()
 
-            return redirect('index')
-
+            return redirect('orders:list-orders')
     else:
         form = OrderForm()
         formset = PhotoOrderFormSet()
 
     return render(request, 'orders/client-side/order-production.html', {
+        'form': form,
+        'formset': formset,
+    })
+
+
+@login_required
+def order_new_delivery(request):
+    if request.method == 'POST':
+        form = OrderForm(request.POST, request.FILES)
+        formset = PhotoOrderFormSet(request.POST, request.FILES)
+
+        if form.is_valid():
+            order = form.save(commit=False)
+            order.created_by = request.user
+            order.order_type = 'Delivery'
+
+            order.save()
+
+            for file in request.FILES.getlist('photo'):
+                photo = PhotoForOrder(photo=file, order=order)
+                photo.save()
+
+            return redirect('orders:list-orders')
+    else:
+        form = OrderForm()
+        formset = PhotoOrderFormSet()
+
+    return render(request, 'orders/client-side/order-delivery.html', {
         'form': form,
         'formset': formset,
     })
@@ -126,7 +154,8 @@ def order_list(request):
         ('name', 'Название'),
         ('description', 'Описание'),
         ('type', 'Тип заказа'),
-        ('status', 'Статус')
+        ('status', 'Статус'),
+        ('manager', 'Менеджер')
     ]
 
     return render(request, 'orders/client-side/order-list.html', {
@@ -180,7 +209,7 @@ def order_delete(request, pk):
     order = get_object_or_404(Order, pk=pk)
     if request.method == 'POST':
         order.delete()
-        return redirect('deliveries:list-order')
+        return redirect('deliveries:list-orders')
     return render(request, 'orders/client-side/order-delete.html', {'order': order})
 
 
@@ -195,8 +224,15 @@ def order_list_manager(request):
     else:
         order_prefix = ''
 
+    query = request.GET.get('q', '').strip()
     orders = Order.objects.all()
 
+    if query:
+        orders = orders.filter(
+            Q(status__name__icontains=query) |
+            Q(order_type__icontains=query) |
+            Q(created_by__email__icontains=query)
+        ).distinct()
 
     orders = orders.order_by(f'{order_prefix}{sort_by}')
 

@@ -6,7 +6,8 @@ from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incomi
     incoming_templates, packaged_list, generate_inventory_numbers, location_new, delivery_type_new, package_type_new, \
     package_type_list, package_type_edit, package_type_delete, delivery_type_list, delivery_type_edit, \
     delivery_type_delete, update_consolidation_status, edit_delivery_price, \
-    location_list, location_edit, location_delete, get_tariff
+    location_list, location_edit, location_delete, get_tariff, delivery_status_new, delivery_status_edit, \
+    delivery_status_list, delivery_status_delete
 
 app_name = "deliveries"
 
@@ -52,4 +53,8 @@ urlpatterns = [
     path('update-status/<uuid:pk>/', update_consolidation_status, name='update-consolidation-status'),
     path('edit-delivery-price/<uuid:pk>', edit_delivery_price, name='edit-delivery-price'),
     path('get_tariff/', get_tariff, name='get_tariff'),
+    path('create-delivery-status', delivery_status_new, name='create-delivery-status'),
+    path('list-delivery-status', delivery_status_list, name='list-delivery-status'),
+    path('edit-delivery-status/<uuid:pk>/', delivery_status_edit, name='edit-delivery-status'),
+    path('delete-delivery-status/<uuid:pk>/', delivery_status_delete, name='delete-delivery-status'),
 ]

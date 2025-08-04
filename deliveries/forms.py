@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -381,6 +381,24 @@ class LocationForm(forms.ModelForm):
                            error_messages={
                                'required': 'Пожалуйста, введите название.',
                            }, )
+
+
+class DeliveryStatusForm(forms.ModelForm):
+    class Meta:
+        model = DeliveryStatus
+        fields = ['name', 'description']
+
+    name = forms.CharField(label="Название статуса доставки", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+
+    description = forms.CharField(label="Описание статуса доставки", required=False,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                            )
 
 
 class PackageTypeForm(forms.ModelForm):
