@@ -21,7 +21,7 @@ include(
 )
 
 ROOT_URLCONF = 'Cargo.urls'
-LOCALE_PATHS = [BASE_DIR / 'movies' / 'locale']  # Путь к папке с переводами
+LOCALE_PATHS = [BASE_DIR / 'Cargo' / 'locale']  # Путь к папке с переводами
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -39,9 +39,7 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = 'Cargo.wsgi.application'
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -58,7 +56,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 LANGUAGE_CODE = 'ru-RU'
 
 TIME_ZONE = 'UTC'
@@ -71,17 +68,13 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 LOGIN_REDIRECT_URL = reverse_lazy("web:profile")
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

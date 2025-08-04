@@ -182,15 +182,15 @@ class ConsolidationInventory(UUIDMixin, TimeStampedMixin):
 class Consolidation(UUIDMixin, TimeStampedMixin):
     incomings = models.ManyToManyField(Incoming, through='ConsolidationIncoming', blank=True)
     consolidation_date = models.DateTimeField(_('Consolidation date'), blank=True, null=True)
-    track_code = models.ForeignKey(
+    track_code = models.OneToOneField(
         'ConsolidationCode',
         on_delete=models.CASCADE,
         related_name='track_code',
         verbose_name=_('Consolidation code'),
-        unique=True
     )
     instruction = models.TextField(_('Instruction'), blank=True, null=True)
-    delivery_type = models.ForeignKey('DeliveryType', on_delete=models.CASCADE, blank=True, verbose_name=_('Delivery type'))  # Updated
+    delivery_type = models.ForeignKey('DeliveryType', on_delete=models.CASCADE, blank=True,
+                                      verbose_name=_('Delivery type'))
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -205,7 +205,8 @@ class Consolidation(UUIDMixin, TimeStampedMixin):
         related_name='consolidation_manager',
         verbose_name=_('Manager')
     )
-    status = models.CharField(blank=True, null=True, max_length=100, default="Template")
+    status = models.ForeignKey('DeliveryStatus', on_delete=models.CASCADE, blank=True,
+                                      verbose_name=_('Delivery status'))
     price = models.FloatField(blank=True, null=True, validators=[MinValueValidator(0)])
 
     def __str__(self):
@@ -242,7 +243,8 @@ class Place(UUIDMixin, TimeStampedMixin):
         related_name='place_inventory_numbers',
         verbose_name=_('Inventory Numbers')
     )
-    package_type = models.ForeignKey('PackageType', on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Package type'))  # Updated
+    package_type = models.ForeignKey('PackageType', on_delete=models.SET_NULL, null=True, blank=True,
+                                     verbose_name=_('Package type'))  # Updated
     images = models.ManyToManyField(Photo, through='PhotoPlace', related_name='place_images', blank=True)
 
     def __str__(self):
@@ -280,6 +282,16 @@ class PackageType(UUIDMixin, TimeStampedMixin):
     name = models.CharField(_('Name'), max_length=100, unique=True)
     price = models.FloatField(_('Price'), validators=[MinValueValidator(0)])
     description = models.TextField(_('Description'), blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class DeliveryStatus(UUIDMixin, TimeStampedMixin):
+    name = models.CharField(_('Name'), max_length=100, unique=True)
+    description = models.TextField(_('Description'), blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name=_('Created by'),
+                                   null=True, blank=True)
 
     def __str__(self):
         return self.name
