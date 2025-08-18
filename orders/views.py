@@ -196,6 +196,8 @@ def order_edit_manager(request, pk):
         form = OrderManagerForm(request.POST, instance=order)
         if form.is_valid():
             form.save()
+            order.manager = request.user
+            order.save()
 
             return redirect('orders:list-order-manager')
     else:
@@ -254,4 +256,21 @@ def order_list_manager(request):
         'sort_by': sort_by,
         'order': sort_order,
         'columns': columns  # Передаем колонки в шаблон
+    })
+
+@user_passes_test(lambda u: u.is_staff)
+@login_required
+def order_detail_manager(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+
+    return render(request, 'orders/manager-side/order-details-manager.html', {
+        'order': order,
+    })
+
+@login_required
+def order_detail_client(request, pk):
+    order = get_object_or_404(Order, pk=pk)
+
+    return render(request, 'orders/client-side/order-details-client.html', {
+        'order': order,
     })

@@ -194,6 +194,8 @@ class IncomingForm(BaseIncomingForm):
 
             if existing_incoming:
                 existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
+                existing_code.status = "Active"
+                existing_code.save()
                 raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         return tracker_obj, code_list
@@ -426,7 +428,7 @@ class DeliveryTypeForm(forms.ModelForm):
         model = DeliveryType
         fields = ['name', 'eta']
 
-    name = forms.CharField(label="Название вида упаковки", required=True,
+    name = forms.CharField(label="Название вида доставки", required=True,
                            widget=forms.TextInput(
                                attrs={'class': 'form-control'}, ),
                            error_messages={

@@ -7,7 +7,7 @@ from .views import tag_list, tag_new, tag_edit, tag_delete, incoming_new, incomi
     package_type_list, package_type_edit, package_type_delete, delivery_type_list, delivery_type_edit, \
     delivery_type_delete, update_consolidation_status, edit_delivery_price, \
     location_list, location_edit, location_delete, get_tariff, delivery_status_new, delivery_status_edit, \
-    delivery_status_list, delivery_status_delete
+    delivery_status_list, delivery_status_delete, inventory_numbers_list
 
 app_name = "deliveries"
 
@@ -38,6 +38,7 @@ urlpatterns = [
     path('packaged-list/', packaged_list, name='packaged-list'),
     path('search-users/', search_users, name='search-users'),
     path('generate-inventory-numbers/', generate_inventory_numbers, name='generate-inventory-numbers'),
+    path('list-inventory-numbers/', inventory_numbers_list, name='list-inventory-numbers'),
     path('create-location', location_new, name='create-location'),
     path('create-delivery-type', delivery_type_new, name='create-delivery-type'),
     path('list-delivery-type', delivery_type_list, name='list-delivery-type'),

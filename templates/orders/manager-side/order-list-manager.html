@@ -31,13 +31,14 @@
                 <tbody>
                 {% for order in page_obj %}
                     <tr>
-                        <td>{{ order.name|default_if_none:"-" }}</td>
-                        <td>{{ order.description|default_if_none:"-" }}</td>
+                        <td>{{ order.name|default_if_none:"-"|truncatechars:10 }}</td>
+                        <td>{{ order.description|default_if_none:"-"|truncatechars:10 }}</td>
                         <td>{{ order.order_type|default_if_none:"-" }}</td>
                         <td>{{ order.created_by.email|default_if_none:"-" }}</td>
                         <td>{{ order.status|default_if_none:"-" }}</td>
                         <td>
-                            <a href="{% url 'orders:edit-order-manager' order.id %}">Редактировать</a>
+                            <a href="{% url 'orders:detail-order-manager' order.id %}">Просмотр</a> |
+                            <a href="{% url 'orders:edit-order-manager' order.id %}">Изменить статус</a>
                         </td>
                     </tr>
                 {% empty %}

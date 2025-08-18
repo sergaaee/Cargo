@@ -94,9 +94,7 @@
                                 <ul>
                                     {% for tracker in incoming.tracker.all %}
                                         {% for code in tracker.tracking_codes.all %}
-                                            {% if code.status == 'Active' %}
-                                                <li>{{ code.code }}</li>
-                                            {% endif %}
+                                                <li>{{ code }}</li>
                                         {% endfor %}
                                     {% endfor %}
                                 </ul>
