@@ -20,9 +20,8 @@ def staff_and_login_required(view_func):
     return login_required(user_passes_test(lambda u: u.is_staff)(_wrapped_view))
 
 
-def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
+def update_inventory_and_trackers(incoming, tracker, tracker_codes, form, tracker_inventory_map):
     new_inventory_numbers = set(num.number for num in form.cleaned_data["inventory_numbers"])
-    tracker, tracker_codes = form.cleaned_data["tracker"]
 
     existing_trackers = set(incoming.tracker.all())  # Все связанные трекеры
     existing_tracker_codes = set(
@@ -38,7 +37,6 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
         inv_obj.is_occupied = False
         inv_obj.save()
 
-    # Добавляем новые инвентарные номера и связываем их правильно
     for tracker_code, inventory_numbers in tracker_inventory_map.items():
         tracker_code_obj, _ = TrackerCode.objects.get_or_create(code=tracker_code, defaults={"status": "Active"})
 
@@ -55,9 +53,10 @@ def update_inventory_and_trackers(incoming, form, tracker_inventory_map):
                 tracker_code=tracker_code_obj
             )
 
-    # Удаляем старые трек-коды
-    for old_code in existing_tracker_codes - set(tracker_codes):
-        TrackerCode.objects.filter(code=old_code, tracker__in=existing_trackers).delete()
+    # Отмечаем старые трек-коды как неактивные для клиента
+    TrackerCode.objects.filter(
+        tracker__incoming=incoming,
+    ).update(status='Inactive')
 
     # Добавляем новые трек-коды
     for new_code in set(tracker_codes) - existing_tracker_codes:

@@ -19,10 +19,11 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
     handle_incoming_status_and_redirect, prepare_incoming_data
 
-from .forms import IncomingForm, PhotoFormSet, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
-    GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet, DeliveryStatusForm
-from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, InventoryNumberTrackerCode, \
-    ConsolidationCode, Consolidation, ConsolidationIncoming, InventoryNumberIncoming, ConsolidationInventory, Place, \
+from .forms import IncomingForm, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
+    GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet, \
+    DeliveryStatusForm
+from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, \
+    ConsolidationCode, Consolidation, ConsolidationIncoming, ConsolidationInventory, Place, \
     Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus
 import re
 from datetime import datetime
@@ -112,9 +113,9 @@ def incoming_edit(request, pk):
 
             tracker, tracker_codes = form.cleaned_data.get('tracker')
             if not tracker:
-                create_tracker_if_needed(tracker_codes, created_by=request.user)
+                tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
 
-            update_inventory_and_trackers(incoming, form, tracker_inventory_map)
+            update_inventory_and_trackers(incoming, tracker, tracker_codes, form, tracker_inventory_map)
 
             new_client_phone = request.POST.get("client", "").strip()
             if new_client_phone:
@@ -374,6 +375,7 @@ def tracker_list(request):
         'hide_completed': hide_completed,
     })
 
+
 @staff_and_login_required
 def inventory_numbers_list(request):
     sort_by = request.GET.get('sort_by', 'number')
@@ -614,6 +616,9 @@ def incoming_delete(request, pk):
     update_inventory_numbers(inventory_numbers, incoming, occupied=False)
 
     if request.method == 'POST':
+        TrackerCode.objects.filter(
+            tracker__incoming=incoming,
+        ).update(status='Inactive')
         incoming.delete()
         return redirect('deliveries:list-incoming')
     return render(request, 'deliveries/incomings/incoming-delete.html', )
@@ -1185,7 +1190,8 @@ def delivery_status_delete(request, pk):
     if request.method == 'POST':
         delivery_status.delete()
         return redirect('deliveries:list-delivery-status')
-    return render(request, 'deliveries/delivery_status/delivery_status_delete.html', {'delivery_status': delivery_status})
+    return render(request, 'deliveries/delivery_status/delivery_status_delete.html',
+                  {'delivery_status': delivery_status})
 
 
 def package_type_new(request):
