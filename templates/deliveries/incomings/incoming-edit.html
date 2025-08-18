@@ -19,7 +19,8 @@
         }
     </script>
     <!-- Модальное окно -->
-    <div class="modal fade" id="additionalInputModal" tabindex="-1" aria-labelledby="additionalInputModalLabel" aria-hidden="true">
+    <div class="modal fade" id="additionalInputModal" tabindex="-1" aria-labelledby="additionalInputModalLabel"
+         aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -30,7 +31,8 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="inventory-input">Инвентарные номера</label>
-                            <input id="inventory-input" list="inventory-list" class="form-control" placeholder="Введите инвентарный номер">
+                            <input id="inventory-input" list="inventory-list" class="form-control"
+                                   placeholder="Введите инвентарный номер">
                             <datalist id="inventory-list"></datalist>
                             <div id="selected-inventory-numbers" class="mt-2"></div>
                         </div>
@@ -60,23 +62,30 @@
                 <!-- Детали поступления -->
                 <div class="card accordion-item active">
                     <h2 class="accordion-header" id="headingBaseIncoming">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBaseIncoming" aria-expanded="true" aria-controls="collapseBaseIncoming">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseBaseIncoming" aria-expanded="true"
+                                aria-controls="collapseBaseIncoming">
                             1. Детали поступления
                         </button>
                     </h2>
-                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show" aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapseBaseIncoming" class="accordion-collapse collapse show"
+                         aria-labelledby="headingBaseIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="tracker">Трек-коды:</label>
-                                        <input type="text" name="tracker" id="tracker-input" class="form-control" {% if incoming.status != "Template" %}disabled{% endif %}>
+                                        <input type="text" name="tracker" id="tracker-input" class="form-control"
+                                               {% if incoming.status != "Template" %}disabled{% endif %}>
                                         <div class="form-check mt-2">
-                                            <input type="checkbox" class="form-check-input" id="no-tracker-checkbox" {% if incoming.status != "Template" %}disabled{% endif %}>
-                                            <label class="form-check-label" for="no-tracker-checkbox">Нет трек-кода</label>
+                                            <input type="checkbox" class="form-check-input" id="no-tracker-checkbox"
+                                                   {% if incoming.status != "Template" %}disabled{% endif %}>
+                                            <label class="form-check-label" for="no-tracker-checkbox">Нет
+                                                трек-кода</label>
                                         </div>
                                         <input type="hidden" id="selected-trackers-input" name="tracker">
-                                        <div id="selected-trackers" class="mt-2" {% if incoming.status != "Template" %}hidden{% endif %}></div>
+                                        <div id="selected-trackers" class="mt-2"
+                                             {% if incoming.status != "Template" %}hidden{% endif %}></div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -86,7 +95,10 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.arrival_date.label_tag }} <input type="datetime-local" name="arrival_date" class="form-control" value="{{ incoming.arrival_date|date:'Y-m-d\TH:i' }}">
+                                        {{ form.arrival_date.label_tag }} <input type="datetime-local"
+                                                                                 name="arrival_date"
+                                                                                 class="form-control"
+                                                                                 value="{{ incoming.arrival_date|date:'Y-m-d\TH:i' }}">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -97,7 +109,8 @@
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="tag">Тег клиента:</label>
-                                        <input type="text" name="tag" class="form-control" value="{{ incoming.tag.name }}">
+                                        <input type="text" name="tag" class="form-control"
+                                               value="{{ incoming.tag.name }}">
                                     </div>
                                 </div>
                             </div>
@@ -108,11 +121,14 @@
                 <!-- Фотографии поступления -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingPhotoIncoming">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePhotoIncoming" aria-expanded="false" aria-controls="collapsePhotoIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePhotoIncoming" aria-expanded="false"
+                                aria-controls="collapsePhotoIncoming">
                             2. Фотографии поступления
                         </button>
                     </h2>
-                    <div id="collapsePhotoIncoming" class="accordion-collapse collapse" aria-labelledby="headingPhotoIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapsePhotoIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingPhotoIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="row g-3">
                                 <div class="col-12">
@@ -123,7 +139,9 @@
                                                 {% for photo in incoming.images_set.all %}
                                                     <div class="col-md-3" id="photo-{{ photo.id }}">
                                                         <img src="{{ photo.photo.url }}" class="img-fluid" alt="Фото">
-                                                        <button type="button" class="btn btn-danger mt-2" onclick="removePhotoEdit('{{ photo.id }}')">Удалить</button>
+                                                        <button type="button" class="btn btn-danger mt-2"
+                                                                onclick="removePhotoEdit('{{ photo.id }}')">Удалить
+                                                        </button>
                                                     </div>
                                                 {% endfor %}
                                             </div>
@@ -151,11 +169,14 @@
                 <!-- Прочая информация -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingOthersIncoming">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOthersIncoming" aria-expanded="true" aria-controls="collapseOthersIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseOthersIncoming" aria-expanded="true"
+                                aria-controls="collapseOthersIncoming">
                             3. Прочая информация
                         </button>
                     </h2>
-                    <div id="collapseOthersIncoming" class="accordion-collapse collapse" aria-labelledby="headingOthersIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapseOthersIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingOthersIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="row g-3">
                                 <div class="col-md-4">
@@ -188,15 +209,20 @@
                 <!-- Персоналии -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingPersonalia">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonalia" aria-expanded="false" aria-controls="collapsePersonalia">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapsePersonalia" aria-expanded="false"
+                                aria-controls="collapsePersonalia">
                             4. Персоналии
                         </button>
                     </h2>
-                    <div id="collapsePersonalia" class="accordion-collapse collapse" aria-labelledby="headingPersonalia" data-bs-parent="#collapsibleSection">
+                    <div id="collapsePersonalia" class="accordion-collapse collapse" aria-labelledby="headingPersonalia"
+                         data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
                             <div class="form-group">
                                 <label for="client-input">Клиент</label>
-                                <input type="text" id="client-input" name="client" class="form-control" list="client-list" placeholder="Введите имя, email или телефон" value="{% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
+                                <input type="text" id="client-input" name="client" class="form-control"
+                                       list="client-list" placeholder="Введите имя, email или телефон" value="
+                                        {% if incoming.client %}{{ incoming.client.profile.phone_number }}{% endif %}">
                                 <datalist id="client-list"></datalist>
                             </div>
                         </div>
@@ -206,24 +232,41 @@
                 <!-- Размещение на локации -->
                 <div class="card accordion-item">
                     <h2 class="accordion-header" id="headingLocationIncoming">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLocationIncoming" aria-expanded="false" aria-controls="collapseLocationIncoming">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapseLocationIncoming" aria-expanded="false"
+                                aria-controls="collapseLocationIncoming">
                             5. Размещение на локации
                         </button>
                     </h2>
-                    <div id="collapseLocationIncoming" class="accordion-collapse collapse" aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
+                    <div id="collapseLocationIncoming" class="accordion-collapse collapse"
+                         aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
+                        <div class="mb-2">
+                                <strong>Доступные инвентарные номера:</strong>
+                                <div id="available-inventory-numbers-for-location-container"
+                                     class="mt-2"></div>
+                            </div>
                             <div class="row g-3" id="location-selection">
                                 {% for group in location_inventory_groups %}
                                     <div class="col-12 location-item" data-item-index="{{ forloop.counter0 }}">
                                         <div class="row g-3">
                                             <div class="col-md-4">
                                                 <div class="form-group">
-                                                    <label for="inventory-input-{{ forloop.counter0 }}">Инвентарные номера</label>
-                                                    <input id="inventory-input-{{ forloop.counter0 }}" class="form-control inventory-input" data-item-index="{{ forloop.counter0 }}" placeholder="Введите номер и нажмите Enter">
-                                                    <input type="hidden" name="inventory_numbers_{{ forloop.counter0 }}" id="hidden-inventory-numbers-{{ forloop.counter0 }}" value="{{ group.inventory_numbers|join:',' }}">
-                                                    <div id="inventory-numbers-list-{{ forloop.counter0 }}" class="mt-2">
+                                                    <label for="inventory-input-{{ forloop.counter0 }}">Инвентарные
+                                                        номера</label>
+                                                    <input id="inventory-input-{{ forloop.counter0 }}"
+                                                           class="form-control inventory-input"
+                                                           data-item-index="{{ forloop.counter0 }}"
+                                                           placeholder="Введите номер и нажмите Enter">
+                                                    <input type="hidden" name="inventory_numbers_{{ forloop.counter0 }}"
+                                                           id="hidden-inventory-numbers-{{ forloop.counter0 }}"
+                                                           value="{{ group.inventory_numbers|join:',' }}">
+                                                    <div id="inventory-numbers-list-{{ forloop.counter0 }}"
+                                                         class="mt-2">
                                                         {% for number in group.inventory_numbers %}
-                                                            <span class="badge bg-primary me-1" data-number="{{ number }}">{{ number }} <span class="ms-2 text-white cursor-pointer">×</span></span>
+                                                            <span class="badge bg-primary me-1"
+                                                                  data-number="{{ number }}">{{ number }} <span
+                                                                    class="ms-2 text-white cursor-pointer">×</span></span>
                                                         {% endfor %}
                                                     </div>
                                                 </div>
@@ -231,10 +274,12 @@
                                             <div class="col-md-4">
                                                 <div class="form-group">
                                                     <label for="location-{{ forloop.counter0 }}">Локация</label>
-                                                    <select name="location_{{ forloop.counter0 }}" class="form-control" id="location-{{ forloop.counter0 }}">
+                                                    <select name="location_{{ forloop.counter0 }}" class="form-control"
+                                                            id="location-{{ forloop.counter0 }}">
                                                         <option value="">Выберите локацию</option>
                                                         {% for location in locations %}
-                                                            <option value="{{ location.id }}" {% if location.id == group.location_id %}selected{% endif %}>
+                                                            <option value="{{ location.id }}"
+                                                                    {% if location.id == group.location_id %}selected{% endif %}>
                                                                 {{ location.name }}
                                                             </option>
                                                         {% endfor %}
@@ -243,7 +288,9 @@
                                             </div>
                                             <div class="col-md-2">
                                                 <div class="form-group mt-4">
-                                                    <button type="button" class="btn btn-icon btn-outline-danger delete-item-btn" data-item-index="{{ forloop.counter0 }}">
+                                                    <button type="button"
+                                                            class="btn btn-icon btn-outline-danger delete-item-btn"
+                                                            data-item-index="{{ forloop.counter0 }}">
                                                         <span class="bi bi-trash"></span>
                                                     </button>
                                                 </div>
@@ -262,7 +309,9 @@
                 </div>
             </div>
             <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
-            <button type="submit" name="save_draft" class="btn btn-label-success mt-4 waves-effect">Сохранить как черновик</button>
+            <button type="submit" name="save_draft" class="btn btn-label-success mt-4 waves-effect">Сохранить как
+                черновик
+            </button>
             <a href="{% url 'deliveries:delete-incoming' incoming.id %}" class="btn btn-label-danger waves-effect mt-4">Удалить</a>
             <a href="{% url 'deliveries:list-incoming' %}" class="btn btn-secondary mt-4">Отмена</a>
             <input type="hidden" id="tracker_inventory_map_input" name="tracker_inventory_map">
