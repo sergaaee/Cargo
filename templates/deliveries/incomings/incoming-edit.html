@@ -90,7 +90,9 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ form.places_count.label_tag }} {{ form.places_count }}
+                                        <label for="places_count">Кол-во мест:</label>
+                                        <input type="text" name="places_count" id="places-count-input" value="{{ incoming.places_count }}" class="form-control"
+                                               {% if incoming.status != "Template" %}readonly{% endif %}>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
