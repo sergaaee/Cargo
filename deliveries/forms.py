@@ -426,7 +426,7 @@ class DeliveryTypeForm(forms.ModelForm):
         model = DeliveryType
         fields = ['name', 'eta']
 
-    name = forms.CharField(label="Название вида упаковки", required=True,
+    name = forms.CharField(label="Название вида доставки", required=True,
                            widget=forms.TextInput(
                                attrs={'class': 'form-control'}, ),
                            error_messages={

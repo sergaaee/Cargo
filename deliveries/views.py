@@ -374,6 +374,36 @@ def tracker_list(request):
         'hide_completed': hide_completed,
     })
 
+@staff_and_login_required
+def inventory_numbers_list(request):
+    sort_by = request.GET.get('sort_by', 'number')
+    sort_order = request.GET.get('order', 'asc')
+
+    if sort_order == 'desc':
+        order_prefix = '-'
+    else:
+        order_prefix = ''
+
+    inventory_numbers = InventoryNumber.objects.all()
+
+    inventory_numbers = inventory_numbers.order_by(f'{order_prefix}{sort_by}')
+
+    paginator = Paginator(inventory_numbers, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    columns = [
+        ('number', 'Номер'),
+        ('is_occupied', 'Занят')
+    ]
+
+    return render(request, 'deliveries/inventory_numbers/list-inventory-numbers.html', {
+        'page_obj': page_obj,
+        'sort_by': sort_by,
+        'order': sort_order,
+        'columns': columns,
+    })
+
 
 @login_required
 def tracker_new(request):
@@ -933,7 +963,7 @@ def generate_inventory_numbers(request):
             return response
     else:
         form = GenerateInventoryNumbersForm()
-    return render(request, 'deliveries/generate_inventory_numbers.html', {'form': form})
+    return render(request, 'deliveries/inventory_numbers/generate_inventory_numbers.html', {'form': form})
 
 
 @staff_and_login_required
