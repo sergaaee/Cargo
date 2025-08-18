@@ -230,6 +230,14 @@ document.addEventListener("DOMContentLoaded", function () {
                                 hiddenInput.value = currentNumbers.join(",");
                                 numberBadge.remove();
                                 updateSelectedInventoryInput();
+
+                                const inventoryDiv = document.createElement('div');
+                                inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-secondary', 'me-1', 'mb-1');
+                                inventoryDiv.textContent = number;
+                                inventoryDiv.dataset.number = number;
+
+                                const availableInventoryNumbersForLocationsContainer = document.getElementById('available-inventory-numbers-for-location-container');
+                                availableInventoryNumbersForLocationsContainer.appendChild(inventoryDiv);
                             });
 
                             numberBadge.appendChild(removeBtn);

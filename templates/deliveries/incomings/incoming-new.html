@@ -408,6 +408,14 @@
                                         hiddenInput.value = currentNumbers.join(",");
                                         numberBadge.remove();
                                         updateSelectedInventoryInput();
+
+                                        const inventoryDiv = document.createElement('div');
+                                        inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-secondary', 'me-1', 'mb-1');
+                                        inventoryDiv.textContent = number;
+                                        inventoryDiv.dataset.number = number;
+
+                                        const availableInventoryNumbersForLocationsContainer = document.getElementById('available-inventory-numbers-for-location-container');
+                                        availableInventoryNumbersForLocationsContainer.appendChild(inventoryDiv);
                                     });
 
                                     numberBadge.appendChild(removeBtn);
@@ -415,9 +423,7 @@
                                     input.value = "";
 
                                     const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
-                                    console.log('HGERE', availableContainer);
                                     if (availableContainer) {
-                                        console.log('nubmer:', number)
                                         const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
                                         badges.forEach(badge => badge.remove());
                                     }
@@ -470,7 +476,7 @@
                 if (e.key === "Enter") {
                     e.preventDefault();
                     const number = this.value.trim();
-                    if (number && !document.querySelector(`#selected-inventory-numbers .badge:has('${number}')`)) {
+                    if (number && !document.querySelector(`#selected-inventory-numbers.badge:has('${number}')`)) {
                         const firstHiddenInput = document.getElementById("hidden-inventory-numbers-0");
                         const firstListContainer = document.getElementById("inventory-numbers-list-0");
                         let currentNumbers = firstHiddenInput.value.split(",").filter(Boolean);
@@ -501,7 +507,6 @@
 
                                 const availableContainer = document.getElementById(`available-inventory-numbers-for-location-container`);
                                 if (availableContainer) {
-                                    console.log('nubmer:', number)
                                     const badges = availableContainer.querySelectorAll(`div.badge[data-number="${number}"]`);
                                     badges.forEach(badge => badge.remove());
                                 }
