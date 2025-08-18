@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Детали заказа{% endblock %}
+
+{% block content %}
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Детали заказа</h4>
+
+        <div class="card">
+            <div class="card-body">
+
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Номер
+                        клиента:</strong> {{ order.created_by.profile.phone_number }}</li>
+                    <li class="list-group-item"><strong>Название:</strong> {{ order.name }}</li>
+                    <li class="list-group-item"><strong>Описание:</strong> {{ order.description }}</li>
+                    <li class="list-group-item"><strong>Фото:</strong>
+                        <div class="row">
+                            {% if order.images_set.all %}
+                                {% for photo in order.images_set.all %}
+                                    <div class="col-md-4">
+                                        <img src="{{ photo.photo.url }}" class="img-fluid" alt="Фото заказа">
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p>Нет изображений</p>
+                            {% endif %}
+                        </div>
+                    </li>
+                </ul>
+                <a href="{% url 'orders:list-order-manager' %}" class="btn btn-primary mt-3">Назад к списку</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -38,9 +38,65 @@ document.addEventListener("DOMContentLoaded", function () {
                 event.stopPropagation();
                 // Удаляем трек-код из массива
                 selectedTrackers.splice(index, 1);
-                // Удаляем трек-код из localStorage
+
+                // Удаляем все его инвентарные номера из localStorage
+                const inventoryNumbers = trackerInventoryMap[code] || [];
                 delete trackerInventoryMap[code];
                 localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
+
+                // Удаляем инвентарные номера из скрытых полей
+                if (selectedInventoryInput) {
+                    let currentValues = selectedInventoryInput.value.split(',').filter(v => v.trim() !== "");
+                    currentValues = currentValues.filter(num => !inventoryNumbers.includes(num));
+                    selectedInventoryInput.value = currentValues.join(',');
+                }
+
+                // Удаляем все бейджи из available-inventory-numbers-for-location-container
+                const availableContainer = document.getElementById('available-inventory-numbers-for-location-container');
+                if (availableContainer) {
+                    inventoryNumbers.forEach(num => {
+                        const badge = availableContainer.querySelector(`div.badge[data-number="${num}"]`);
+                        if (badge) {
+                            badge.remove();
+                        }
+                    });
+                }
+
+
+                const inventoryContainer = document.getElementById('inventory-container');
+                if (inventoryContainer) {
+                    inventoryNumbers.forEach(num => {
+                        const badge = inventoryContainer.querySelector(`div.badge[data-number="${num}"]`);
+                        if (badge) {
+                            badge.remove();
+                        }
+                    });
+                }
+
+                // Удаляем бейджи этого трекера из всех inventory-numbers-list-*
+                const allTrackerContainers = document.querySelectorAll('[id^="inventory-numbers-list-"]');
+                allTrackerContainers.forEach(trackerContainer => {
+                    inventoryNumbers.forEach(num => {
+                        const badge = trackerContainer.querySelector(`span.badge[data-number="${num}"]`);
+                        if (badge) {
+                            badge.remove();
+                        }
+                    });
+                });
+
+                const allInventoriesHiddenInputs = document.querySelectorAll(`[id^="hidden-inventory-numbers-"]`);
+                allInventoriesHiddenInputs.forEach(inventoryInput => {
+                    // Получаем текущие значения из скрытого поля
+                    let currentValues = inventoryInput.value.split(',').map(v => v.trim()).filter(v => v !== '');
+
+                    // Удаляем все номера, принадлежащие трекеру
+                    currentValues = currentValues.filter(num => !inventoryNumbers.includes(num));
+
+                    // Записываем обратно
+                    inventoryInput.value = currentValues.join(',');
+                });
+
+
                 // Обновляем список выбранных трек-кодов
                 updateSelectedTrackers();
             });
@@ -66,16 +122,54 @@ document.addEventListener("DOMContentLoaded", function () {
             const removeBtn = document.createElement('span');
             removeBtn.classList.add('ms-2', 'text-white', 'cursor-pointer');
             removeBtn.innerHTML = '&times;';
-            removeBtn.addEventListener('click', () => {
+            removeBtn.addEventListener('click', (event) => {
                 event.stopPropagation();
+                const removedNumber = number; // сохраняем номер, который удаляем
                 const index = inventoryNumbers.indexOf(number);
                 if (index > -1) {
                     inventoryNumbers.splice(index, 1);
                     trackerInventoryMap[trackerCode] = inventoryNumbers;
                     localStorage.setItem('trackerInventoryMap', JSON.stringify(trackerInventoryMap));
-                    loadInventoryNumbersForTracker(trackerCode); // обновить отображение
+                    loadInventoryNumbersForTracker(trackerCode);
+
+                    // Удаляем из скрытых полей
+                    if (selectedInventoryInput) {
+                        let currentValues = selectedInventoryInput.value.split(',').filter(v => v.trim() !== "");
+                        currentValues = currentValues.filter(num => num !== removedNumber);
+                        selectedInventoryInput.value = currentValues.join(',');
+                    }
+
+                    // Удаляем бейджи из available-inventory-numbers-for-location-container
+                    const availableContainer = document.getElementById('available-inventory-numbers-for-location-container');
+                    if (availableContainer) {
+                        const badge = availableContainer.querySelector(`div.badge[data-number="${removedNumber}"]`);
+                        if (badge) badge.remove();
+                    }
+
+                    // Удаляем из inventory-container
+                    const inventoryContainer = document.getElementById('inventory-container');
+                    if (inventoryContainer) {
+                        const badge = inventoryContainer.querySelector(`div.badge[data-number="${removedNumber}"]`);
+                        if (badge) badge.remove();
+                    }
+
+                    // Удаляем бейджи из всех inventory-numbers-list-*
+                    const allTrackerContainers = document.querySelectorAll('[id^="inventory-numbers-list-"]');
+                    allTrackerContainers.forEach(trackerContainer => {
+                        const badge = trackerContainer.querySelector(`span.badge[data-number="${removedNumber}"]`);
+                        if (badge) badge.remove();
+                    });
+
+                    // Удаляем из всех hidden input
+                    const allInventoriesHiddenInputs = document.querySelectorAll(`[id^="hidden-inventory-numbers-"]`);
+                    allInventoriesHiddenInputs.forEach(inventoryInput => {
+                        let currentValues = inventoryInput.value.split(',').map(v => v.trim()).filter(v => v !== '');
+                        currentValues = currentValues.filter(num => num !== removedNumber);
+                        inventoryInput.value = currentValues.join(',');
+                    });
                 }
             });
+
 
             inventoryDiv.appendChild(removeBtn);
             selectedInventoryContainer.appendChild(inventoryDiv);
@@ -87,14 +181,27 @@ document.addEventListener("DOMContentLoaded", function () {
         availableInventoryNumbersForLocationsContainer.innerHTML = '';
 
         inventoryNumbers.forEach((number) => {
-            const inventoryDiv = document.createElement('div');
-            inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-secondary', 'me-1', 'mb-1'); // Используем bg-secondary для серого цвета
-            inventoryDiv.textContent = number;
-            inventoryDiv.dataset.number = number;
+            let alreadyExists = false;
 
-            availableInventoryNumbersForLocationsContainer.appendChild(inventoryDiv);
+            const allTrackerContainers = document.querySelectorAll('[id^="inventory-numbers-list-"]');
+            allTrackerContainers.forEach(trackerContainer => {
+                const badge = trackerContainer.querySelector(`span.badge[data-number="${number}"]`);
+                if (badge) {
+                    alreadyExists = true;
+                }
+            });
+
+            if (!alreadyExists) {
+                const inventoryDiv = document.createElement('div');
+                inventoryDiv.classList.add('selected-inventory', 'badge', 'bg-secondary', 'me-1', 'mb-1');
+                inventoryDiv.textContent = number;
+                inventoryDiv.dataset.number = number;
+
+                availableInventoryNumbersForLocationsContainer.appendChild(inventoryDiv);
+            }
         });
     }
+
 
     // Функция для добавления трек-кода и открытия модального окна для инвентарных номеров
     function addSelectedTracker() {
