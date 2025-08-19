@@ -432,7 +432,6 @@ def tracker_new(request):
         else:
             errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
                       error_list]
-            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = TrackerNewForm()
 
