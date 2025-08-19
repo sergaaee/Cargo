@@ -537,7 +537,6 @@
                 const placeNumberMap = new Map();
 
                 document.querySelectorAll(".consolidation-item").forEach(item => {
-                    const hiddenInput = item.querySelector('input[name^="inventory_numbers_"]');
                     const placeCode = item.querySelector('input[name^="place_consolidated_"]').value;
                     const numbers = hiddenInput.value.split(",").filter(Boolean);
 

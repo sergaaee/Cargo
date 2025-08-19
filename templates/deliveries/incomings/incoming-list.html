@@ -93,9 +93,11 @@
                             <td>
                                 <ul>
                                     {% for tracker in incoming.tracker.all %}
-                                        {% for code in tracker.tracking_codes.all %}
+                                        {% if tracker.status == 'Completed' %}
+                                            {% for code in tracker.tracking_codes.all %}
                                                 <li>{{ code }}</li>
-                                        {% endfor %}
+                                            {% endfor %}
+                                        {% endif %}
                                     {% endfor %}
                                 </ul>
                             </td>

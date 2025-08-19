@@ -19,12 +19,12 @@ from .utils import staff_and_login_required, login_required, update_inventory_nu
     update_inventory_and_trackers, packaged_columns, paginated_query_trackers_list, trackers_list_columns, \
     handle_incoming_status_and_redirect, prepare_incoming_data
 
-from .forms import IncomingForm, TagForm, TrackerForm, ConsolidationForm, PackageForm, IncomingEditForm, \
+from .forms import IncomingForm, TagForm, TrackerNewForm, ConsolidationForm, PackageForm, IncomingEditForm, \
     GenerateInventoryNumbersForm, LocationForm, DeliveryTypeForm, PackageTypeForm, DeliveryPriceRangeFormSet, \
-    DeliveryStatusForm
+    DeliveryStatusForm, TrackerEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, ConsolidationInventory, Place, \
-    Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus
+    Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus, TrackerCodeTracker
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -162,7 +162,12 @@ def incoming_edit(request, pk):
 def incoming_list(request):
     query = request.GET.get('q', '').strip()
     incomings = Incoming.objects.exclude(
-        Q(status="Unidentified") | Q(status="Template") | Q(status="Consolidated")).order_by('-arrival_date')
+        Q(status="Unidentified") | Q(status="Template") | Q(status="Consolidated"))
+
+    # Исключаем те, где внутри связанного Tracker есть статус не Completed
+    incomings = incomings.exclude(
+        tracker__status__in=['Active', 'Inactive', 'Pending']  # или любой статус, отличный от Completed
+    ).order_by('-arrival_date')
 
     if query:
         incomings = incomings.filter(
@@ -410,31 +415,26 @@ def inventory_numbers_list(request):
 @login_required
 def tracker_new(request):
     if request.method == 'POST':
-        form = TrackerForm(request.POST)
+        form = TrackerNewForm(request.POST)
         if form.is_valid():
             tracker = form.save(commit=False)
             tracker.created_by = request.user
             tracker.save()
 
-            # Получаем список кодов из формы
             code_list = form.cleaned_data['tracking_codes']
-            tracking_codes = []
             for code in code_list:
-                tracker_code, created = TrackerCode.objects.get_or_create(code=code, status="Inactive")
-                tracking_codes.append(tracker_code)
-
-            # Создаем объекты TrackerCode и привязываем к трекеру
-            for code in tracking_codes:
-                tracker_code = TrackerCode.objects.get(code=code)
-                tracker_code.created_by = request.user
-                tracker_code.save()
-                tracker.tracking_codes.add(tracker_code)
+                tracker_code_obj = TrackerCode.objects.create(code=code, status="Inactive", created_by=request.user)
+                TrackerCodeTracker.objects.create(tracker=tracker, tracker_code=tracker_code_obj)
+                tracker.tracking_codes.add(tracker_code_obj)
 
             tracker.save()
-            messages.success(request, 'Новый трекер успешно создан!')
             return redirect('deliveries:list-tracker')
+        else:
+            errors = [f"{form.fields[field].label}: {error}" for field, error_list in form.errors.items() for error in
+                      error_list]
+            return JsonResponse({'success': False, 'errors': errors})
     else:
-        form = TrackerForm()
+        form = TrackerNewForm()
 
     return render(request, 'deliveries/client-side/tracker/tracker-new.html', {'form': form})
 
@@ -586,10 +586,9 @@ def tracker_edit(request, pk):
     tracker = get_object_or_404(Tracker, pk=pk)
 
     if request.method == 'POST':
-        form = TrackerForm(request.POST, instance=tracker)
+        form = TrackerEditForm(request.POST, instance=tracker)
         if form.is_valid():
             tracker = form.save(commit=False)
-
             tracking_codes = form.cleaned_data['tracking_codes']
 
             # Создаем объекты TrackerCode и привязываем к трекеру
@@ -603,9 +602,12 @@ def tracker_edit(request, pk):
 
             return redirect('deliveries:list-tracker')
     else:
-        form = TrackerForm(instance=tracker)
+        form = TrackerEditForm(instance=tracker)
 
-    return render(request, 'deliveries/client-side/tracker/tracker-edit.html', {'form': form, 'tracker': tracker})
+    codes = list(TrackerCode.objects.filter(tracker=tracker).values_list("code", flat=True))
+
+    return render(request, 'deliveries/client-side/tracker/tracker-edit.html',
+                  {'form': form, 'tracker': tracker, 'codes': codes})
 
 
 @staff_and_login_required
@@ -766,15 +768,17 @@ def package_new(request, pk):
     # Получаем существующие места для автозаполнения
     places = consolidation.places.all()
     places_data = []
+    inventory_numbers = []
     for place in places:
-        inventory_numbers = list(place.inventory_numbers.values_list('number', flat=True))
+        inventory_numbers_place = list(place.inventory_numbers.values_list('number', flat=True))
+        inventory_numbers.extend(inventory_numbers_place)
         photos = list(place.images_set_place.all())  # Получаем фотографии для места
         places_data.append({
             'place_code': place.place_code,
             'weight': place.weight,
             'volume': place.volume,
             'package_type': place.package_type.name,
-            'inventory_numbers': inventory_numbers,
+            'inventory_numbers': inventory_numbers_place,
             'photos': photos,
         })
 
@@ -1307,7 +1311,7 @@ def delivery_type_delete(request, pk):
         return redirect('deliveries:list-delivery-type')
     return render(request, 'deliveries/delivery_type/delivery_type_delete.html', {'delivery_type': delivery_type})
 
-
+@staff_and_login_required
 def edit_delivery_price(request, pk):
     consolidation = get_object_or_404(Consolidation, pk=pk)
 
@@ -1325,11 +1329,14 @@ def edit_delivery_price(request, pk):
     volume = \
         Place.objects.filter(consolidation=consolidation).aggregate(total_volume=Sum('volume'))['total_volume']
     density = weight / volume
-    tariff = DeliveryPriceRange.objects.filter(
+    delivery_range = DeliveryPriceRange.objects.filter(
         delivery_type=consolidation.delivery_type,
         min_density__lte=density,
         max_density__gte=density,
-    ).first().price_per_kg
+    ).first()
+
+    tariff = delivery_range.price_per_kg if delivery_range else 0  # или любое дефолтное значение
+
     delivery_types = DeliveryType.objects.all()
 
     return render(request, 'deliveries/outcomings/edit-delivery-price.html',
