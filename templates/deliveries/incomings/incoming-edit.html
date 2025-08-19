@@ -91,7 +91,8 @@
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="places_count">Кол-во мест:</label>
-                                        <input type="text" name="places_count" id="places-count-input" value="{{ incoming.places_count }}" class="form-control"
+                                        <input type="text" name="places_count" id="places-count-input"
+                                               value="{{ incoming.places_count }}" class="form-control"
                                                {% if incoming.status != "Template" %}readonly{% endif %}>
                                     </div>
                                 </div>
@@ -243,7 +244,7 @@
                     <div id="collapseLocationIncoming" class="accordion-collapse collapse"
                          aria-labelledby="headingLocationIncoming" data-bs-parent="#collapsibleSection">
                         <div class="accordion-body">
-                        <div class="mb-2">
+                            <div class="mb-2">
                                 <strong>Доступные инвентарные номера:</strong>
                                 <div id="available-inventory-numbers-for-location-container"
                                      class="mt-2"></div>

@@ -21,7 +21,9 @@
                         </div>
                         <div class="col-md-12">
                             <div class="form-group">
-                                {{ form.tracking_codes.label_tag }} {{ form.tracking_codes }}
+                                <label for="tracking_codes">Трек-коды:</label>
+                                <input type="text" name="tracking_codes" class="form-control"
+                                       value="{{codes|join:', '}}">
                             </div>
                         </div>
                         <div class="col-md-12">

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus, TrackerCodeTracker
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -39,7 +39,7 @@ class TagForm(forms.ModelForm):
             return self.cleaned_data['name']
 
 
-class TrackerForm(forms.ModelForm):
+class TrackerNewForm(forms.ModelForm):
     tracking_codes = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите код, а затем нажмите enter'})
@@ -62,6 +62,52 @@ class TrackerForm(forms.ModelForm):
     def clean_tracking_codes(self):
         codes = self.cleaned_data['tracking_codes']
         code_list = [code.strip() for code in codes.split(',') if code.strip()]
+
+        existing_codes = []
+        for code in code_list:
+            code_obj = TrackerCodeTracker.objects.filter(tracker_code__code=code)
+            if code_obj.exists():
+                existing_codes.append(code)
+        if existing_codes:
+            raise forms.ValidationError("Эти коды уже существуют: {}".format(', '.join(existing_codes)))
+
+        if not code_list:
+            raise forms.ValidationError("Необходимо ввести хотя бы один трекинг-код.")
+
+        return code_list
+
+
+class TrackerEditForm(forms.ModelForm):
+    tracking_codes = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите код, а затем нажмите enter'})
+    )
+
+    class Meta:
+        model = Tracker
+        fields = ['name', 'source', 'tracking_codes']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите название'}),
+            'source': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите источник (прим. CDEK)'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            existing_codes = self.instance.tracking_codes.values_list('code', flat=True)
+            self.fields['tracking_codes'].initial = ', '.join(existing_codes)
+
+    def clean_tracking_codes(self):
+        codes = self.cleaned_data['tracking_codes']
+        code_list = [code.strip() for code in codes.split(',') if code.strip()]
+
+        existing_codes = []
+        for code in code_list:
+            code_obj = TrackerCodeTracker.objects.filter(tracker_code__code=code)
+            if code_obj.exists():
+                existing_codes.append(code)
+        if existing_codes:
+            raise forms.ValidationError("Эти коды уже существуют: {}".format(', '.join(existing_codes)))
 
         if not code_list:
             raise forms.ValidationError("Необходимо ввести хотя бы один трекинг-код.")

@@ -46,7 +46,7 @@
                         <div class="col-md-3">
                             <label for="track_code">Трек-код</label>
                             <input type="text" name="track_code" class="form-control" value="{{ consolidation_code }}"
-                                   >
+                            >
                         </div>
                         <div class="col-md-3">
                             {{ form.consolidation_date.label }}
@@ -99,25 +99,28 @@
                                                                 <h6>Трек-коды и их инвентарные номера:</h6>
                                                                 <ul>
                                                                     {% for tracker in selected_incoming.tracker.all %}
-                                                                        {% for code in tracker.tracking_codes.all %}
-                                                                            <li><strong>{{ code.code }}</strong>
-                                                                                <ul>
-                                                                                    {% for inventory_number in code.inventory_numbers.all %}
-                                                                                        <li>
-                                                                                            <input type="checkbox"
-                                                                                                   class="inventory-checkbox"
-                                                                                                   data-incoming-id="{{ selected_incoming.id }}"
-                                                                                                   data-inventory-number="{{ inventory_number.number }}">
-                                                                                            {{ inventory_number.number }}
-                                                                                        </li>
-                                                                                    {% empty %}
-                                                                                        <li>Нет связанных инвентарных
-                                                                                            номеров
-                                                                                        </li>
-                                                                                    {% endfor %}
-                                                                                </ul>
-                                                                            </li>
-                                                                        {% endfor %}
+                                                                        {% if tracker.status == "Completed" %}
+                                                                            {% for code in tracker.tracking_codes.all %}
+                                                                                <li><strong>{{ code.code }}</strong>
+                                                                                    <ul>
+                                                                                        {% for inventory_number in code.inventory_numbers.all %}
+                                                                                            <li>
+                                                                                                <input type="checkbox"
+                                                                                                       class="inventory-checkbox"
+                                                                                                       data-incoming-id="{{ selected_incoming.id }}"
+                                                                                                       data-inventory-number="{{ inventory_number.number }}">
+                                                                                                {{ inventory_number.number }}
+                                                                                            </li>
+                                                                                        {% empty %}
+                                                                                            <li>Нет связанных
+                                                                                                инвентарных
+                                                                                                номеров
+                                                                                            </li>
+                                                                                        {% endfor %}
+                                                                                    </ul>
+                                                                                </li>
+                                                                            {% endfor %}
+                                                                        {% endif %}
                                                                     {% empty %}
                                                                         <li>Нет трек-кодов</li>
                                                                     {% endfor %}

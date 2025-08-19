@@ -176,9 +176,10 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    availableInventoryNumbersForLocationsContainer.innerHTML = '';
+
     function loadAvailableInventoryNumbers(trackerCode) {
         const inventoryNumbers = trackerInventoryMap[trackerCode] || [];
-        availableInventoryNumbersForLocationsContainer.innerHTML = '';
 
         inventoryNumbers.forEach((number) => {
             let alreadyExists = false;

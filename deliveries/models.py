@@ -75,8 +75,17 @@ class TrackerCodeTracker(UUIDMixin):
     tracker_code = models.ForeignKey(TrackerCode, on_delete=models.CASCADE)
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tracker', 'tracker_code'],
+                name='unique_tracker_code_tracker'
+            )
+        ]
         indexes = [
-            models.Index(fields=['tracker_id', 'tracker_code_id'], name='tracker_code_tracker_idx'),
+            models.Index(
+                fields=['tracker', 'tracker_code'],
+                name='tracker_code_tracker_idx'
+            )
         ]
 
 
