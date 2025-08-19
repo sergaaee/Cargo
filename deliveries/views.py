@@ -590,12 +590,11 @@ def tracker_edit(request, pk):
         if form.is_valid():
             tracker = form.save(commit=False)
             tracking_codes = form.cleaned_data['tracking_codes']
+            tracker.tracking_codes.clear()
 
             # Создаем объекты TrackerCode и привязываем к трекеру
             for code in tracking_codes:
-                tracker_code = TrackerCode.objects.get(code=code)
-                tracker_code.created_by = request.user
-                tracker_code.save()
+                tracker_code, _ = TrackerCode.objects.get_or_create(code=code, created_by=request.user)
                 tracker.tracking_codes.add(tracker_code)
 
             tracker.save()

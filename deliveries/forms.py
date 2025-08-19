@@ -100,14 +100,21 @@ class TrackerEditForm(forms.ModelForm):
     def clean_tracking_codes(self):
         codes = self.cleaned_data['tracking_codes']
         code_list = [code.strip() for code in codes.split(',') if code.strip()]
+        tracker_name = self.cleaned_data['name']
+        tracker_obj = Tracker.objects.filter(name=tracker_name).first()
 
-        existing_codes = []
-        for code in code_list:
-            code_obj = TrackerCodeTracker.objects.filter(tracker_code__code=code)
-            if code_obj.exists():
-                existing_codes.append(code)
+        if not tracker_obj:
+            raise forms.ValidationError(f"Трекер с именем '{tracker_name}' не найден.")
+
+        # Находим коды, которые уже есть и принадлежат другому трекеру
+        existing_codes = TrackerCodeTracker.objects.filter(
+            tracker_code__code__in=code_list
+        ).exclude(tracker=tracker_obj).values_list('tracker_code__code', flat=True)
+
         if existing_codes:
-            raise forms.ValidationError("Эти коды уже существуют: {}".format(', '.join(existing_codes)))
+            raise forms.ValidationError(
+                "Эти коды уже существуют у других трекеров: {}".format(', '.join(existing_codes))
+            )
 
         if not code_list:
             raise forms.ValidationError("Необходимо ввести хотя бы один трекинг-код.")
