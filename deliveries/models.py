@@ -88,6 +88,24 @@ class TrackerCodeTracker(UUIDMixin):
             )
         ]
 
+class TrackerCodeIncoming(UUIDMixin, TimeStampedMixin):
+    tracker_code = models.ForeignKey('TrackerCode', on_delete=models.CASCADE)
+    incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tracker_code', 'incoming'],
+                name='unique_tracker_code_incoming'
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['tracker_code', 'incoming'],
+                name='incoming_tracker_code_idx'
+            )
+        ]
+
 
 class TrackerIncoming(UUIDMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE)
@@ -149,6 +167,8 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     tracker = models.ManyToManyField(Tracker, through='TrackerIncoming', blank=True, verbose_name=_('Tracker'))
     inventory_numbers = models.ManyToManyField(InventoryNumber, through='InventoryNumberIncoming',
                                                related_name='incoming_inventory_numbers', blank=True)
+    tracking_codes = models.ManyToManyField(TrackerCode, through='TrackerCodeIncoming',
+                                            blank=True)
 
     def __str__(self):
         return f'{self.tracker} ({self.inventory_numbers})'

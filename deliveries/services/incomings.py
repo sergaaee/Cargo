@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 
 from deliveries.models import Tracker, TrackerCode, InventoryNumber, Location, InventoryNumberTrackerCode, \
-    InventoryNumberIncoming, Photo, TrackerCodeTracker
+    InventoryNumberIncoming, Photo, TrackerCodeTracker, TrackerCodeIncoming, Incoming
 from user_profile.models import UserProfile
 
 
@@ -63,10 +63,10 @@ def set_tracker_status(tracker):
         tracker.save()
 
 
-def prepare_incoming_edit_data(incoming):
+def prepare_incoming_edit_data(incoming: Incoming):
     # Обрабатываем инвентарные номера и трек-коды
     codes_nums_map = {}
-    for code in incoming.tracker.values_list('tracking_codes__code', flat=True):
+    for code in incoming.tracking_codes.values_list("code", flat=True):
         inventory_numbers = list(incoming.tracker.get(tracking_codes__code=code)
                                  .tracking_codes.get(code=code)
                                  .inventory_numbers.values_list('number', flat=True))
