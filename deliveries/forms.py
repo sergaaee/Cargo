@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
-    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus, TrackerCodeTracker
+    ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus, TrackerCodeTracker, \
+    TrackerCodeIncoming
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -249,7 +250,8 @@ class IncomingForm(BaseIncomingForm):
                 existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
                 if existing_code:
                     if existing_code.status == "Active":
-                        raise forms.ValidationError(f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
+                        raise forms.ValidationError(
+                            f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
 
         return tracker_obj, code_list
 
@@ -265,15 +267,21 @@ class IncomingEditForm(BaseIncomingForm):
         code_list = [code.strip() for code in tracker_codes.split(',') if code.strip()]
         tracker_obj = Tracker.objects.filter(tracking_codes__code__in=code_list).first()
 
-        if tracker_obj:
-            existing_incoming = Incoming.objects.filter(tracker=tracker_obj).exclude(id=self.instance.id).first()
+        for code in code_list:
+            # ищем сам объект TrackerCode
+            existing_code = TrackerCode.objects.filter(code=code).first()
+            if not existing_code:
+                continue  # такого кода нет в базе, идём дальше
 
-            if existing_incoming:
-                existing_code = TrackerCode.objects.filter(tracker=tracker_obj, code__in=code_list).first()
-                if existing_code:
-                    if existing_code.status == "Active":
-                        raise forms.ValidationError(
-                            f"Трек-код '{existing_code.code}' уже привязан к другому поступлению.")
+            # ищем связи "код ↔ поступление", но исключаем текущий incoming
+            existing_code_incoming = TrackerCodeIncoming.objects.filter(
+                tracker_code=existing_code
+            ).exclude(incoming=self.instance).first()
+
+            if existing_code_incoming:
+                raise forms.ValidationError(
+                    f"Трек-код '{code}' уже привязан к другому поступлению (ID {existing_code_incoming.incoming.id})."
+                )
 
         return tracker_obj, code_list
 
@@ -281,7 +289,7 @@ class IncomingEditForm(BaseIncomingForm):
         inventory_numbers = self.cleaned_data.get('inventory_numbers')
 
         if inventory_numbers:
-            # ✅ Разбиваем строку по запятым и удаляем пробелы
+            # Разбиваем строку по запятым и удаляем пробелы
             inventory_numbers = [num.strip() for num in inventory_numbers.split(',')]
 
             inventory_number_objects = []
@@ -454,9 +462,9 @@ class DeliveryStatusForm(forms.ModelForm):
                            }, )
 
     description = forms.CharField(label="Описание статуса доставки", required=False,
-                           widget=forms.TextInput(
-                               attrs={'class': 'form-control'}, ),
-                            )
+                                  widget=forms.TextInput(
+                                      attrs={'class': 'form-control'}, ),
+                                  )
 
 
 class PackageTypeForm(forms.ModelForm):

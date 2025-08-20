@@ -24,7 +24,7 @@ from .forms import IncomingForm, TagForm, TrackerNewForm, ConsolidationForm, Pac
     DeliveryStatusForm, TrackerEditForm
 from .models import Tag, Photo, Incoming, InventoryNumber, Tracker, TrackerCode, \
     ConsolidationCode, Consolidation, ConsolidationIncoming, ConsolidationInventory, Place, \
-    Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus, TrackerCodeTracker
+    Location, PackageType, DeliveryType, DeliveryPriceRange, DeliveryStatus, TrackerCodeTracker, TrackerCodeIncoming
 import re
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -54,8 +54,6 @@ def incoming_new(request):
             incoming.manager = request.user
             incoming.tag = form.cleaned_data['tag']
             tracker, tracker_codes = form.cleaned_data.get('tracker')
-            if not tracker:
-                tracker = create_tracker_if_needed(tracker_codes, created_by=request.user)
 
             tracker_inventory_map = json.loads(request.POST['tracker_inventory_map'])
             inventory_numbers = form.cleaned_data['inventory_numbers']
@@ -69,7 +67,10 @@ def incoming_new(request):
             associate_tracker_inventory(incoming, tracker_inventory_map)
 
             for code in tracker_codes:
-                TrackerCode.objects.filter(code=code).update(status='Active')
+                tracker_code_obj = TrackerCode.objects.get(code=code)
+                tracker_code_obj.status = "Active"
+                tracker_code_obj.save()
+                TrackerCodeIncoming.objects.create(tracker_code=tracker_code_obj, incoming=incoming)
 
             set_tracker_status(tracker)
             incoming.tracker.add(tracker)
@@ -127,6 +128,12 @@ def incoming_edit(request, pk):
                 except UserProfile.DoesNotExist:
                     return JsonResponse(
                         {'success': False, 'errors': [f'❌ Клиент с номером {new_client_phone} не найден!']})
+
+            incoming.save()
+            incoming.tracking_codes.clear()
+            for code in tracker_codes:
+                tracker_code_obj = TrackerCode.objects.get(code=code)
+                incoming.tracking_codes.add(tracker_code_obj)
 
             incoming.save()
             form.save_m2m()
@@ -871,7 +878,6 @@ def consolidation_edit(request, pk):
             consolidation.save()
             consolidation.incomings.set(selected_incomings)
 
-            messages.success(request, 'Консолидация успешно обновлена.')
             return redirect('deliveries:list-consolidation')
         else:
             messages.error(request, 'Ошибка при редактировании консолидации. Проверьте данные.')

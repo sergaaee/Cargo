@@ -117,7 +117,7 @@
                                                                 <h6>Трек-коды и их инвентарные номера:</h6>
                                                                 <ul>
                                                                     {% for tracker in selected_incoming.tracker.all %}
-                                                                        {% for code in tracker.tracking_codes.all %}
+                                                                        {% for code in selected_incoming.tracking_codes.all %}
                                                                             <li><strong>{{ code.code }}</strong>
                                                                                 <ul>
                                                                                     {% for inventory_number in code.inventory_numbers.all %}
@@ -188,7 +188,7 @@
                                                             <li class="list-group-item"><strong>Трек-коды:</strong>
                                                                 <ul>
                                                                     {% for tracker in selected_incoming.tracker.all %}
-                                                                        {% for code in tracker.tracking_codes.all %}
+                                                                        {% for code in selected_incoming.tracking_codes.all %}
                                                                             <li>{{ code.code }}</li>
                                                                         {% endfor %}
                                                                     {% empty %}

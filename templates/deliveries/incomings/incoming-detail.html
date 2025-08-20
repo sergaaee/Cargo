@@ -12,7 +12,7 @@
                 <div>
                     <h4>Трек-коды:</h4>
                     <ul>
-                        {% for code in active_tracker_codes %}
+                        {% for code in incoming.tracking_codes.all %}
                             <li>{{ code.code }}</li>
                         {% endfor %}
                     </ul>
