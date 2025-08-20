@@ -1,6 +1,6 @@
 from django import forms
 from django.forms.models import inlineformset_factory
-from .models import Order, PhotoForOrder
+from .models import Order, PhotoForOrder, OrderStatus
 
 
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -44,6 +44,24 @@ class PhotoOrderForm(forms.ModelForm):
         widgets = {
             'photo': CustomClearableFileInput(),
         }
+
+
+class OrderStatusForm(forms.ModelForm):
+    class Meta:
+        model = OrderStatus
+        fields = ['name', 'description']
+
+    name = forms.CharField(label="Название статуса заказа", required=True,
+                           widget=forms.TextInput(
+                               attrs={'class': 'form-control'}, ),
+                           error_messages={
+                               'required': 'Пожалуйста, введите название.',
+                           }, )
+
+    description = forms.CharField(label="Описание статуса заказа", required=False,
+                                  widget=forms.TextInput(
+                                      attrs={'class': 'form-control'}, ),
+                                  )
 
 
 PhotoOrderFormSet = inlineformset_factory(Order, PhotoForOrder, form=PhotoOrderForm, fields=('photo',), extra=1,

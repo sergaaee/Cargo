@@ -1132,7 +1132,7 @@ def delivery_type_edit(request, pk):
     return render(request, 'deliveries/delivery_type/delivery_type_edit.html',
                   {'form': form, 'delivery_type': delivery_type, 'formset': formset})
 
-
+@staff_and_login_required
 def delivery_status_new(request):
     if request.method == 'POST':
         form = DeliveryStatusForm(request.POST)

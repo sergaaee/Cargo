@@ -80,10 +80,27 @@
                 </li>
                 {% if user.is_staff %}
                     <li class="menu-item">
-                        <a href="{% url 'orders:list-order-manager' %}" class="menu-link">
+                        <a class="menu-link menu-toggle">
                             <i class="bi bi-check2-square me-2"></i>
                             <div data-i18n="Orders">Заказы</div>
                         </a>
+
+                        <ul class="menu-sub">
+
+                            <li class="menu-item">
+                                <a href="{% url 'orders:list-order-manager' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                <div data-i18n="Incoming new">Список заказов</div>
+                                    </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'orders:list-order-status' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                <div data-i18n="Incoming new">Статусы заказов</div>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     <!-- Incoming Menu -->
                     <li class="menu-item">
