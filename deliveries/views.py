@@ -937,7 +937,7 @@ def generate_inventory_numbers(request):
             # Найти последний инвентарный номер
             last_number = InventoryNumber.objects.order_by('-number').first()
             if last_number:
-                match = re.match(r'INV(\d+)', last_number.number)
+                match = re.match(r'(\d+)', last_number.number)
                 if match:
                     num = int(match.group(1))
                 else:
@@ -948,7 +948,7 @@ def generate_inventory_numbers(request):
             new_numbers = []
             for i in range(1, count + 1):
                 next_num = num + i
-                next_number = f'INV{next_num}'  # Формат без padding: INV1, INV2 и т.д.
+                next_number = f'{next_num}'  # Формат без padding: INV1, INV2 и т.д.
                 new_numbers.append(next_number)
             # Сохранить новые инвентарные номера
             for number in new_numbers:
