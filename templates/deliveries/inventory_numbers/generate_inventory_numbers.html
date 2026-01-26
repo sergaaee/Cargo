@@ -1,10 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Генерация инвентарных номеров</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Сгенерировать</button>
-</form>
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Инвентарь /</span> Генерация номеров
+  </h4>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {# если в форме несколько полей — выводим красиво #}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% if field.errors %}
+              <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            Сгенерировать
+          </button>
+          <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            Отмена
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

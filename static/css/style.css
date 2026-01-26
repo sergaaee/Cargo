@@ -7,3 +7,78 @@ i {
     margin-right: 5px;  /* Отступ иконки от текста */
     font-size: 1.2em;   /* Размер иконки */
 }
+
+/* Убираем стандартные маркеры списков только в сайдбар-меню */
+.layout-menu ul,
+.layout-menu ol {
+  list-style: none !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Если "точки" нарисованы псевдоэлементом (часто так делают шаблоны) */
+.layout-menu .menu-sub .menu-link::before,
+.layout-menu .menu-sub .menu-item::before {
+  content: none !important;
+  display: none !important;
+}
+
+
+/* Нормальная раскладка: иконка + текст */
+.layout-menu .menu-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;              /* отступ между иконкой и текстом */
+}
+
+/* Иконке задаём фикс. ширину, чтобы текст всегда начинался ровно */
+.layout-menu .menu-icon {
+  min-width: 22px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.layout-menu .menu-sub .menu-link {
+  padding-left: 30px;   /* подстрой под свой дизайн */
+}
+
+/* 1) Расширяем левое меню */
+.layout-menu {
+  width: 320px !important;          /* подбери 300–360 */
+}
+
+/* Если шаблон использует фиксированное смещение контента */
+.layout-page {
+  padding-left: 320px !important;
+}
+
+/* 2) Чтобы текст НЕ обрезался троеточием */
+.layout-menu .menu-link > div,
+.layout-menu .menu-link .menu-text,
+.layout-menu .menu-link span {
+  white-space: normal !important;    /* разрешаем перенос */
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Иногда обрезание задаётся прямо на .menu-link */
+.layout-menu .menu-link {
+  white-space: normal !important;
+}
+
+/* 3) Уменьшаем отступ справа (стрелка ближе к правому краю) */
+.layout-menu .menu-link {
+  padding-right: 10px !important;    /* было обычно 16–24 */
+}
+
+/* 4) Стрелка (caret) — минимальный отступ справа */
+.layout-menu .menu-toggle::after,
+.layout-menu .menu-link.menu-toggle::after {
+  right: 10px !important;
+}
+
+/* 5) Чуть компактнее подпункты (если нужно) */
+.layout-menu .menu-sub .menu-link {
+  padding-right: 10px !important;
+}
+

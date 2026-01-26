@@ -2,7 +2,6 @@ from django import forms
 from django.forms.models import inlineformset_factory
 from .models import Order, PhotoForOrder, OrderStatus
 
-
 class CustomClearableFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True  # Поддержка множественного выбора
 

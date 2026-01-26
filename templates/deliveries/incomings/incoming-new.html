@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Добавить поступление{% endblock %}
+{% block title %}Приемка/Добавить поступление{% endblock %}
 
 {% block content %}
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -15,7 +15,7 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Поступление</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Добавить поступление</h4>
         <form method="post" enctype="multipart/form-data" action="{% url 'deliveries:new-incoming' %}">
             {% csrf_token %}
             <div class="accordion" id="collapsibleSection">

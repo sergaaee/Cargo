@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Журнал приемки{% endblock %}
+{% block title %}Приемка/Журнал приемки{% endblock %}
 {% block content %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -18,7 +18,7 @@
         });
     </script>
     <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал приемки</h4>
 
         <!-- Форма поиска -->
         <form method="GET" action="">
@@ -35,93 +35,90 @@
         <!-- Форма выбора отправлений для консолидации -->
         <form id="incoming-selection-form" method="POST" action="{% url 'deliveries:consolidation' %}">
             {% csrf_token %}
-            <div class="card-datatable table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                    <tr>
-                        <th><input class="form-check-input" type="hidden" id="select-all"></th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tracker&order={% if sort_by == 'tracker' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Трек-номер
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=tag__name&order={% if sort_by == 'tag__name' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Тег
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=arrival_date&order={% if sort_by == 'arrival_date' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Дата прибытия
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=inventory_numbers&order={% if sort_by == 'inventory_numbers' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Инвентарные номера
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=places_count&order={% if sort_by == 'places_count' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Количество мест
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=manager&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Номер клиента
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                Статус
-                            </a>
-                        </th>
-                        <th>Действие</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for incoming in page_obj %}
-                        <tr>
-                            {% if incoming.status == "Consolidated" %}
-                                <td>
-                                </td>
-                            {% else %}
-                                <td>
-                                    <input type="checkbox" class="form-check-input" name="selected_incomings"
-                                           value="{{ incoming.id }}">
-                                </td>
-                            {% endif %}
-                            <td>
-                                <ul>
-                                    {% for code in incoming.tracking_codes.all %}
-                                        <li>{{ code.code }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </td>
-                            <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
-                            <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                            <td>
-                                <ul>
-                                    {% for inventory_number in incoming.inventory_numbers.all %}
-                                        <li>{{ inventory_number.number }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </td>
-                            <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                            <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
-                            <td>{{ incoming.status|default_if_none:"-" }}</td>
-                            <td>
-                                <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                                <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="9">Нет данных для отображения.</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <div class="card">
+  <h5 class="card-header">Журнал приемки</h5>
+
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width: 40px;">
+            <input class="form-check-input" type="checkbox" id="select-all">
+          </th>
+          <th>ТРЕК-НОМЕР</th>
+          <th>ТЕГ</th>
+          <th>ДАТА ПРИБЫТИЯ</th>
+          <th>ИНВЕНТАРНЫЕ НОМЕРА</th>
+          <th>КОЛИЧЕСТВО МЕСТ</th>
+          <th>НОМЕР КЛИЕНТА</th>
+          <th>СТАТУС</th>
+          <th>ДЕЙСТВИЕ</th>
+        </tr>
+      </thead>
+
+      <tbody class="table-border-bottom-0">
+        {% for incoming in page_obj %}
+          <tr>
+            <td>
+              {% if incoming.status != "Consolidated" %}
+                <input type="checkbox" class="form-check-input" name="selected_incomings" value="{{ incoming.id }}">
+              {% endif %}
+            </td>
+
+            <td>
+              <ul class="list-unstyled m-0">
+                {% for code in incoming.tracking_codes.all %}
+                  <li>{{ code.code }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+
+            <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
+            <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
+
+            <td>
+              <ul class="list-unstyled m-0">
+                {% for inventory_number in incoming.inventory_numbers.all %}
+                  <li>{{ inventory_number.number }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+
+            <td>{{ incoming.places_count|default_if_none:"-" }}</td>
+            <td>{{ incoming.client.profile.phone_number|default_if_none:"-" }}</td>
+
+            <td>
+              <span class="badge rounded-pill bg-label-primary">
+                {{ incoming.status|default_if_none:"-" }}
+              </span>
+            </td>
+
+            <td>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'deliveries:detail-incoming' incoming.id %}"
+       class="btn btn-sm btn-icon"
+       title="Просмотр" aria-label="Просмотр">
+      <i class="mdi mdi-eye-outline"></i>
+    </a>
+
+    <a href="{% url 'deliveries:edit-incoming' incoming.id %}"
+       class="btn btn-sm btn-icon"
+       title="Редактировать" aria-label="Редактировать">
+      <i class="mdi mdi-pencil-outline"></i>
+    </a>
+  </div>
+</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9">Нет данных для отображения.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+
 
             <!-- Кнопка для перехода к консолидации -->
             <button type="submit" class="btn btn-primary mt-3">Консолидация</button>

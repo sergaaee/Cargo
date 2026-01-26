@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Все виды упаковок{% endblock %}
+{% block title %}Виды упаковок{% endblock %}
 {% block content %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -18,7 +18,7 @@
         });
     </script>
     <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Виды упаковок/</span>Все</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Настройки/</span>Виды упаковок</h4>
         <!-- Форма поиска -->
         <form method="GET" action="">
             <div class="input-group mb-3">
@@ -29,39 +29,59 @@
                 <a href="{% url 'deliveries:create-package-type' %}" class="btn btn-primary">Добавить</a>
             </div>
         </form>
-        <div class="card-datatable table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                <tr>
-                    {% for column, label in columns %}
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                {{ label }}
-                            </a>
-                        </th>
-                    {% endfor %}
-                    <th>Действие</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for delivery_type in page_obj %}
-                    <tr>
-                        <td>{{ delivery_type.name|default_if_none:"-" }}</td>
-                        <td>{{ delivery_type.price|default_if_none:"-" }}</td>
-                        <td>{{ delivery_type.description|default_if_none:"-" }}</td>
-                        <td>
-                            <a href="{% url 'deliveries:edit-package' delivery_type.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-package' delivery_type.id %}">Удалить</a>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="8">Нет данных для отображения.</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Виды упаковок</h5>
+  </div>
+
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          {% for column, label in columns %}
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                {{ label }}
+              </a>
+            </th>
+          {% endfor %}
+          <th>Действие</th>
+        </tr>
+      </thead>
+
+      <tbody class="table-border-bottom-0">
+        {% for delivery_type in page_obj %}
+          <tr>
+            <td>{{ delivery_type.name|default_if_none:"-" }}</td>
+            <td>{{ delivery_type.price|default_if_none:"-" }}</td>
+            <td>{{ delivery_type.description|default_if_none:"-" }}</td>
+
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'deliveries:edit-package' delivery_type.id %}"
+                   class="btn btn-sm btn-icon"
+                   title="Редактировать" aria-label="Редактировать">
+                  <i class="mdi mdi-pencil-outline"></i>
+                </a>
+
+                <a href="{% url 'deliveries:delete-package' delivery_type.id %}"
+                   class="btn btn-sm btn-icon"
+                   title="Удалить" aria-label="Удалить">
+                  <i class="mdi mdi-trash-can-outline"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ columns|length|add:'1' }}">Нет данных для отображения.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
         <!-- Pagination -->
         <div class="pagination-container">
         <span class="step-links">

@@ -17,6 +17,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./configs/site.conf:/etc/nginx/conf.d/site.conf
+      - ./configs/empty.conf:/etc/nginx/conf.d/default.conf
       - ./static:/data/static
       - ./media:/data/media
     depends_on:

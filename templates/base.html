@@ -18,6 +18,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&ampdisplay=swap"
           rel="stylesheet"/>
 
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
+
     <!-- Core CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
@@ -68,98 +72,62 @@
                 <!-- Dashboard Menu -->
                 <li class="menu-item">
                     <a href="{% url 'index' %}" class="menu-link">
-                        <i class="bi bi-house me-2"></i>
+                        <i class="menu-icon tf-icons mdi mdi-home"></i>
                         <div data-i18n="Main">Главная</div>
                     </a>
                 </li>
                 <li class="menu-item">
                     <a href="{% url 'web:profile' %}" class="menu-link">
-                        <i class="bi bi-person-circle me-2"></i>
+                        <i class="menu-icon tf-icons mdi mdi-shield-account"></i>
                         <div data-i18n="Profile">Профиль</div>
                     </a>
                 </li>
                 {% if user.is_staff %}
                     <li class="menu-item">
                         <a class="menu-link menu-toggle">
-                            <i class="bi bi-check2-square me-2"></i>
+                            <i class="menu-icon tf-icons mdi mdi-basket-check-outline"></i>
                             <div data-i18n="Orders">Заказы</div>
                         </a>
 
                         <ul class="menu-sub">
-
                             <li class="menu-item">
                                 <a href="{% url 'orders:list-order-manager' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                <i class="menu-icon tf-icons mdi mdi-list-box-outline"></i>
                                 <div data-i18n="Incoming new">Список заказов</div>
                                     </a>
-                            </li>
-
-                            <li class="menu-item">
-                                <a href="{% url 'orders:list-order-status' %}" class="menu-link">
-                                <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                <div data-i18n="Incoming new">Статусы заказов</div>
-                                </a>
                             </li>
                         </ul>
                     </li>
                     <!-- Incoming Menu -->
                     <li class="menu-item">
                         <a class="menu-link menu-toggle">
-                            <i class="bi bi-box-fill me-2"></i>
+                            <i class="menu-icon tf-icons mdi mdi-receipt-clock-outline"></i>
                             <div data-i18n="Incoming">Приемка</div>
                         </a>
                         <ul class="menu-sub">
 
                             <li class="menu-item">
-                                <a href="{% url 'deliveries:list-inventory-numbers' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Инвентарные номера</div>
-                                </a>
-                            </li>
-
-                            <li class="menu-item">
-                                <a href="{% url 'deliveries:list-delivery-type' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Виды доставок</div>
-                                </a>
-                            </li>
-
-                            <li class="menu-item">
-                                <a href="{% url 'deliveries:list-package-type' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Упаковки</div>
-                                </a>
-                            </li>
-
-                            <li class="menu-item">
-                                <a href="{% url 'deliveries:list-location' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Локации</div>
-                                </a>
-                            </li>
-
-                            <li class="menu-item">
                                 <a href="{% url 'deliveries:new-incoming' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Поступление</div>
+                                    <i class="menu-icon tf-icons mdi mdi-plus-box"></i>
+                                    <div data-i18n="Incoming new">Добавить поступление</div>
                                 </a>
                             </li>
 
                             <li class="menu-item">
                                 <a href="{% url 'deliveries:list-incoming' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-notebook"></i>
                                     <div data-i18n="Incoming List">Журнал приемки</div>
                                 </a>
                             </li>
                             <li class="menu-item">
                                 <a href="{% url 'deliveries:templates-incoming' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-file"></i>
                                     <div data-i18n="Templates">Черновики</div>
                                 </a>
                             </li>
                             <li class="menu-item">
                                 <a href="{% url 'deliveries:unidentified-incoming' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-border-none-variant"></i>
                                     <div data-i18n="Unidentified">Неопознанные</div>
                                 </a>
                             </li>
@@ -169,34 +137,81 @@
                     <!-- Shipping Menu -->
                     <li class="menu-item">
                         <a class="menu-link menu-toggle">
-                            <i class="bi bi-box me-2"></i>
+                            <i class="menu-icon tf-icons mdi mdi-truck-delivery-outline"></i>
                             <div data-i18n="Delivery">Доставка</div>
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
-                                <a href="{% url 'deliveries:list-delivery-status' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
-                                    <div data-i18n="Incoming new">Статусы</div>
-                                </a>
-                            </li>
-                            <li class="menu-item">
                                 <a href="{% url 'deliveries:consolidation' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-barcode-scan"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-cube-send"></i>
                                     <div data-i18n="Depart">Отправка</div>
                                 </a>
                             </li>
                             <li class="menu-item">
                                 <a href="{% url 'deliveries:list-consolidation' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-table-large"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-list-box-outline"></i>
                                     <div data-i18n="Packaging">Список консолидаций</div>
                                 </a>
                             </li>
                             <li class="menu-item">
                                 <a href="{% url 'deliveries:packaged-list' %}" class="menu-link">
-                                    <i class="menu-icon tf-icons mdi mdi-help-box-multiple"></i>
+                                    <i class="menu-icon tf-icons mdi mdi-package-variant"></i>
                                     <div data-i18n="Delivered">Упакованные</div>
                                 </a>
                             </li>
+                        </ul>
+                    </li>
+
+                    <!-- Settings Menu -->
+                    <li class="menu-item">
+                        <a class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons mdi mdi-receipt-clock-outline"></i>
+                            <div data-i18n="Delivery">Настройки</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-- Settings Menu -->
+                            <li class="menu-item">
+                                <a href="{% url 'orders:list-order-status' %}" class="menu-link">
+                                <i class="menu-icon tf-icons mdi mdi-cart-check"></i>
+                                <div data-i18n="Incoming new">Статусы заказов</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-delivery-status' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-truck-check-outline"></i>
+                                    <div data-i18n="Incoming new">Статусы доставки</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-delivery-type' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-video-check"></i>
+                                    <div data-i18n="Incoming new">Виды доставок</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-package-type' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-package-check"></i>
+                                    <div data-i18n="Incoming new">Виды упаковок</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-location' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-check-network"></i>
+                                    <div data-i18n="Incoming new">Виды локаций</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item">
+                                <a href="{% url 'deliveries:list-inventory-numbers' %}" class="menu-link">
+                                    <i class="menu-icon tf-icons mdi mdi-ticket-confirmation"></i>
+                                    <div data-i18n="Incoming new">Инвентарные номера</div>
+                                </a>
+                            </li>
+
                         </ul>
                     </li>
                 {% else %}
@@ -316,6 +331,7 @@
             {% endblock %}
         </div>
     </div>
+    <div class="layout-overlay layout-menu-toggle"></div>
 </div>
 
 <!-- Core JS -->
@@ -325,12 +341,11 @@
 <script src="{% static 'vendor/libs/node-waves/node-waves.js' %}"></script>
 <script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
 
-<!-- Main JS -->
+<script src="{% static 'vendor/js/menu.js' %}"></script>
 <script src="{% static 'js/main.js' %}"></script>
 
 {% block extra_js %}
     <script src="{% static 'js/fixed-menu.js' %}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/jquery.inputmask.min.js"></script>
 {% endblock %}
 </body>

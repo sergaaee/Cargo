@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Журнал черновиков{% endblock %}
+{% block title %}Приемка/Черновики{% endblock %}
 {% block content %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -18,7 +18,7 @@
         });
     </script>
     <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Журнал черновиков</h4>
+        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Приемка/</span>Черновики</h4>
         <!-- Форма поиска -->
         <form method="GET" action="">
             <div class="input-group mb-3">
@@ -28,59 +28,87 @@
                        value="{{ query|default_if_none:''|escape }}">
             </div>
         </form>
-        <div class="card-datatable table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                <tr>
-                    {% for column, label in columns %}
-                        <th>
-                            <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
-                                {{ label }}
-                            </a>
-                        </th>
-                    {% endfor %}
-                    <th>Действие</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for incoming in page_obj %}
-                    <tr>
-                        <td>
-                            <ul>
-                                {% for tracker in incoming.tracker.all %}
-                                    {% for code in incoming.tracking_codes.all %}
-                                            <li>{{ code.code }}</li>
-                                    {% endfor %}
-                                {% endfor %}
-                            </ul>
-                        </td>
-                        <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
-                        <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
-                        <!-- Отображаем все связанные инвентарные номера -->
-                        <td>
-                            <ul>
-                                {% for inventory_number in incoming.inventory_numbers.all %}
-                                    <li>{{ inventory_number.number }}</li>
-                                {% endfor %}
-                            </ul>
-                        </td>
-                        <td>{{ incoming.places_count|default_if_none:"-" }}</td>
-                        <td>{{ incoming.client.email|default_if_none:"-" }}</td>
-                        <td>{{ incoming.status|default_if_none:"-" }}</td>
-                        <td>
-                            <a href="{% url 'deliveries:detail-incoming' incoming.id %}">Просмотр</a> |
-                            <a href="{% url 'deliveries:edit-incoming' incoming.id %}">Редактировать</a> |
-                            <a href="{% url 'deliveries:delete-incoming' incoming.id %}">Удалить</a>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="8">Нет данных для отображения.</td>
-                    </tr>
+        <div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Черновики</h5>
+  </div>
+
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          {% for column, label in columns %}
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                {{ label }}
+              </a>
+            </th>
+          {% endfor %}
+          <th>Действие</th>
+        </tr>
+      </thead>
+
+      <tbody class="table-border-bottom-0">
+        {% for incoming in page_obj %}
+          <tr>
+            <td>
+              <ul class="list-unstyled m-0">
+                {% for code in incoming.tracking_codes.all %}
+                  <li>{{ code.code }}</li>
                 {% endfor %}
-                </tbody>
-            </table>
-        </div>
+              </ul>
+            </td>
+
+            <td>{{ incoming.tag.name|default_if_none:"-" }}</td>
+            <td>{{ incoming.arrival_date|default_if_none:"-" }}</td>
+
+            <td>
+              <ul class="list-unstyled m-0">
+                {% for inventory_number in incoming.inventory_numbers.all %}
+                  <li>{{ inventory_number.number }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+
+            <td>{{ incoming.places_count|default_if_none:"-" }}</td>
+            <td>{{ incoming.client.email|default_if_none:"-" }}</td>
+
+            <td>
+              <span class="badge rounded-pill bg-label-primary">
+                {{ incoming.status|default_if_none:"-" }}
+              </span>
+            </td>
+
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'deliveries:detail-incoming' incoming.id %}"
+                   class="btn btn-sm btn-icon"
+                   title="Просмотр" aria-label="Просмотр">
+                  <i class="mdi mdi-eye-outline"></i>
+                </a>
+
+                <a href="{% url 'deliveries:edit-incoming' incoming.id %}"
+                   class="btn btn-sm btn-icon"
+                   title="Редактировать" aria-label="Редактировать">
+                  <i class="mdi mdi-pencil-outline"></i>
+                </a>
+
+                <a href="{% url 'deliveries:delete-incoming' incoming.id %}"
+                   class="btn btn-sm btn-icon"
+                   title="Удалить" aria-label="Удалить">
+                  <i class="mdi mdi-trash-can-outline"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8">Нет данных для отображения.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
         <!-- Pagination -->
         <div class="pagination-container">
         <span class="step-links">

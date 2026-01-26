@@ -1,10 +1,36 @@
 {% extends "base.html" %}
-
+{% block title %}Создание статуса заказа{% endblock %}
 {% block content %}
-<h2>Создание статуса заказа</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Создать</button>
-</form>
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Настройки/</span>Создание статуса заказа
+  </h4>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="row">
+          <div class="col-12 col-md-6 mb-3">
+            <label class="form-label" for="{{ form.name.id_for_label }}">Название</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+              <div class="text-danger small mt-1">{{ form.name.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            Создать
+          </button>
+
+          <a href="javascript:history.back()" class="btn btn-outline-secondary">Отмена</a>
+
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
