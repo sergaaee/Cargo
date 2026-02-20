@@ -82,3 +82,13 @@ i {
   padding-right: 10px !important;
 }
 
+/* 1) не даём контейнеру обрезать dropdown */
+#layout-menu .app-brand { position: relative; overflow: visible; }
+#layout-menu .dropdown { position: relative; }
+
+/* 2) делаем меню поверх интерфейса */
+#layout-menu .dropdown-menu { z-index: 2000; }
+
+/* 3) убираем “вечное выделение” кнопки */
+#langDropdownToggle:focus { box-shadow: none !important; outline: none !important; }
+

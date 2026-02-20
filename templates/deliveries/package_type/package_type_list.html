@@ -1,102 +1,138 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Виды упаковок{% endblock %}
+{% load i18n %}
+
+{% block title %}{% trans "Виды упаковок" %}{% endblock %}
+
 {% block content %}
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const searchInput = document.querySelector('input[name="q"]'); // Поле поиска
-            const tableRows = document.querySelectorAll("tbody tr"); // Все строки таблицы
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.querySelector('input[name="q"]');
+    const tableRows = document.querySelectorAll("tbody tr");
 
-            searchInput.addEventListener("input", function () {
-                const query = this.value.toLowerCase().trim();
+    if (!searchInput) return;
 
-                tableRows.forEach(row => {
-                    const rowText = row.innerText.toLowerCase();
-                    row.style.display = rowText.includes(query) ? "" : "none";
-                });
-            });
-        });
-    </script>
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Настройки/</span>Виды упаковок</h4>
-        <!-- Форма поиска -->
-        <form method="GET" action="">
-            <div class="input-group mb-3">
-                <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по имени"
-                       placeholder="Поиск по имени"
-                       value="{{ query|default_if_none:''|escape }}">
-                <a href="{% url 'deliveries:create-package-type' %}" class="btn btn-primary">Добавить</a>
-            </div>
-        </form>
-        <div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <h5 class="mb-0">Виды упаковок</h5>
+    searchInput.addEventListener("input", function () {
+      const query = this.value.toLowerCase().trim();
+      tableRows.forEach(row => {
+        const rowText = row.innerText.toLowerCase();
+        row.style.display = rowText.includes(query) ? "" : "none";
+      });
+    });
+  });
+</script>
+
+<style>
+  .col-icon { width: 52px; }
+  .col-actions { width: 110px; }
+  .table td, .table th { vertical-align: middle; }
+  .icon-cell i { font-size: 18px; }
+  .btn.btn-icon { padding: .35rem .45rem; }
+</style>
+
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">{% trans "Настройки" %}/</span>{% trans "Виды упаковок" %}
+  </h4>
+
+  <!-- Поиск + Добавить -->
+  <form method="GET" action="">
+    <div class="input-group mb-3">
+      <input type="text" name="q" class="form-control"
+             aria-label="{% trans 'Поиск по имени' %}"
+             placeholder="{% trans 'Поиск по имени' %}"
+             value="{{ query|default_if_none:''|escape }}">
+      <a href="{% url 'deliveries:create-package-type' %}" class="btn btn-primary">
+        {% trans "Добавить" %}
+      </a>
+    </div>
+  </form>
+
+  <!-- Таблица -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">{% trans "Виды упаковок" %}</h5>
+    </div>
+
+    <div class="table-responsive text-nowrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="col-icon"></th>
+
+            {# Сортируемые колонки из view #}
+            {% for column, label in columns %}
+              <th>
+                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
+                  {{ label }}
+                </a>
+              </th>
+            {% endfor %}
+
+            <th class="col-actions">{% trans "Действие" %}</th>
+          </tr>
+        </thead>
+
+        <tbody class="table-border-bottom-0">
+          {% for package_type in page_obj %}
+            <tr>
+              <td class="icon-cell">
+                <i class="mdi {{ package_type.icon|default:'mdi-package-variant-closed' }}"
+                   title="{{ package_type.icon|default:'mdi-package-variant-closed' }}"
+                   aria-label="{{ package_type.icon|default:'mdi-package-variant-closed' }}"></i>
+              </td>
+
+              <td>{{ package_type.name|default_if_none:"-" }}</td>
+              <td>{{ package_type.price|default_if_none:"-" }}</td>
+
+              {# Описание: не раздуваем таблицу #}
+              <td title="{{ package_type.description|default_if_none:'' }}">
+                {{ package_type.description|default_if_none:"-"|truncatechars:40 }}
+              </td>
+
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <a href="{% url 'deliveries:edit-package' package_type.id %}"
+                     class="btn btn-sm btn-icon"
+                     title="{% trans 'Редактировать' %}" aria-label="{% trans 'Редактировать' %}">
+                    <i class="mdi mdi-pencil-outline"></i>
+                  </a>
+
+                  <a href="{% url 'deliveries:delete-package' package_type.id %}"
+                     class="btn btn-sm btn-icon"
+                     title="{% trans 'Удалить' %}" aria-label="{% trans 'Удалить' %}">
+                    <i class="mdi mdi-trash-can-outline"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="{{ columns|length|add:'2' }}">{% trans "Нет данных для отображения." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="table-responsive text-nowrap">
-    <table class="table">
-      <thead>
-        <tr>
-          {% for column, label in columns %}
-            <th>
-              <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
-                {{ label }}
-              </a>
-            </th>
-          {% endfor %}
-          <th>Действие</th>
-        </tr>
-      </thead>
+  <!-- Pagination -->
+  <div class="pagination-container mt-3">
+    <span class="step-links">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; {% trans "Первая" %}</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">{% trans "Назад" %}</a>
+      {% endif %}
 
-      <tbody class="table-border-bottom-0">
-        {% for delivery_type in page_obj %}
-          <tr>
-            <td>{{ delivery_type.name|default_if_none:"-" }}</td>
-            <td>{{ delivery_type.price|default_if_none:"-" }}</td>
-            <td>{{ delivery_type.description|default_if_none:"-" }}</td>
+      <span class="current">
+        {% trans "Страница" %} {{ page_obj.number }} {% trans "из" %} {{ page_obj.paginator.num_pages }}.
+      </span>
 
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <a href="{% url 'deliveries:edit-package' delivery_type.id %}"
-                   class="btn btn-sm btn-icon"
-                   title="Редактировать" aria-label="Редактировать">
-                  <i class="mdi mdi-pencil-outline"></i>
-                </a>
-
-                <a href="{% url 'deliveries:delete-package' delivery_type.id %}"
-                   class="btn btn-sm btn-icon"
-                   title="Удалить" aria-label="Удалить">
-                  <i class="mdi mdi-trash-can-outline"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="{{ columns|length|add:'1' }}">Нет данных для отображения.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      {% if page_obj.has_next %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">{% trans "Вперёд" %}</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">{% trans "Последняя" %} &raquo;</a>
+      {% endif %}
+    </span>
   </div>
 </div>
-
-        <!-- Pagination -->
-        <div class="pagination-container">
-        <span class="step-links">
-            {% if page_obj.has_previous %}
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
-            {% endif %}
-            <span class="current">
-                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
-            </span>
-            {% if page_obj.has_next %}
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
-            {% endif %}
-        </span>
-        </div>
-    </div>
 {% endblock %}

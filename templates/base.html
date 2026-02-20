@@ -1,8 +1,10 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact" dir="ltr"
       data-theme="theme-default" data-assets-path="{% static '' %}" data-template="vertical-menu-template-starter">
 <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
+
     <meta charset="utf-8"/>
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
@@ -57,14 +59,61 @@
     <div class="layout-container">
         <!-- Sidebar / Menu -->
         <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-            <div class="app-brand demo">
-                <a href="{% url 'index' %}" class="app-brand-link">
-              <span class="app-brand-logo demo">
-                <!-- SVG Logo -->
-              </span>
-                    <span class="app-brand-text demo menu-text fw-bold ms-2">Cargo</span>
-                </a>
-            </div>
+            <div class="app-brand demo d-flex align-items-center gap-2">
+  <!-- Logo -->
+  <a href="{% url 'index' %}" class="app-brand-link d-flex align-items-center">
+    <span class="app-brand-logo demo">
+      <!-- SVG Logo -->
+    </span>
+  </a>
+
+  <!-- Language switcher (dropdown) -->
+  <form method="post" action="{% url 'set_language' %}" class="d-inline m-0 p-0" id="langForm">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path|default:'/' }}">
+    <input type="hidden" name="language" id="langInput" value="">
+
+    <div class="dropdown">
+      <button
+        type="button"
+        class="btn btn-sm btn-icon dropdown-toggle hide-arrow"
+        data-bs-toggle="dropdown"
+        aria-expanded="false"
+        title="Language"
+        id="langDropdownToggle"
+      >
+        <i class="mdi mdi-translate"></i>
+      </button>
+
+      <ul class="dropdown-menu">
+        <li>
+          <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="en">
+            <span class="fi fi-us"></span>
+            <span>English</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="ru">
+            <span class="fi fi-ru"></span>
+            <span>Русский</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="zh-hant">
+            <span class="fi fi-cn"></span>
+            <span>中文（繁體）</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </form>
+
+  <!-- Brand text -->
+  <a href="{% url 'index' %}" class="app-brand-link d-flex align-items-center">
+    <span class="app-brand-text demo menu-text fw-bold ms-2">Cargo</span>
+  </a>
+</div>
+
 
             <div class="menu-inner-shadow"></div>
 
@@ -165,7 +214,7 @@
                     <!-- Settings Menu -->
                     <li class="menu-item">
                         <a class="menu-link menu-toggle">
-                            <i class="menu-icon tf-icons mdi mdi-receipt-clock-outline"></i>
+                            <i class="menu-icon tf-icons mdi mdi-cog-outline"></i>
                             <div data-i18n="Delivery">Настройки</div>
                         </a>
                         <ul class="menu-sub">
@@ -336,13 +385,55 @@
 
 <!-- Core JS -->
 <script src="{% static 'vendor/libs/jquery/jquery.js' %}"></script>
-<script src="{% static 'vendor/libs/popper/popper.js' %}"></script>
-<script src="{% static 'vendor/js/bootstrap.js' %}"></script>
 <script src="{% static 'vendor/libs/node-waves/node-waves.js' %}"></script>
 <script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
 
 <script src="{% static 'vendor/js/menu.js' %}"></script>
 <script src="{% static 'js/main.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+  const toggle = document.getElementById("langDropdownToggle");
+  if (!toggle || !window.bootstrap) return;
+
+  // фикс: "fixed" стратегия — чтобы dropdown не клипался контейнерами с overflow/transform
+  const dd = bootstrap.Dropdown.getOrCreateInstance(toggle, {
+    autoClose: true,
+    popperConfig: {
+      strategy: "fixed"
+    }
+  });
+
+  // фикс: повторный клик всегда закрывает/открывает (и не зависает)
+  toggle.addEventListener("click", function (e) {
+    e.preventDefault();
+    dd.toggle();
+  });
+
+  // фикс: когда dropdown закрывается — снимаем фокус (убирает “залипшее выделение”)
+  toggle.addEventListener("hidden.bs.dropdown", function () {
+    toggle.blur();
+  });
+
+  // фикс: клик вне dropdown — закрыть
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#langForm .dropdown")) dd.hide();
+  });
+});
+
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.js-lang').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const lang = this.getAttribute('data-lang');
+        const input = document.getElementById('langInput');
+        if (!input) return;
+        input.value = lang;
+        document.getElementById('langForm').submit();
+      });
+    });
+  });
+</script>
 
 {% block extra_js %}
     <script src="{% static 'js/fixed-menu.js' %}"></script>

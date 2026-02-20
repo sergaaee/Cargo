@@ -7,6 +7,7 @@ from Cargo import settings
 from Cargo.views import IndexView
 
 urlpatterns = [
+    path("i18n/", include("django.conf.urls.i18n")),
     path('', RedirectView.as_view(url='/accounts/login/', permanent=False)),
     path('', include('web.urls')),
     path('index/', IndexView.as_view(), name='index'),

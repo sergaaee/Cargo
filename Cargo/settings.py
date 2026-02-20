@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from .components.apps import INSTALLED_APPS
 from django.urls import reverse_lazy
 import os
+from django.utils.translation import gettext_lazy as _
 
 load_dotenv()
 
@@ -61,11 +62,18 @@ LANGUAGE_CODE = 'ru-RU'
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
+USE_L10N = True
 
 USE_TZ = True
 
 INTERNAL_IPS = [
     "127.0.0.1",
+]
+
+LANGUAGES = [
+    ("en", _("English")),
+    ("ru", _("Russian")),
+    ("zh-hant", _("Chinese (Traditional)")),
 ]
 
 STATIC_URL = '/static/'

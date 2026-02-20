@@ -35,9 +35,13 @@
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label for="tracker-input">Трек-коды</label>
-                                        <input id="tracker-input" list="tracker-list" class="form-control"
-                                               placeholder="Введите код трекера">
+                                        <label class="form-label" for="tracker-input">Трек-ном</label>
+                                        <div class="input-group">
+  <input id="tracker-input" list="tracker-list" class="form-control" placeholder="Введите код трекера">
+  <button type="button" class="btn btn-outline-secondary" id="tracker-ok-btn" aria-label="OK">
+    <i class="mdi mdi-check"></i>
+  </button>
+</div>
                                         <datalist id="tracker-list">
                                             {% for track in trackers %}
                                                 {% for tracker_code in track.tracking_codes.all %}
@@ -280,9 +284,13 @@
                 <div class="modal-body">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="inventory-input">Инвентарные номера</label>
-                            <input id="inventory-input" list="inventory-list" class="form-control"
-                                   placeholder="Введите инвентарный номер" name="inventory_numbers">
+                            <div class="input-group">
+  <input id="inventory-input" list="inventory-list" class="form-control"
+         placeholder="Введите инвентарный номер" name="inventory_numbers">
+  <button type="button" class="btn btn-outline-secondary" id="inventory-ok-btn" aria-label="OK">
+    <i class="mdi mdi-check"></i>
+  </button>
+</div>
                             <datalist id="inventory-list">
                                 <!-- Список доступных инвентарных номеров -->
                             </datalist>
@@ -470,6 +478,8 @@
                     }
                 }
             });
+
+
 
             // Синхронизация с модальным окном
             document.getElementById("inventory-input").addEventListener("keypress", function (e) {

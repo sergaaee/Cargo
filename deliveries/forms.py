@@ -1,7 +1,7 @@
 from django import forms
 from django.forms.models import inlineformset_factory
 from django.core.exceptions import ValidationError
-
+from .models import PackageType
 from user_profile.models import UserProfile
 from .models import Incoming, Photo, Tag, InventoryNumber, Tracker, TrackerCode, Consolidation, ConsolidationCode, \
     ConsolidationInventory, PackageType, DeliveryType, DeliveryPriceRange, Location, DeliveryStatus, TrackerCodeTracker, \
@@ -470,21 +470,15 @@ class DeliveryStatusForm(forms.ModelForm):
 class PackageTypeForm(forms.ModelForm):
     class Meta:
         model = PackageType
-        fields = ['name', 'price', 'description']
+        fields = ("name", "price", "description", "icon")
 
-    name = forms.CharField(label="Название вида упаковки", required=True,
-                           widget=forms.TextInput(
-                               attrs={'class': 'form-control'}, ),
-                           error_messages={
-                               'required': 'Пожалуйста, введите название.',
-                           }, )
-    price = forms.FloatField(label="Цена", initial=1, required=True,
-                             widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}))
-    description = forms.CharField(
-        label="Описание упаковки",
-        widget=forms.TextInput(
-            attrs={'class': 'form-control'}, ),
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # стиль темы
+        for f in self.fields.values():
+            f.widget.attrs.update({"class": "form-control"})
+        # icon можно скрыть — мы будем выбирать через кнопки
+        self.fields["icon"].widget = forms.HiddenInput()
 
 
 class DeliveryTypeForm(forms.ModelForm):

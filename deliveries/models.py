@@ -1,12 +1,20 @@
 from django.core.validators import MinValueValidator
+from django.db import models
 from django.db.models import Q, F
 
 from PIL import Image
-from deliveries.choices import *
 from deliveries.mixins import UUIDMixin, TimeStampedMixin
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-
+from deliveries.choices import (
+    StateType,
+    PackageStatus,
+    PackagedStatuses,
+    CodeStatus,
+    TrackerStatus,
+    # если реально используешь:
+    PackageTypeChoices,
+)
 
 class Photo(UUIDMixin, TimeStampedMixin):
     incoming = models.ForeignKey('Incoming', on_delete=models.CASCADE, related_name='images_set', blank=True, null=True)
@@ -140,8 +148,14 @@ class Incoming(UUIDMixin, TimeStampedMixin):
     size = models.CharField(_('Size (LxHxW)'), blank=True, null=True)
     weight = models.FloatField(_('Weight (kg)'), blank=True, null=True, validators=[MinValueValidator(0)])
     state = models.CharField(_('State'), choices=StateType.choices, default=StateType.PERFECT, max_length=100)
-    package_type = models.CharField(_('Package type'), choices=PackageType.choices, default=PackageType.CARTOON_BOX,
-                                    max_length=100)
+    package_type = models.ForeignKey(
+        'PackageType',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_('Package type'),
+        related_name='incoming_package_types',
+    )
+
     status = models.CharField(_('Status'), choices=PackageStatus.choices, default=PackageStatus.UNDECIDED,
                               max_length=100)
 
@@ -312,8 +326,13 @@ class PackageType(UUIDMixin, TimeStampedMixin):
     price = models.FloatField(_('Price'), validators=[MinValueValidator(0)])
     description = models.TextField(_('Description'), blank=True, null=True)
 
-    def __str__(self):
-        return self.name
+    icon = models.CharField(
+        _('Icon'),
+        max_length=64,
+        blank=True,
+        default='mdi-package-variant-closed'
+    )
+
 
 
 class DeliveryStatus(UUIDMixin, TimeStampedMixin):

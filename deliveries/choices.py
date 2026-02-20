@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.utils.translation import gettext_lazy as _
 
 class StateType(models.Choices):
     PERFECT = 'Perfect'
@@ -7,13 +7,9 @@ class StateType(models.Choices):
     BROKEN_ITEM = 'Broken item'
     LOST = 'Lost'
 
-
-class PackageType(models.Choices):
-    CARTOON_BOX = 'Cartoon Box'
-    ENVELOPE = 'Envelope'
-    SCOTCH_TAPE_BAG = 'Scotch Tape Bag'
-    CASE = 'Case'
-
+class PackageTypeChoices(models.TextChoices):
+    CARTON_BOX = "CARTON_BOX", _("Carton box")
+    BAG = "BAG", _("Bag")
 
 class PackageStatus(models.Choices):
     RECEIVED = 'Received'

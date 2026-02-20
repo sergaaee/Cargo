@@ -1,18 +1,169 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Журнал консолидации{% endblock %}
+
 {% block content %}
-    <script src="{% static 'js/search-handler.js' %}"></script>
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Консолидация</h4>
+<script src="{% static 'js/search-handler.js' %}"></script>
 
-        {% include 'deliveries/components/search_form.html' %}
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Журнал консолидации</h4>
 
-        <div class="card-datatable table-responsive">
-            {% include 'deliveries/components/consolidation_table.html' %}
-        </div>
-
-        {% include 'deliveries/components/pagination.html' %}
+  <form method="GET" action="" class="mb-3">
+    <div class="input-group">
+      <input type="text"
+             name="q"
+             class="form-control"
+             aria-label="Поиск по трек-коду или номеру клиента"
+             placeholder="Поиск по трек-коду или номеру клиента"
+             value="{{ query|default_if_none:''|escape }}">
     </div>
-{% endblock %}
+  </form>
 
+  <!-- Basic Table -->
+  <div class="card">
+    <div class="table-responsive text-nowrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=track_code__code&order={% if sort_by == 'track_code__code' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Трек-код
+              </a>
+            </th>
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Дата создания
+              </a>
+            </th>
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=client&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Клиент
+              </a>
+            </th>
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=delivery_type&order={% if sort_by == 'delivery_type' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Тип доставки
+              </a>
+            </th>
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Статус
+              </a>
+            </th>
+            <th>Действие</th>
+          </tr>
+        </thead>
+
+        <tbody class="table-border-bottom-0">
+          {% for consolidation in page_obj %}
+            <tr>
+              <td>{{ consolidation.track_code.code|default_if_none:"-" }}</td>
+              <td>{{ consolidation.created_at|date:"d.m.Y" }}</td>
+              <td>{{ consolidation.client.profile.phone_number|default_if_none:"-" }}</td>
+
+              <td>
+                {% if consolidation.delivery_type == "Avia" %}
+                  <span class="badge rounded-pill bg-label-danger">{{ consolidation.delivery_type }}</span>
+                {% elif consolidation.delivery_type == "Auto" %}
+                  <span class="badge rounded-pill bg-label-primary">{{ consolidation.delivery_type }}</span>
+                {% elif consolidation.delivery_type == "Express Train" %}
+                  <span class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
+                {% else %}
+                  <span class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
+                {% endif %}
+              </td>
+
+              <td>
+                <span class="badge rounded-pill bg-label-primary">
+                  {{ consolidation.status }}
+                </span>
+              </td>
+
+              <!-- Действия (иконки) -->
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <!-- Просмотр (модалка) -->
+                  <button type="button"
+                          class="btn btn-sm btn-icon"
+                          data-bs-toggle="modal"
+                          data-bs-target="#consolidationModal{{ consolidation.id }}"
+                          title="Просмотр" aria-label="Просмотр">
+                    <i class="mdi mdi-eye-outline"></i>
+                  </button>
+
+                  <!-- Редактировать -->
+                  <a class="btn btn-sm btn-icon"
+                     href="{% url 'deliveries:consolidation-edit' consolidation.id %}"
+                     title="Редактировать" aria-label="Редактировать">
+                    <i class="mdi mdi-pencil-outline"></i>
+                  </a>
+
+                  <!-- Создать упаковку (только при Packaging) -->
+                  {% if consolidation.status.name == "Packaging" %}
+                    <a class="btn btn-sm btn-icon"
+                       href="{% url 'deliveries:new-package' consolidation.id %}"
+                       title="Упаковка" aria-label="Упаковка">
+                      <i class="mdi mdi-package-variant-closed"></i>
+                    </a>
+                  {% endif %}
+                </div>
+
+                <!-- Модальное окно -->
+                <div class="modal fade" id="consolidationModal{{ consolidation.id }}" tabindex="-1"
+                     aria-labelledby="consolidationModalLabel{{ consolidation.id }}" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="consolidationModalLabel{{ consolidation.id }}">
+                          Подробная информация
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <p><strong>Трек-код:</strong> {{ consolidation.track_code.code }}</p>
+                        <p><strong>Дата создания:</strong> {{ consolidation.created_at|date:"d.m.Y H:i" }}</p>
+                        <p><strong>Клиент:</strong> {{ consolidation.client.profile.phone_number|default_if_none:"-" }}</p>
+                        <p><strong>Тип доставки:</strong> {{ consolidation.delivery_type }}</p>
+                        <p><strong>Инструкция:</strong> {{ consolidation.instruction|default_if_none:"Нет инструкции" }}</p>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                          Закрыть
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">Нет данных для отображения.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination (встроена, без include) -->
+  <div class="pagination-container mt-3">
+    <span class="step-links">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+      {% endif %}
+
+      <span class="current">
+        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+      </span>
+
+      {% if page_obj.has_next %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+      {% endif %}
+    </span>
+  </div>
+
+</div>
+{% endblock %}

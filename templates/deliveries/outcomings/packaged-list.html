@@ -1,205 +1,442 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Журнал упакованных{% endblock %}
-{% block content %}
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const searchInput = document.querySelector('input[name="q"]');
-            const tableRows = document.querySelectorAll("tbody tr");
 
-            searchInput.addEventListener("input", function () {
-                const query = this.value.toLowerCase().trim();
-                tableRows.forEach(row => {
-                    const rowText = row.innerText.toLowerCase();
-                    row.style.display = rowText.includes(query) ? "" : "none";
-                });
-            });
+{% block content %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // live search
+    const searchInput = document.querySelector('input[name="q"]');
+    const table = document.getElementById("consolidationsTable");
+    const tbody = table ? table.querySelector("tbody") : null;
+
+    if (searchInput && tbody) {
+      searchInput.addEventListener("input", function () {
+        const query = this.value.toLowerCase().trim();
+        tbody.querySelectorAll("tr").forEach(row => {
+          const rowText = row.innerText.toLowerCase();
+          row.style.display = rowText.includes(query) ? "" : "none";
+        });
+      });
+    }
+
+    // bootstrap tooltips (если bootstrap подключен)
+    if (window.bootstrap) {
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el);
+      });
+    }
+
+    // ===== Column settings (hide + reorder) =====
+    const STORAGE_KEY = "packaged_list_columns_v1";
+    const columns = [
+      { id: "status",  label: "Статус" },
+      { id: "date",    label: "Дата" },
+      { id: "client",  label: "Клиент" },
+      { id: "places",  label: "Мест" },
+      { id: "weight",  label: "Вес" },
+      { id: "price",   label: "Цена" },
+      { id: "delivery",label: "Доставка" },
+      { id: "actions", label: "Действия" }
+    ];
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveSettings(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function getDefaultState() {
+      return {
+        order: columns.map(c => c.id),
+        visible: columns.reduce((acc, c) => { acc[c.id] = true; return acc; }, {})
+      };
+    }
+
+    function applyState(state) {
+      const table = document.getElementById("consolidationsTable");
+      if (!table) return;
+
+      const theadRow = table.querySelector("thead tr");
+      const bodyRows = table.querySelectorAll("tbody tr");
+      if (!theadRow) return;
+
+      // 1) reorder headers
+      const thMap = {};
+      theadRow.querySelectorAll("th[data-col-id]").forEach(th => {
+        thMap[th.dataset.colId] = th;
+      });
+
+      // remove all th then append in new order
+      const orderedTH = state.order.map(id => thMap[id]).filter(Boolean);
+      theadRow.querySelectorAll("th[data-col-id]").forEach(th => th.remove());
+      orderedTH.forEach(th => theadRow.appendChild(th));
+
+      // 2) reorder each row cells
+      bodyRows.forEach(tr => {
+        const tdMap = {};
+        tr.querySelectorAll("td[data-col-id]").forEach(td => {
+          tdMap[td.dataset.colId] = td;
         });
 
-        // Функция получения CSRF-токена
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                document.cookie.split(';').forEach(cookie => {
-                    const trimmed = cookie.trim();
-                    if (trimmed.startsWith(name + '=')) {
-                        cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
-                    }
-                });
-            }
-            return cookieValue;
-        }
-    </script>
+        tr.querySelectorAll("td[data-col-id]").forEach(td => td.remove());
+        state.order.forEach(id => {
+          if (tdMap[id]) tr.appendChild(tdMap[id]);
+        });
+      });
 
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Отправка/</span>Консолидация</h4>
+      // 3) visibility
+      state.order.forEach(id => {
+        const show = state.visible[id] !== false;
+        const th = table.querySelector(`thead th[data-col-id="${id}"]`);
+        if (th) th.style.display = show ? "" : "none";
+        table.querySelectorAll(`tbody td[data-col-id="${id}"]`).forEach(td => {
+          td.style.display = show ? "" : "none";
+        });
+      });
+    }
 
-        <!-- Форма поиска -->
-        <form method="GET" action="">
-            <div class="input-group mb-3">
-                <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по трек-коду или номеру клиента"
-                       placeholder="Поиск по трек-коду или номеру клиента"
-                       value="{{ query|default_if_none:''|escape }}">
-            </div>
-        </form>
-        <div class="card-datatable table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                <tr>
-                    <th>
-                        <a href="?sort_by=created_at&order={% if sort_by == 'created_at' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Дата отправки
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=client&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Клиент
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=places__count&order={% if sort_by == 'places__count' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Мест
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=places__weight__sum&order={% if sort_by == 'places__weight__sum' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Вес
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=price&order={% if sort_by == 'price' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Цена
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=delivery_type&order={% if sort_by == 'delivery_type' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Доставка
-                        </a>
-                    </th>
-                    <th>
-                        <a href="?sort_by=status&order={% if sort_by == 'status' and order == 'asc' %}desc{% else %}asc{% endif %}">
-                            Статус
-                        </a>
-                    </th>
-                    <th>Действие</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for consolidation in page_obj %}
-                    <tr>
-                        <td>{{ consolidation.created_at|date:"d.m.Y" }}</td>
-                        <td>{{ consolidation.client.profile.phone_number|default_if_none:"-" }}</td>
-                        <td>{{ consolidation.places.count }}</td>
-                        <td>{{ consolidation.total_weight|floatformat:2|default_if_none:"-" }}</td>
-                        <td>{{ consolidation.price|default_if_none:"-" }}</td>
-                        <td>
-                            {% if consolidation.delivery_type == "Avia" %}
-                                <span class="badge rounded-pill bg-label-danger">{{ consolidation.delivery_type }}</span>
-                            {% elif consolidation.delivery_type == "Auto" %}
-                                <span class="badge rounded-pill bg-label-primary">{{ consolidation.delivery_type }}</span>
-                            {% elif consolidation.delivery_type == "Express Train" %}
-                                <span class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
-                            {% else %}
-                                <span class="badge rounded-pill bg-label-success">{{ consolidation.delivery_type }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="#" data-bs-toggle="modal" data-bs-target="#statusModal{{ consolidation.id }}">
-                                {{ consolidation.status }}
-                            </a>
-                        </td>
-                        <td>
-                            <a href="{% url 'deliveries:edit-delivery-price' consolidation.id %}"><i
-                                    class="bi bi-currency-dollar"></i></a> |
-                        </td>
-                    </tr>
+    function renderSettingsUI(state) {
+      const list = document.getElementById("columnsSettingsList");
+      if (!list) return;
+      list.innerHTML = "";
 
-                    <!-- Modal for status change -->
-                    <div class="modal fade" id="statusModal{{ consolidation.id }}" tabindex="-1"
-                         aria-labelledby="statusModalLabel{{ consolidation.id }}" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="statusModalLabel{{ consolidation.id }}">Изменение
-                                        статуса</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <label for="statusSelect{{ consolidation.id }}" class="form-label">Выберите новый
-                                        статус:</label>
-                                    <select id="statusSelect{{ consolidation.id }}" class="status-select form-select"
-                                            data-id="{{ consolidation.id }}">
-                                        {% for value in statuses %}
-                                            <option value="{{ value }}"
-                                                    {% if consolidation.status == value %}selected{% endif %}>
-                                                {{ value }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
+      state.order.forEach((colId, index) => {
+        const col = columns.find(c => c.id === colId);
+        if (!col) return;
 
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
-                                    </button>
-                                    <button type="button" class="btn btn-primary"
-                                            onclick="updateStatus(`{{ consolidation.id }}`)">Сохранить
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        const row = document.createElement("div");
+        row.className = "d-flex align-items-center justify-content-between py-2 border-bottom";
 
-        <!-- Pagination -->
-        <div class="pagination-container">
-            <span class="step-links">
-                {% if page_obj.has_previous %}
-                    <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
-                    <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
-                {% endif %}
-                <span class="current">
-                    Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
-                </span>
-                {% if page_obj.has_next %}
-                    <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
-                    <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
-                {% endif %}
-            </span>
-        </div>
+        const left = document.createElement("div");
+        left.className = "d-flex align-items-center gap-2";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "form-check-input";
+        checkbox.checked = state.visible[colId] !== false;
+        checkbox.addEventListener("change", () => {
+          state.visible[colId] = checkbox.checked;
+          saveSettings(state);
+          applyState(state);
+        });
+
+        const label = document.createElement("div");
+        label.className = "fw-semibold";
+        label.textContent = col.label;
+
+        left.appendChild(checkbox);
+        left.appendChild(label);
+
+        const right = document.createElement("div");
+        right.className = "d-flex align-items-center gap-1";
+
+        const upBtn = document.createElement("button");
+        upBtn.type = "button";
+        upBtn.className = "btn btn-sm btn-icon";
+        upBtn.innerHTML = '<i class="mdi mdi-chevron-up"></i>';
+        upBtn.disabled = index === 0;
+        upBtn.addEventListener("click", () => {
+          if (index === 0) return;
+          const tmp = state.order[index - 1];
+          state.order[index - 1] = state.order[index];
+          state.order[index] = tmp;
+          saveSettings(state);
+          renderSettingsUI(state);
+          applyState(state);
+        });
+
+        const downBtn = document.createElement("button");
+        downBtn.type = "button";
+        downBtn.className = "btn btn-sm btn-icon";
+        downBtn.innerHTML = '<i class="mdi mdi-chevron-down"></i>';
+        downBtn.disabled = index === state.order.length - 1;
+        downBtn.addEventListener("click", () => {
+          if (index === state.order.length - 1) return;
+          const tmp = state.order[index + 1];
+          state.order[index + 1] = state.order[index];
+          state.order[index] = tmp;
+          saveSettings(state);
+          renderSettingsUI(state);
+          applyState(state);
+        });
+
+        right.appendChild(upBtn);
+        right.appendChild(downBtn);
+
+        row.appendChild(left);
+        row.appendChild(right);
+
+        list.appendChild(row);
+      });
+    }
+
+    const saved = loadSettings();
+    const state = saved || getDefaultState();
+    applyState(state);
+    renderSettingsUI(state);
+
+    const resetBtn = document.getElementById("columnsResetBtn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        const fresh = getDefaultState();
+        saveSettings(fresh);
+        renderSettingsUI(fresh);
+        applyState(fresh);
+      });
+    }
+  });
+</script>
+
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4"><span class="text-muted fw-light">Доставка/</span>Журнал упакованных</h4>
+
+  <!-- Search + actions -->
+  <form method="GET" action="">
+    <div class="input-group mb-3">
+      <input type="text"
+             name="q"
+             class="form-control"
+             aria-label="Поиск по трек-коду или номеру клиента"
+             placeholder="Поиск по трек-коду или номеру клиента"
+             value="{{ query|default_if_none:''|escape }}">
+      <button type="button"
+              class="btn btn-outline-secondary"
+              data-bs-toggle="modal"
+              data-bs-target="#columnsSettingsModal"
+              title="Настройки колонок">
+        <i class="mdi mdi-cog-outline"></i>
+        Настройки
+      </button>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Упакованные</h5>
     </div>
 
-    <script>
-        function updateStatus(consolidationId) {
-            const select = document.querySelector(`#statusSelect${consolidationId}`);
-            const newStatus = select.value;
+    <div class="table-responsive text-nowrap">
+      <table class="table" id="consolidationsTable">
+        <thead>
+          <tr>
+            <!-- status icon -->
+            <th data-col-id="status" style="width:48px;"></th>
 
-            fetch(`/incomings/update-status/${consolidationId}/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-                body: JSON.stringify({status: newStatus})
-            })
-                .then(response => {
-                    if (!response.ok) throw new Error('Ошибка при обновлении статуса');
-                    return response.json();
-                })
-                .then(data => {
-                    alert('Статус обновлён: ' + data.status);
-                    const modal = bootstrap.Modal.getInstance(document.querySelector(`#statusModal${consolidationId}`));
-                    modal.hide();
-                    window.location.reload(); // Refresh to update status display
-                })
-                .catch(error => {
-                    console.error(error);
-                    alert('Ошибка обновления');
-                });
-        }
-    </script>
+            <th data-col-id="date">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=created_at&order={% if sort_by == 'created_at' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                дата
+              </a>
+            </th>
+
+            <th data-col-id="client">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=client&order={% if sort_by == 'client' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                клиент
+              </a>
+            </th>
+
+            <th data-col-id="places">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=places__count&order={% if sort_by == 'places__count' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                мест
+              </a>
+            </th>
+
+            <th data-col-id="weight">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=places__weight__sum&order={% if sort_by == 'places__weight__sum' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                вес
+              </a>
+            </th>
+
+            <th data-col-id="price">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=price&order={% if sort_by == 'price' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                цена
+              </a>
+            </th>
+
+            <th data-col-id="delivery">
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=delivery_type&order={% if sort_by == 'delivery_type' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                дост.
+              </a>
+            </th>
+
+            <!-- actions (no header) -->
+            <th data-col-id="actions" style="width:120px;"></th>
+          </tr>
+        </thead>
+
+        <tbody class="table-border-bottom-0">
+          {% for consolidation in page_obj %}
+            {% with status_name=consolidation.status.name|default:consolidation.status|default_if_none:"" %}
+            <tr>
+              <!-- STATUS ICON -->
+              <td data-col-id="status">
+                {% if "Достав" in status_name or "Delivered" in status_name %}
+                  <i class="mdi mdi-check-circle-outline text-success"
+                     data-bs-toggle="tooltip"
+                     title="{{ status_name|default:'-' }}"
+                     style="font-size:18px;"></i>
+                {% elif "Проб" in status_name or "Error" in status_name or "Issue" in status_name %}
+                  <i class="mdi mdi-alert-circle-outline text-danger"
+                     data-bs-toggle="tooltip"
+                     title="{{ status_name|default:'-' }}"
+                     style="font-size:18px;"></i>
+                {% elif "Ожид" in status_name or "Pending" in status_name %}
+                  <i class="mdi mdi-clock-outline text-warning"
+                     data-bs-toggle="tooltip"
+                     title="{{ status_name|default:'-' }}"
+                     style="font-size:18px;"></i>
+                {% else %}
+                  <i class="mdi mdi-progress-check text-primary"
+                     data-bs-toggle="tooltip"
+                     title="{{ status_name|default:'-' }}"
+                     style="font-size:18px;"></i>
+                {% endif %}
+              </td>
+
+              <!-- DATE -->
+              <td data-col-id="date">{{ consolidation.created_at|date:"d/m/y"|default_if_none:"-" }}</td>
+
+              <!-- CLIENT -->
+              <td data-col-id="client">{{ consolidation.client.profile.phone_number|default_if_none:"-" }}</td>
+
+              <!-- PLACES -->
+              <td data-col-id="places">{{ consolidation.places.count|default_if_none:"-" }}</td>
+
+              <!-- WEIGHT -->
+              <td data-col-id="weight">{{ consolidation.total_weight|floatformat:2|default_if_none:"-" }}</td>
+
+              <!-- PRICE -->
+              <td data-col-id="price">{{ consolidation.price|default_if_none:"-" }}</td>
+
+              <!-- DELIVERY TYPE -->
+              <td data-col-id="delivery">
+                {% with dt=consolidation.delivery_type.name|default:consolidation.delivery_type %}
+                  {% if dt == "Avia" %}
+                    <span class="badge rounded-pill bg-label-danger">{{ dt }}</span>
+                  {% elif dt == "Auto" %}
+                    <span class="badge rounded-pill bg-label-primary">{{ dt }}</span>
+                  {% elif dt == "Express Train" %}
+                    <span class="badge rounded-pill bg-label-success">{{ dt }}</span>
+                  {% else %}
+                    <span class="badge rounded-pill bg-label-secondary">{{ dt|default_if_none:"-" }}</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+
+              <!-- ACTIONS (icons) -->
+              <td data-col-id="actions">
+                <div class="d-flex align-items-center gap-2">
+                  <a href="#"
+                     class="btn btn-sm btn-icon"
+                     data-bs-toggle="modal"
+                     data-bs-target="#statusModal{{ consolidation.id }}"
+                     title="Изменить статус" aria-label="Изменить статус">
+                    <i class="mdi mdi-swap-horizontal"></i>
+                  </a>
+
+                  <a href="{% url 'deliveries:edit-delivery-price' consolidation.id %}"
+                     class="btn btn-sm btn-icon"
+                     title="Редактировать цену" aria-label="Редактировать цену">
+                    <i class="mdi mdi-currency-usd"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Status change modal (bootstrap) -->
+            <div class="modal fade"
+                 id="statusModal{{ consolidation.id }}"
+                 tabindex="-1"
+                 aria-labelledby="statusModalLabel{{ consolidation.id }}"
+                 aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="statusModalLabel{{ consolidation.id }}">Изменение статуса</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <label for="statusSelect{{ consolidation.id }}" class="form-label">Статус</label>
+                    <select id="statusSelect{{ consolidation.id }}"
+                            class="status-select form-select"
+                            data-id="{{ consolidation.id }}">
+                      {% for value in statuses %}
+                        <option value="{{ value }}"
+                                {% if status_name == value or consolidation.status == value %}selected{% endif %}>
+                          {{ value }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary"
+                            onclick="updateStatus(`{{ consolidation.id }}`)">
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="8">Нет данных для отображения.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination (как было у тебя в других списках) -->
+  <div class="pagination-container mt-3">
+    <span class="step-links">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+      {% endif %}
+
+      <span class="current">
+        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+      </span>
+
+      {% if page_obj.has_next %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+      {% endif %}
+    </span>
+  </div>
+</div>
+
+<!-- Columns Settings Modal -->
+<div class="modal fade" id="columnsSettingsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Настройки таблицы</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="text-muted mb-2">Скрывай колонки чекбоксами и меняй порядок кнопками ↑ ↓.</div>
+        <div id="columnsSettingsList"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="columnsResetBtn">Сбросить</button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Готово</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

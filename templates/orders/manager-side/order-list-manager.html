@@ -1,97 +1,147 @@
 {% extends "base.html" %}
 {% load static %}
-<style>
-    .table .btn.btn-icon i { font-size: 18px; line-height: 1; }
-.table .btn.btn-icon { padding: .25rem .35rem; }
-.table .btn.btn-icon:hover { background: rgba(255,255,255,.06); border-radius: 8px; }
 
+<style>
+  .table .btn.btn-icon i { font-size: 18px; line-height: 1; }
+  .table .btn.btn-icon { padding: .25rem .35rem; }
+  .table .btn.btn-icon:hover { background: rgba(255,255,255,.06); border-radius: 8px; }
+
+  /* статус-иконка компактно */
+  .status-dot { font-size: 18px; line-height: 1; }
 </style>
+
 {% block title %}Список заказов{% endblock %}
 {% block content %}
-    <div class="container-xxl flex-grow-1 container-p-y">
-        <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Список заказов</h4>
-        <!-- Форма поиска -->
-        <form method="GET" action="">
-            <div class="input-group mb-3">
-                <input type="text" name="q" class="form-control"
-                       aria-label="Поиск по имени или описанию"
-                       placeholder="Поиск по имени или описанию"
-                       value="{{ query|default_if_none:''|escape }}">
-                <button class="btn btn-primary" type="submit">Поиск</button>
-            </div>
-        </form>
-        <div class="card">
-  <h5 class="card-header">Список заказов</h5>
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4"><span class="text-muted fw-light">Заказы/</span>Список заказов</h4>
 
-  <div class="table-responsive text-nowrap">
-    <table class="table">
-      <thead>
-        <tr>
-          {% for column, label in columns %}
+  <!-- Поиск -->
+  <form method="GET" action="">
+    <div class="input-group mb-3">
+      <input type="text" name="q" class="form-control"
+             aria-label="Поиск по имени"
+             placeholder="Поиск по имени"
+             value="{{ query|default_if_none:''|escape }}">
+      <button class="btn btn-primary" type="submit">Поиск</button>
+    </div>
+  </form>
+
+  <div class="card">
+    <h5 class="card-header">Список заказов</h5>
+
+    <div class="table-responsive text-nowrap">
+      <table class="table">
+        <thead>
+          <tr>
+            {# Колонка статуса (первая). Заголовок убираем. #}
+            <th style="width: 44px;"></th>
+
+            {# Дальше — остальные колонки. Описание убрали. #}
             <th>
-              <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ column }}&order={% if sort_by == column and order == 'asc' %}desc{% else %}asc{% endif %}">
-                {{ label }}
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=name&order={% if sort_by == 'name' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Название
               </a>
             </th>
+
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=order_type&order={% if sort_by == 'order_type' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Тип
+              </a>
+            </th>
+
+            <th>
+              <a href="?q={{ query|default_if_none:''|escape }}&sort_by=created_by&order={% if sort_by == 'created_by' and order == 'asc' %}desc{% else %}asc{% endif %}">
+                Создал
+              </a>
+            </th>
+
+            <th>Действие</th>
+          </tr>
+        </thead>
+
+        <tbody class="table-border-bottom-0">
+          {% for order in page_obj %}
+            <tr>
+
+              {# ✅ Статус как иконка (цветная) + tooltip #}
+              <td>
+                {% with s=order.status %}
+                  {% if s %}
+                    {# Пример: раскраска по названию статуса. Подстрой под свои реальные названия. #}
+                    {% if s|lower == "new" or s|lower == "новый" %}
+                      <i class="mdi mdi-circle status-dot text-primary"
+                         title="{{ s }}" aria-label="{{ s }}"></i>
+                    {% elif s|lower == "in progress" or s|lower == "в работе" %}
+                      <i class="mdi mdi-circle status-dot text-warning"
+                         title="{{ s }}" aria-label="{{ s }}"></i>
+                    {% elif s|lower == "done" or s|lower == "завершен" or s|lower == "завершён" %}
+                      <i class="mdi mdi-circle status-dot text-success"
+                         title="{{ s }}" aria-label="{{ s }}"></i>
+                    {% elif s|lower == "canceled" or s|lower == "отменен" or s|lower == "отменён" %}
+                      <i class="mdi mdi-circle status-dot text-danger"
+                         title="{{ s }}" aria-label="{{ s }}"></i>
+                    {% else %}
+                      <i class="mdi mdi-circle status-dot text-secondary"
+                         title="{{ s }}" aria-label="{{ s }}"></i>
+                    {% endif %}
+                  {% else %}
+                    <i class="mdi mdi-help-circle-outline status-dot text-secondary"
+                       title="Статус не указан" aria-label="Статус не указан"></i>
+                  {% endif %}
+                {% endwith %}
+              </td>
+
+              {# ✅ Название: ограничение по символам в UI + подсказка полным текстом #}
+              <td>
+                <span title="{{ order.name|default_if_none:'-' }}">
+                  {{ order.name|default_if_none:"-"|truncatechars:24 }}
+                </span>
+              </td>
+
+              <td>{{ order.order_type|default_if_none:"-" }}</td>
+              <td>{{ order.created_by.email|default_if_none:"-" }}</td>
+
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <a href="{% url 'orders:detail-order-manager' order.id %}"
+                     class="btn btn-sm btn-icon"
+                     title="Просмотр" aria-label="Просмотр">
+                    <i class="mdi mdi-eye-outline"></i>
+                  </a>
+
+                  <a href="{% url 'orders:edit-order-manager' order.id %}"
+                     class="btn btn-sm btn-icon"
+                     title="Изменить статус" aria-label="Изменить статус">
+                    <i class="mdi mdi-pencil-outline"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Нет данных для отображения.</td>
+            </tr>
           {% endfor %}
-          <th>Действие</th>
-        </tr>
-      </thead>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-      <tbody class="table-border-bottom-0">
-        {% for order in page_obj %}
-          <tr>
-            <td>{{ order.name|default_if_none:"-"|truncatechars:10 }}</td>
-            <td>{{ order.description|default_if_none:"-"|truncatechars:10 }}</td>
-            <td>{{ order.order_type|default_if_none:"-" }}</td>
-            <td>{{ order.created_by.email|default_if_none:"-" }}</td>
-            <td>
-              <span class="badge rounded-pill bg-label-primary">
-                {{ order.status|default_if_none:"-" }}
-              </span>
-            </td>
-
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <a href="{% url 'orders:detail-order-manager' order.id %}"
-                   class="btn btn-sm btn-icon"
-                   title="Просмотр" aria-label="Просмотр">
-                  <i class="mdi mdi-eye-outline"></i>
-                </a>
-
-                <a href="{% url 'orders:edit-order-manager' order.id %}"
-                   class="btn btn-sm btn-icon"
-                   title="Изменить статус" aria-label="Изменить статус">
-                  <i class="mdi mdi-pencil-outline"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="{{ columns|length|add:'1' }}">Нет данных для отображения.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Pagination -->
+  <div class="pagination-container mt-3">
+    <span class="step-links">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
+      {% endif %}
+      <span class="current">
+        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+      </span>
+      {% if page_obj.has_next %}
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+        <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+      {% endif %}
+    </span>
   </div>
 </div>
-
-        <!-- Pagination -->
-        <div class="pagination-container">
-        <span class="step-links">
-            {% if page_obj.has_previous %}
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page=1">&laquo; Первая</a>
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.previous_page_number }}">Назад</a>
-            {% endif %}
-            <span class="current">
-                Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
-            </span>
-            {% if page_obj.has_next %}
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.next_page_number }}">Вперёд</a>
-                <a href="?q={{ query|default_if_none:''|escape }}&sort_by={{ sort_by }}&order={{ order }}&page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
-            {% endif %}
-        </span>
-        </div>
-    </div>
 {% endblock %}

@@ -1,10 +1,181 @@
 {% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Добавление вида упаковки" %}{% endblock %}
 
 {% block content %}
-<h2>Добавление вида упаковки</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Добавить</button>
-</form>
+<style>
+  .sticky-action-bar{
+    position: sticky;
+    bottom: 0;
+    margin-top: 1rem;
+    padding: .75rem;
+    background: rgba(15, 20, 34, .65);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    z-index: 20;
+  }
+  .icon-option i { font-size: 18px; line-height: 1; }
+  .icon-option.is-active{
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .15rem rgba(105,108,255,.25);
+  }
+</style>
+
+<div class="container-xxl flex-grow-1 container-p-y">
+  <h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">{% trans "Настройки" %} /</span> {% trans "Виды упаковок" %}
+  </h4>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">{% trans "Добавление вида упаковки" %}</h5>
+    </div>
+
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {# если во view передаёшь errors (строкой) — покажем #}
+        {% if errors %}
+          <div class="alert alert-danger mb-3" role="alert">
+            {{ errors }}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="name">
+              {% trans "Название" %} <span class="text-danger">*</span>
+            </label>
+            <input type="text"
+                   id="name"
+                   name="name"
+                   class="form-control"
+                   value="{{ request.POST.name|default_if_none:'' }}"
+                   required>
+            <div class="form-text">{% trans "Например: Коробка, Пакет, Скотч и т.д." %}</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label" for="price">{% trans "Цена" %}</label>
+            <input type="number"
+                   step="0.01"
+                   min="0"
+                   id="price"
+                   name="price"
+                   class="form-control"
+                   value="{{ request.POST.price|default_if_none:'' }}">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label" for="description">{% trans "Описание" %}</label>
+            <textarea id="description"
+                      name="description"
+                      class="form-control"
+                      rows="3">{{ request.POST.description|default_if_none:'' }}</textarea>
+          </div>
+
+          {# ИКОНКА: сохраняем в hidden input #}
+          <div class="col-12">
+            <label class="form-label">{% trans "Иконка" %}</label>
+
+            <input type="hidden"
+                   name="icon"
+                   id="iconInput"
+                   value="{{ request.POST.icon|default:'mdi-package-variant-closed' }}">
+
+            <div class="d-flex flex-wrap gap-2" id="iconPicker">
+              {# ИКОНКА: сохраняем в hidden input #}
+<div class="col-12">
+
+  <input type="hidden"
+         name="icon"
+         id="iconInput"
+         value="{{ request.POST.icon|default:'mdi-package-variant-closed' }}">
+
+  <div class="d-flex flex-wrap gap-2" id="iconPicker">
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-package-variant-closed" title="mdi-package-variant-closed" aria-label="mdi-package-variant-closed">
+      <i class="mdi mdi-package-variant-closed"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-package-variant" title="mdi-package-variant" aria-label="mdi-package-variant">
+      <i class="mdi mdi-package-variant"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-cube-outline" title="mdi-cube-outline" aria-label="mdi-cube-outline">
+      <i class="mdi mdi-cube-outline"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-archive-outline" title="mdi-archive-outline" aria-label="mdi-archive-outline">
+      <i class="mdi mdi-archive-outline"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-truck-outline" title="mdi-truck-outline" aria-label="mdi-truck-outline">
+      <i class="mdi mdi-truck-outline"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-bag-checked" title="mdi-bag-checked" aria-label="mdi-bag-checked">
+      <i class="mdi mdi-bag-checked"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-briefcase-outline" title="mdi-briefcase-outline" aria-label="mdi-briefcase-outline">
+      <i class="mdi mdi-briefcase-outline"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-box-cutter" title="mdi-box-cutter" aria-label="mdi-box-cutter">
+      <i class="mdi mdi-box-cutter"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-airplane" title="mdi-airplane" aria-label="mdi-airplane">
+      <i class="mdi mdi-airplane"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-train" title="mdi-train" aria-label="mdi-train">
+      <i class="mdi mdi-train"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-icon icon-option" data-icon="mdi-car" title="mdi-car" aria-label="mdi-car">
+      <i class="mdi mdi-car"></i>
+    </button>
+  </div>
+
+  <div class="form-text">
+    {% trans "Нажмите на иконку, чтобы выбрать её для отображения в списке." %}
+  </div>
+</div>
+
+            </div>
+          </div>
+        </div>
+
+        {# Sticky Action Bar #}
+        <div class="sticky-action-bar">
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'deliveries:list-package-type' %}" class="btn btn-outline-secondary">
+              {% trans "Назад" %}
+            </a>
+            <button type="submit" class="btn btn-primary">
+              {% trans "Добавить" %}
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const iconInput = document.getElementById('iconInput');
+  const picker = document.getElementById('iconPicker');
+  if (!iconInput || !picker) return;
+
+  const setActive = (icon) => {
+    picker.querySelectorAll('.icon-option').forEach(btn => {
+      btn.classList.toggle('is-active', btn.dataset.icon === icon);
+    });
+  };
+
+  setActive(iconInput.value || 'mdi-package-variant-closed');
+
+  picker.addEventListener('click', function (e) {
+    const btn = e.target.closest('.icon-option');
+    if (!btn) return;
+    iconInput.value = btn.dataset.icon;
+    setActive(iconInput.value);
+  });
+});
+</script>
 {% endblock %}
