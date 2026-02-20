@@ -1,53 +1,356 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}" class="light-style layout-blank" dir="ltr"
+      data-theme="theme-default" data-assets-path="{% static '' %}" data-template="vertical-menu-template-starter">
 <head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="{% static 'css/login.css' %}">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" %} %}>
-    <script type="text/javascript"
-            src="https://stackpath.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.bundle.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <title>Login</title>
-</head>
-<body>
-<div id="content" class="flex">
-    <div class="">
-        <div class="page-content page-container" id="page-content">
-            <div class="padding">
-                <div class="row justify-content-center">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header"><strong>Login to your account</strong></div>
-                            <div class="card-body">
-                                <form method="post" action="{% url 'login' %}">
-                                    {% csrf_token %}
-                                    <div class="form-group">
-                                        <label class="text-muted" for="username">Username</label>
-                                        <input name="username" type="text" class="form-control" id="username"
-                                               placeholder="Enter username">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="text-muted" for="password">Password</label>
-                                        <input name="password" type="password" class="form-control" id="password"
-                                               placeholder="Password">
-                                    </div>
-                                    <div class="form-group">
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" id="remember">
-                                            <label class="form-check-label" for="remember">Remember me</label>
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Login</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+  <title>{% trans "Sign in" %} | Cargo</title>
+  <meta name="description" content=""/>
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon/favicon.ico' %}"/>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&ampdisplay=swap" rel="stylesheet"/>
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
+  <!-- Core CSS (same as base.html) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="{% static 'vendor/css/rtl/core.css' %}" class="template-customizer-core-css"/>
+  <link rel="stylesheet" href="{% static 'vendor/css/rtl/theme-default.css' %}" class="template-customizer-theme-css"/>
+  <link rel="stylesheet" href="{% static 'css/demo.css' %}"/>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}"/>
+
+  <!-- Vendors CSS -->
+  <link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}"/>
+  <link rel="stylesheet" href="{% static 'vendor/libs/node-waves/node-waves.css' %}"/>
+
+  <!-- Helpers (IMPORTANT: keep in <head> to apply theme before paint) -->
+  <script src="{% static 'vendor/js/helpers.js' %}"></script>
+  <script src="{% static 'vendor/js/template-customizer.js' %}"></script>
+  <script src="{% static 'js/config.js' %}"></script>
+
+  <style>
+    /* Lightweight page-specific styling (keeps the template look even without extra images) */
+    body{
+      min-height:100vh;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .auth-bg {
+      background: radial-gradient(1200px circle at 0% 0%, rgba(105,108,255,.18), transparent 60%),
+                  radial-gradient(1200px circle at 100% 100%, rgba(3,195,236,.12), transparent 55%),
+                  linear-gradient(180deg, rgba(255,255,255,.0), rgba(255,255,255,.0));
+    }
+    .auth-card{
+      border: 0;
+      box-shadow: 0 12px 40px rgba(0,0,0,.08);
+      border-radius: 1.25rem;
+    }
+    .auth-brand{
+      letter-spacing: .3px;
+    }
+    .btn-icon{
+      width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: .75rem;
+    }
+    /* Background theme swatches for this page only */
+    body.login-bg-default .auth-bg{ background: radial-gradient(1200px circle at 0% 0%, rgba(105,108,255,.18), transparent 60%),
+                                          radial-gradient(1200px circle at 100% 100%, rgba(3,195,236,.12), transparent 55%); }
+    body.login-bg-ocean   .auth-bg{ background: radial-gradient(900px circle at 20% 15%, rgba(3,195,236,.22), transparent 55%),
+                                          radial-gradient(1200px circle at 100% 100%, rgba(105,108,255,.14), transparent 60%); }
+    body.login-bg-sunset  .auth-bg{ background: radial-gradient(900px circle at 15% 20%, rgba(255,171,0,.22), transparent 55%),
+                                          radial-gradient(1200px circle at 100% 100%, rgba(255,62,29,.12), transparent 60%); }
+    body.login-bg-mint    .auth-bg{ background: radial-gradient(900px circle at 15% 20%, rgba(113,221,55,.22), transparent 55%),
+                                          radial-gradient(1200px circle at 100% 100%, rgba(3,195,236,.10), transparent 60%); }
+  </style>
+</head>
+
+<body class="login-bg-default">
+  <div class="auth-bg d-flex align-items-center justify-content-center py-5 px-3">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+
+          <!-- Top-right controls -->
+          <div class="position-fixed top-0 end-0 p-3 d-flex gap-2" style="z-index: 1080;">
+            <!-- Language switcher -->
+            <form method="post" action="{% url 'set_language' %}" class="m-0 p-0" id="langForm">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path|default:'/' }}">
+              <input type="hidden" name="language" id="langInput" value="">
+
+              <div class="dropdown">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-icon dropdown-toggle hide-arrow"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="{% trans 'Language' %}"
+                        id="langDropdownToggle">
+                  <i class="mdi mdi-translate"></i>
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="en">
+                      <span class="fi fi-us"></span><span>English</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="ru">
+                      <span class="fi fi-ru"></span><span>Русский</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item d-flex align-items-center gap-2 js-lang" data-lang="zh-hant">
+                      <span class="fi fi-cn"></span><span>中文（繁體）</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </form>
+
+            <!-- Theme / background switcher (page backgrounds + template theme) -->
+            <div class="dropdown">
+              <button type="button"
+                      class="btn btn-outline-secondary btn-icon dropdown-toggle hide-arrow"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                      title="{% trans 'Theme' %}"
+                      id="themeDropdownToggle">
+                <i class="mdi mdi-palette-outline"></i>
+              </button>
+
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><h6 class="dropdown-header">{% trans "Background" %}</h6></li>
+                <li><button type="button" class="dropdown-item js-bg" data-bg="default">{% trans "Default" %}</button></li>
+                <li><button type="button" class="dropdown-item js-bg" data-bg="ocean">{% trans "Ocean" %}</button></li>
+                <li><button type="button" class="dropdown-item js-bg" data-bg="sunset">{% trans "Sunset" %}</button></li>
+                <li><button type="button" class="dropdown-item js-bg" data-bg="mint">{% trans "Mint" %}</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">{% trans "Template theme" %}</h6></li>
+                <li><button type="button" class="dropdown-item js-theme" data-theme="theme-default">{% trans "Default" %}</button></li>
+                <li><button type="button" class="dropdown-item js-theme" data-theme="theme-bordered">{% trans "Bordered" %}</button></li>
+                <li><button type="button" class="dropdown-item js-theme" data-theme="theme-semi-dark">{% trans "Semi dark" %}</button></li>
+                <li><button type="button" class="dropdown-item js-theme" data-theme="theme-dark">{% trans "Dark" %}</button></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card auth-card">
+            <div class="card-body p-4 p-sm-5">
+
+              <!-- Brand -->
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="btn btn-primary btn-icon shadow-sm" aria-hidden="true">
+                  <i class="mdi mdi-truck-fast-outline"></i>
+                </div>
+                <div>
+                  <div class="h5 mb-0 fw-bold auth-brand">Cargo</div>
+                  <div class="text-muted small">{% trans "Management system" %}</div>
+                </div>
+              </div>
+
+              <h4 class="mb-1">{% trans "Welcome back!" %} 👋</h4>
+              <p class="text-muted mb-4">{% trans "Please sign in to continue." %}</p>
+
+              <!-- Server messages -->
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              <!-- Django auth form errors (if LoginView provides form) -->
+              {% if form and form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                  {{ form.non_field_errors }}
+                </div>
+              {% endif %}
+
+              <form method="post" action="{% url 'login' %}" class="mb-3">
+                {% csrf_token %}
+                {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                <div class="mb-3">
+                  <label class="form-label" for="username">{% trans "Username" %}</label>
+                  <input name="username" type="text" class="form-control" id="username"
+                         placeholder="{% trans 'Enter username' %}" autofocus autocomplete="username"
+                         value="{{ request.POST.username|default_if_none:'' }}">
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label" for="password">{% trans "Password" %}</label>
+                  <div class="input-group input-group-merge">
+                    <input name="password" type="password" class="form-control" id="password"
+                           placeholder="{% trans 'Enter password' %}" autocomplete="current-password">
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="{% trans 'Show password' %}">
+                      <i class="mdi mdi-eye-outline"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mb-3 d-flex align-items-center justify-content-between">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="remember" id="remember" value="1">
+                    <label class="form-check-label" for="remember">{% trans "Remember me" %}</label>
+                  </div>
+                  {# If you have password reset URLs enabled, you can uncomment this #}
+                  {# <a href="{% url 'password_reset' %}" class="small">{% trans "Forgot password?" %}</a> #}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                  <i class="mdi mdi-login-variant me-1"></i> {% trans "Sign in" %}
+                </button>
+              </form>
+
+              <div class="text-center text-muted small">
+                <i class="mdi mdi-lock-outline me-1"></i>
+                {% trans "Your credentials are securely processed." %}
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-4 small text-muted">
+            © {% now "Y" %} Cargo
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+          crossorigin="anonymous"></script>
+  <script src="{% static 'vendor/libs/jquery/jquery.js' %}"></script>
+  <script src="{% static 'vendor/libs/node-waves/node-waves.js' %}"></script>
+  <script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+  <script src="{% static 'js/main.js' %}"></script>
+
+  <script>
+    // --- Language dropdown behavior (same pattern as base.html) ---
+    document.addEventListener("DOMContentLoaded", function () {
+      const toggle = document.getElementById("langDropdownToggle");
+      if (toggle && window.bootstrap) {
+        const dd = bootstrap.Dropdown.getOrCreateInstance(toggle, {
+          autoClose: true,
+          popperConfig: { strategy: "fixed" }
+        });
+
+        toggle.addEventListener("click", function (e) {
+          e.preventDefault();
+          dd.toggle();
+        });
+
+        toggle.addEventListener("hidden.bs.dropdown", function () {
+          toggle.blur();
+        });
+
+        document.addEventListener("click", function (e) {
+          if (!e.target.closest("#langForm .dropdown")) dd.hide();
+        });
+      }
+
+      document.querySelectorAll(".js-lang").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const lang = this.getAttribute("data-lang");
+          const input = document.getElementById("langInput");
+          if (!input) return;
+          input.value = lang;
+          document.getElementById("langForm").submit();
+        });
+      });
+    });
+
+    // --- Password visibility ---
+    document.addEventListener("DOMContentLoaded", function () {
+      const pwd = document.getElementById("password");
+      const btn = document.getElementById("togglePassword");
+      if (!pwd || !btn) return;
+
+      btn.addEventListener("click", function () {
+        const isText = pwd.getAttribute("type") === "text";
+        pwd.setAttribute("type", isText ? "password" : "text");
+        btn.querySelector("i")?.classList.toggle("mdi-eye-outline", isText);
+        btn.querySelector("i")?.classList.toggle("mdi-eye-off-outline", !isText);
+      });
+    });
+
+    // --- Background theme switcher (page-only) ---
+    (function () {
+      const KEY = "login-bg";
+      const body = document.body;
+
+      function apply(bg) {
+        const val = bg || "default";
+        body.classList.remove("login-bg-default", "login-bg-ocean", "login-bg-sunset", "login-bg-mint");
+        body.classList.add("login-bg-" + val);
+        localStorage.setItem(KEY, val);
+      }
+
+      // init
+      apply(localStorage.getItem(KEY) || "default");
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".js-bg").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            apply(this.getAttribute("data-bg"));
+          });
+        });
+      });
+    })();
+
+    // --- Template theme switcher (swap vendor/css theme file) ---
+    (function () {
+      const KEY = "template-theme";
+      const html = document.documentElement;
+
+      function applyTheme(theme) {
+        const val = theme || "theme-default";
+        html.setAttribute("data-theme", val);
+
+        const link = document.querySelector("link.template-customizer-theme-css");
+        if (link) {
+          // Replace only the filename part (theme-*.css)
+          const href = link.getAttribute("href") || "";
+          const nextHref = href.replace(/theme-[a-z\-]+\.css$/, val + ".css");
+          if (nextHref !== href) link.setAttribute("href", nextHref);
+        }
+
+        localStorage.setItem(KEY, val);
+      }
+
+      // init
+      applyTheme(localStorage.getItem(KEY) || html.getAttribute("data-theme") || "theme-default");
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".js-theme").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            applyTheme(this.getAttribute("data-theme"));
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
